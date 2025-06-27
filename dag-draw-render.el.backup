@@ -48,30 +48,6 @@
   :type 'integer
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-coordinate-scale 0.1
-  "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
-Corresponds to the coordinate system transformation described in the paper."
-  :type 'float
-  :group 'dag-draw-render)
-
-(defcustom dag-draw-ascii-box-scale 0.071
-  "Scale factor for converting node bounding boxes to ASCII character grid sizes."
-  :type 'float
-  :group 'dag-draw-render)
-
-;;; ASCII Scaling Helper Functions
-
-(defun dag-draw--world-to-grid-coord (coord min-coord scale)
-  "Convert GKNV world coordinate to ASCII grid coordinate.
-COORD is the world coordinate, MIN-COORD is the minimum coordinate for offset,
-SCALE is the grid scale factor."
-  (floor (* (- coord min-coord) scale dag-draw-ascii-coordinate-scale)))
-
-(defun dag-draw--world-to-grid-size (size scale)
-  "Convert GKNV node size to ASCII grid size.
-SIZE is the node size in world coordinates, SCALE is the grid scale factor."
-  (max 3 (ceiling (* size scale dag-draw-ascii-box-scale))))
-
 ;;; SVG Rendering
 
 (defun dag-draw-render-svg (graph)
@@ -203,11 +179,8 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
          (max-x (nth 2 bounds))
          (max-y (nth 3 bounds))
          (scale dag-draw-render-ascii-grid-scale)
-         (width-diff (- max-x min-x))
-         (height-diff (- max-y min-y))
-         ;; Handle empty graphs and ensure minimum grid size
-         (grid-width (max 1 (ceiling (* (max 1 width-diff) scale dag-draw-ascii-coordinate-scale))))
-         (grid-height (max 1 (ceiling (* (max 1 height-diff) scale dag-draw-ascii-coordinate-scale))))
+         (grid-width (ceiling (* (- max-x min-x) scale (/ 1.0 10))))
+         (grid-height (ceiling (* (- max-y min-y) scale (/ 1.0 10))))
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))
     
     ;; Draw nodes
@@ -234,10 +207,10 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
                     (width (dag-draw-node-x-size node))
                     (height (dag-draw-node-y-size node))
                     (label (dag-draw-node-label node))
-                    (grid-x (dag-draw--world-to-grid-coord x min-x scale))
-                    (grid-y (dag-draw--world-to-grid-coord y min-y scale))
-                    (grid-width (dag-draw--world-to-grid-size width scale))
-                    (grid-height (dag-draw--world-to-grid-size height scale)))
+                    (grid-x (floor (* (- x min-x) scale (/ 1.0 10))))
+                    (grid-y (floor (* (- y min-y) scale (/ 1.0 10))))
+                    (grid-width (max 3 (ceiling (* width scale (/ 1.0 20)))))
+                    (grid-height (max 3 (ceiling (* height scale (/ 1.0 20))))))
                
                (dag-draw--ascii-draw-box grid grid-x grid-y grid-width grid-height label)))
            (dag-draw-graph-nodes graph)))
@@ -282,33 +255,27 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
           (when (and (>= pos-x 0) (< pos-x grid-width))
             (aset (aref grid pos-y) pos-x ?┘)))))
     
-    ;; Draw label in center if it fits (need at least 3x3 box for any text)
-    (when (and label (>= width 3) (>= height 3))
+    ;; Draw label in center if it fits (need at least 4x3 box for any text)
+    (when (and label (>= width 4) (>= height 3))
       (let* ((label-len (length label))
-             (max-text-width (- width 2))  ; Leave space for box borders
-             (text-to-place (if (> label-len max-text-width)
-                               (substring label 0 max-text-width)
-                             label))
-             (text-len (length text-to-place))
-             (label-x (+ x 1))  ; Left-align within box interior
+             (label-x (+ x (/ (- width label-len) 2)))
              (label-y (+ y (/ height 2))))
         (when (and (>= label-y 0) (< label-y grid-height)
-                   (>= label-x 0))
-          (dotimes (i text-len)
+                   (>= label-x 0) (< (+ label-x label-len) grid-width))
+          (dotimes (i (min label-len (- width 2)))
             (let ((char-x (+ label-x i)))
-              (when (and (>= char-x 0) (< char-x grid-width)
-                        (<= char-x (+ x width -2)))  ; Stay within box interior
-                (aset (aref grid label-y) char-x (aref text-to-place i))))))))))
+              (when (and (>= char-x 0) (< char-x grid-width))
+                (aset (aref grid label-y) char-x (aref label i))))))))))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
   "Draw edges on ASCII grid using simple line characters."
   (dolist (edge (dag-draw-graph-edges graph))
     (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
            (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-           (from-x (dag-draw--world-to-grid-coord (or (dag-draw-node-x-coord from-node) 0) min-x scale))
-           (from-y (dag-draw--world-to-grid-coord (or (dag-draw-node-y-coord from-node) 0) min-y scale))
-           (to-x (dag-draw--world-to-grid-coord (or (dag-draw-node-x-coord to-node) 0) min-x scale))
-           (to-y (dag-draw--world-to-grid-coord (or (dag-draw-node-y-coord to-node) 0) min-y scale)))
+           (from-x (floor (* (- (or (dag-draw-node-x-coord from-node) 0) min-x) scale (/ 1.0 10))))
+           (from-y (floor (* (- (or (dag-draw-node-y-coord from-node) 0) min-y) scale (/ 1.0 10))))
+           (to-x (floor (* (- (or (dag-draw-node-x-coord to-node) 0) min-x) scale (/ 1.0 10))))
+           (to-y (floor (* (- (or (dag-draw-node-y-coord to-node) 0) min-y) scale (/ 1.0 10)))))
       
       ;; Simple straight line for now (could be enhanced with spline routing)
       (dag-draw--ascii-draw-line grid from-x from-y to-x to-y))))
@@ -345,9 +312,19 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
      (t
       ;; Draw horizontal segment first
       (dag-draw--ascii-draw-line grid x1 y1 x2 y1)
-      ;; Draw vertical segment, avoiding overlap at corner
-      (when (/= y1 y2)
-        (dag-draw--ascii-draw-line grid x2 (+ y1 (if (< y1 y2) 1 -1)) x2 y2))))))
+      ;; Draw vertical segment  
+      (dag-draw--ascii-draw-line grid x2 y1 x2 y2)))))
+          (let ((x (+ x1 (/ (* i dx) steps)))
+                (y (+ y1 (/ (* i dy) steps))))
+            (setq x (floor x))
+            (setq y (floor y))
+            (when (and (>= x 0) (< x grid-width)
+                       (>= y 0) (< y grid-height))
+              (let ((char (cond
+                          ((> (abs dx) (abs dy)) ?─)  ; More horizontal
+                          ((> (abs dy) (abs dx)) ?│)  ; More vertical
+                          (t ?┼))))                   ; Diagonal
+                (aset (aref grid y) x char))))))))))
 
 (defun dag-draw--ascii-grid-to-string (grid)
   "Convert ASCII grid to string representation."

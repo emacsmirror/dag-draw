@@ -72,8 +72,8 @@
   "A node in a directed graph."
   id                    ; Unique identifier
   label                 ; Display label
-  (x-size 50)          ; Width of node bounding box
-  (y-size 30)          ; Height of node bounding box
+  (x-size 80)          ; Width of node bounding box
+  (y-size 40)          ; Height of node bounding box
   (x-coord nil)        ; X coordinate (set during layout)
   (y-coord nil)        ; Y coordinate (set during layout)
   (rank nil)           ; Assigned rank (set during rank assignment)

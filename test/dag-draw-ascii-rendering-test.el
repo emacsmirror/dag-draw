@@ -124,9 +124,9 @@
            (scale 2)
            (world-x 100)
            (world-y 200)
-           ;; This matches the calculation in dag-draw--ascii-draw-nodes
-           (grid-x (floor (* (- world-x min-x) scale (/ 1.0 10))))
-           (grid-y (floor (* (- world-y min-y) scale (/ 1.0 10)))))
+           ;; Use the new helper function for consistent calculation
+           (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
+           (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
       (expect grid-x :to-equal 20)  ; 100 * 2 * 0.1 = 20
       (expect grid-y :to-equal 40)  ; 200 * 2 * 0.1 = 40
@@ -138,8 +138,8 @@
            (scale 2)
            (world-x 0)
            (world-y 0)
-           (grid-x (floor (* (- world-x min-x) scale (/ 1.0 10))))
-           (grid-y (floor (* (- world-y min-y) scale (/ 1.0 10)))))
+           (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
+           (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
       (expect grid-x :to-equal 10)  ; (0 - (-50)) * 2 * 0.1 = 10
       (expect grid-y :to-equal 5)   ; (0 - (-25)) * 2 * 0.1 = 5
@@ -150,12 +150,14 @@
     (let* ((scale 2)
            (node-width 50)
            (node-height 30)
-           ;; Current scaling calculation
-           (grid-width (max 3 (ceiling (* node-width scale (/ 1.0 20)))))
-           (grid-height (max 3 (ceiling (* node-height scale (/ 1.0 20))))))
+           ;; Use the new helper function for consistent calculation
+           (grid-width (dag-draw--world-to-grid-size node-width scale))
+           (grid-height (dag-draw--world-to-grid-size node-height scale)))
       
-      (expect grid-width :to-equal 5)  ; max(3, ceil(50 * 2 * 0.05)) = max(3, 5) = 5
-      (expect grid-height :to-equal 3) ; max(3, ceil(30 * 2 * 0.05)) = max(3, 3) = 3
+      ;; With dag-draw-ascii-box-scale = 0.071: max(3, ceil(50 * 2 * 0.071)) = max(3, 8) = 8
+      (expect grid-width :to-equal 8)  
+      ;; max(3, ceil(30 * 2 * 0.071)) = max(3, 5) = 5
+      (expect grid-height :to-equal 5)
       )))
 
 (describe "ASCII Grid Utilities"
