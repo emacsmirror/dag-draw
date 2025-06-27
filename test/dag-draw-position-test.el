@@ -114,7 +114,7 @@
                (min-expected-sep (+ (/ (+ width-a width-b) 2.0) node-sep)))
 
           ;; B should be at least minimum separation distance from A
-          (expect (- x-b x-a) :to-be-greater-than-or-equal min-expected-sep)))))
+          (expect (- x-b x-a) :not :to-be-less-than min-expected-sep)))))
 
  (describe
   "auxiliary graph creation"
@@ -164,10 +164,10 @@
               (y-b (dag-draw-node-y-coord (dag-draw-get-node graph 'b))))
 
           ;; All coordinates should be non-negative
-          (expect x-a :to-be-greater-than-or-equal 0)
-          (expect y-a :to-be-greater-than-or-equal 0)
-          (expect x-b :to-be-greater-than-or-equal 0)
-          (expect y-b :to-be-greater-than-or-equal 0)
+          (expect x-a :not :to-be-less-than 0)
+          (expect y-a :not :to-be-less-than 0)
+          (expect x-b :not :to-be-less-than 0)
+          (expect y-b :not :to-be-less-than 0)
 
           ;; Minimum should be 0
           (expect (min x-a x-b) :to-equal 0)
@@ -192,10 +192,10 @@
         (setf (dag-draw-node-y-size (dag-draw-get-node graph 'b)) 40)
 
         (let ((bounds (dag-draw-get-graph-bounds graph)))
-          (expect (nth 0 bounds) :to-equal -50)  ; min-x
-          (expect (nth 1 bounds) :to-equal -30)  ; min-y
-          (expect (nth 2 bounds) :to-equal 240)  ; max-x
-          (expect (nth 3 bounds) :to-equal 120)))))  ; max-y
+          (expect (nth 0 bounds) :to-equal -50.0)  ; min-x
+          (expect (nth 1 bounds) :to-equal -30.0)  ; min-y
+          (expect (nth 2 bounds) :to-equal 240.0)  ; max-x
+          (expect (nth 3 bounds) :to-equal 120.0)))))  ; max-y
 
  (describe
   "integration with full pipeline"

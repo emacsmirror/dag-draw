@@ -197,7 +197,10 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
 
 (defun dag-draw-render-ascii (graph)
   "Render GRAPH as ASCII art with box-drawing characters."
-  (let* ((bounds (dag-draw-get-graph-bounds graph))
+  ;; Handle empty graphs explicitly
+  (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
+      "(Empty Graph)"
+    (let* ((bounds (dag-draw-get-graph-bounds graph))
          (min-x (nth 0 bounds))
          (min-y (nth 1 bounds))
          (max-x (nth 2 bounds))
@@ -217,7 +220,7 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
     (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
     
     ;; Convert grid to string
-    (dag-draw--ascii-grid-to-string grid)))
+    (dag-draw--ascii-grid-to-string grid))))
 
 (defun dag-draw--create-ascii-grid (width height)
   "Create empty ASCII grid of given WIDTH and HEIGHT."
@@ -297,7 +300,7 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
           (dotimes (i text-len)
             (let ((char-x (+ label-x i)))
               (when (and (>= char-x 0) (< char-x grid-width)
-                        (<= char-x (+ x width -2)))  ; Stay within box interior
+                        (< char-x (+ x width -1)))  ; Stay within box interior
                 (aset (aref grid label-y) char-x (aref text-to-place i))))))))))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
