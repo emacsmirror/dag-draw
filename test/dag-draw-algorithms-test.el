@@ -203,7 +203,7 @@
         (let ((sccs (dag-draw-strongly-connected-components graph)))
           (expect (length sccs) :to-equal 3)
           ;; Should find the {a, b} component
-          (expect (--some (and (member 'a it) (member 'b it)) sccs) :to-be t)))))
+          (expect (--some (and (member 'a it) (member 'b it)) sccs) :to-be-truthy)))))
 
   (describe "integration with cycle breaking workflow"
     (it "should create acyclic graph suitable for ranking"

@@ -22,11 +22,11 @@
 ;;; DFS and Cycle Detection
 
 (defun dag-draw--dfs-visit (graph node-id visited pre-order post-order 
-                                 visit-time current-time edge-classification)
+                                 current-time edge-classification)
   "Internal DFS visit function.
 Updates VISITED, PRE-ORDER, POST-ORDER hash tables with visit times.
-VISIT-TIME tracks current time, CURRENT-TIME is passed by reference.
-EDGE-CLASSIFICATION collects edge types (tree, forward, back, cross)."
+CURRENT-TIME is passed by reference (vector).
+EDGE-CLASSIFICATION is a list container passed by reference."
   (ht-set! visited node-id 'gray)  ; Mark as being processed
   (ht-set! pre-order node-id (aref current-time 0))
   (aset current-time 0 (1+ (aref current-time 0)))
@@ -37,21 +37,21 @@ EDGE-CLASSIFICATION collects edge types (tree, forward, back, cross)."
       (cond
        ;; Tree edge - target not yet visited
        ((eq (ht-get visited target 'white) 'white)
-        (push (list edge 'tree) edge-classification)
+        (push (list edge 'tree) (car edge-classification))
         (dag-draw--dfs-visit graph target visited pre-order post-order
-                            visit-time current-time edge-classification))
+                            current-time edge-classification))
        
        ;; Back edge - target is being processed (creates cycle)
        ((eq (ht-get visited target) 'gray)
-        (push (list edge 'back) edge-classification))
+        (push (list edge 'back) (car edge-classification)))
        
        ;; Forward or cross edge - target already processed
        ((eq (ht-get visited target) 'black)
         (let ((pre-source (ht-get pre-order node-id))
               (pre-target (ht-get pre-order target)))
           (if (< pre-source pre-target)
-              (push (list edge 'forward) edge-classification)
-            (push (list edge 'cross) edge-classification)))))))
+              (push (list edge 'forward) (car edge-classification))
+            (push (list edge 'cross) (car edge-classification))))))))
   
   ;; Mark as completely processed
   (ht-set! visited node-id 'black)
@@ -69,7 +69,7 @@ Returns a plist with:
   (let ((visited (ht-create))
         (pre-order (ht-create))
         (post-order (ht-create))
-        (edge-classification '())
+        (edge-classification (list '()))
         (current-time (vector 0))
         (start-list (or start-nodes (dag-draw-get-source-nodes graph))))
     
@@ -81,18 +81,18 @@ Returns a plist with:
     (dolist (start-node start-list)
       (when (eq (ht-get visited start-node) 'white)
         (dag-draw--dfs-visit graph start-node visited pre-order post-order
-                            current-time current-time edge-classification)))
+                            current-time edge-classification)))
     
     ;; Handle any remaining unvisited nodes (disconnected components)
     (dolist (node-id (dag-draw-get-node-ids graph))
       (when (eq (ht-get visited node-id) 'white)
         (dag-draw--dfs-visit graph node-id visited pre-order post-order
-                            current-time current-time edge-classification)))
+                            current-time edge-classification)))
     
     (list :visited visited
           :pre-order pre-order
           :post-order post-order
-          :edge-classification (nreverse edge-classification))))
+          :edge-classification (nreverse (car edge-classification)))))
 
 (defun dag-draw-detect-cycles (graph)
   "Detect cycles in GRAPH using DFS.
@@ -171,11 +171,16 @@ Returns list of lists, where each inner list contains node IDs in one SCC."
          (transpose (dag-draw-transpose-graph graph)))
     
     ;; Sort nodes by decreasing post-order time from first DFS
-    (let ((sorted-nodes (mapcar #'car
-                               (sort (ht->alist post-order)
-                                     (lambda (a b) (> (cdr a) (cdr b))))))
-          (visited (ht-create))
-          (components '()))
+    (let* ((nodes-with-times '())
+           (sorted-nodes (progn
+                          (ht-each (lambda (node-id post-time)
+                                     (push (cons node-id post-time) nodes-with-times))
+                                   post-order)
+                          (mapcar #'car
+                                  (sort nodes-with-times
+                                        (lambda (a b) (> (cdr a) (cdr b)))))))
+           (visited (ht-create))
+           (components '()))
       
       ;; Initialize visited tracking
       (dolist (node-id (dag-draw-get-node-ids graph))
