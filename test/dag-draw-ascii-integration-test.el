@@ -177,10 +177,11 @@
       (dag-draw-add-node graph 'large "Very Long Node Name")
       (dag-draw-add-edge graph 'small 'large)
       
-      ;; Set different node sizes
+      ;; Set different node sizes - ensure large enough for the label
       (setf (dag-draw-node-x-size (dag-draw-get-node graph 'small)) 30)
       (setf (dag-draw-node-y-size (dag-draw-get-node graph 'small)) 20)
-      (setf (dag-draw-node-x-size (dag-draw-get-node graph 'large)) 80)
+      ;; For "Very Long Node Name" (19 chars), need world-size >= (19+2)/(2*0.071) = 148
+      (setf (dag-draw-node-x-size (dag-draw-get-node graph 'large)) 150)
       (setf (dag-draw-node-y-size (dag-draw-get-node graph 'large)) 30)
       
       ;; Run layout and render

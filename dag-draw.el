@@ -114,11 +114,30 @@
 
 ;;;###autoload
 (defun dag-draw-add-node (graph node-id &optional label attributes)
-  "Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES."
-  (let ((node (dag-draw-node-create
-               :id node-id
-               :label (or label (symbol-name node-id))
-               :attributes (or attributes (ht-create)))))
+  "Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES.
+Auto-sizes the node based on label length for proper text rendering."
+  (let* ((node-label (or label (symbol-name node-id)))
+         (label-length (length node-label))
+         ;; Smart auto-sizing: ensure text fits with padding
+         ;; Account for ASCII grid conversion: world-size * grid-scale * ascii-box-scale = grid-chars
+         ;; We need: grid-chars >= label-length + 2 (for borders)
+         ;; So: world-size >= (label-length + 2) / (grid-scale * ascii-box-scale)
+         (min-width 80)  ; Minimum width for small labels
+         (grid-scale 2)  ; From dag-draw-render-ascii-grid-scale
+         (ascii-box-scale 0.071)  ; From dag-draw-ascii-box-scale
+         (required-grid-chars (+ label-length 2))  ; Text + borders
+         ;; Calculate world size needed to achieve required grid characters
+         (calculated-width (ceiling (/ required-grid-chars
+                                      (* grid-scale ascii-box-scale))))
+         (required-width (max min-width calculated-width))
+         ;; Height can scale with width or stay fixed for simple boxes
+         (node-height (max 40 (+ 20 (* 10 (/ label-length 20)))))
+         (node (dag-draw-node-create
+                :id node-id
+                :label node-label
+                :x-size required-width
+                :y-size node-height
+                :attributes (or attributes (ht-create)))))
     (ht-set! (dag-draw-graph-nodes graph) node-id node)
     node))
 
