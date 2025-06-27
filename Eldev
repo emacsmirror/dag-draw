@@ -1,0 +1,19 @@
+;; -*- mode: emacs-lisp; lexical-binding: t -*-
+
+;; Eldev configuration for dag-draw.el
+
+;; Dependencies for development and testing
+(eldev-use-package-archive 'melpa)
+
+;; Testing framework
+(eldev-add-extra-dependencies 'test 'buttercup)
+
+;; Documentation dependencies
+(eldev-add-extra-dependencies 'test 'dash)
+(eldev-add-extra-dependencies 'test 'ht)
+
+;; Add test loading roots
+(eldev-add-loading-roots 'test "test")
+
+;; Linting configuration  
+(setq eldev-lint-default '(elisp))
