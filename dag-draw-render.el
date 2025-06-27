@@ -179,8 +179,11 @@
          (max-x (nth 2 bounds))
          (max-y (nth 3 bounds))
          (scale dag-draw-render-ascii-grid-scale)
-         (grid-width (ceiling (* (- max-x min-x) scale (/ 1.0 10))))
-         (grid-height (ceiling (* (- max-y min-y) scale (/ 1.0 10))))
+         (width-diff (- max-x min-x))
+         (height-diff (- max-y min-y))
+         ;; Handle empty graphs and ensure minimum grid size
+         (grid-width (max 1 (ceiling (* (max 1 width-diff) scale (/ 1.0 10)))))
+         (grid-height (max 1 (ceiling (* (max 1 height-diff) scale (/ 1.0 10)))))
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))
     
     ;; Draw nodes
@@ -255,17 +258,23 @@
           (when (and (>= pos-x 0) (< pos-x grid-width))
             (aset (aref grid pos-y) pos-x ?┘)))))
     
-    ;; Draw label in center if it fits
-    (when (and label (> width 2) (> height 2))
+    ;; Draw label in center if it fits (need at least 3x3 box for any text)
+    (when (and label (>= width 3) (>= height 3))
       (let* ((label-len (length label))
-             (label-x (+ x (/ (- width label-len) 2)))
+             (max-text-width (- width 2))  ; Leave space for box borders
+             (text-to-place (if (> label-len max-text-width)
+                               (substring label 0 max-text-width)
+                             label))
+             (text-len (length text-to-place))
+             (label-x (+ x 1 (/ (- max-text-width text-len) 2)))  ; Center within box interior
              (label-y (+ y (/ height 2))))
         (when (and (>= label-y 0) (< label-y grid-height)
-                   (>= label-x 0) (< (+ label-x label-len) grid-width))
-          (dotimes (i (min label-len (- width 2)))
+                   (>= label-x 0))
+          (dotimes (i text-len)
             (let ((char-x (+ label-x i)))
-              (when (and (>= char-x 0) (< char-x grid-width))
-                (aset (aref grid label-y) char-x (aref label i))))))))))
+              (when (and (>= char-x 0) (< char-x grid-width)
+                        (< char-x (+ x width -1)))  ; Stay within box bounds
+                (aset (aref grid label-y) char-x (aref text-to-place i))))))))))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
   "Draw edges on ASCII grid using simple line characters."
@@ -308,28 +317,20 @@
                        (>= y 0) (< y grid-height))
               (aset (aref grid y) x1 ?│))))))
      
-     ;; Diagonal or complex line - simple character placement
+     ;; L-shaped line (horizontal then vertical)
      (t
-      (let ((steps (max (abs dx) (abs dy))))
-        (dotimes (i (1+ steps))
-          (let ((x (+ x1 (/ (* i dx) steps)))
-                (y (+ y1 (/ (* i dy) steps))))
-            (setq x (floor x))
-            (setq y (floor y))
-            (when (and (>= x 0) (< x grid-width)
-                       (>= y 0) (< y grid-height))
-              (let ((char (cond
-                          ((> (abs dx) (abs dy)) ?─)  ; More horizontal
-                          ((> (abs dy) (abs dx)) ?│)  ; More vertical
-                          (t ?┼))))                   ; Diagonal
-                (aset (aref grid y) x char))))))))))
+      ;; Draw horizontal segment first
+      (dag-draw--ascii-draw-line grid x1 y1 x2 y1)
+      ;; Draw vertical segment, avoiding overlap at corner
+      (when (/= y1 y2)
+        (dag-draw--ascii-draw-line grid x2 (+ y1 (if (< y1 y2) 1 -1)) x2 y2))))))
 
 (defun dag-draw--ascii-grid-to-string (grid)
   "Convert ASCII grid to string representation."
-  (let ((result ""))
-    (dotimes (y (length grid))
-      (setq result (concat result (apply 'string (append (aref grid y) nil)) "\n")))
-    result))
+  (mapconcat (lambda (row)
+               (string-trim-right (apply #'string (append row nil))))
+             grid
+             "\n"))
 
 ;;; DOT Format Rendering
 

@@ -231,6 +231,6 @@
           (let ((sorted (dag-draw-topological-sort acyclic)))
             (expect (length sorted) :to-equal 5)
             (expect sorted :to-contain 'root)
-            (expect sorted :to-contain 'sink))))))
+            (expect sorted :to-contain 'sink)))))))
 
 ;;; dag-draw-algorithms-test.el ends here

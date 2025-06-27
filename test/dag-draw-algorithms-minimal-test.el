@@ -32,6 +32,6 @@
         (dag-draw-add-node graph 'b)
         (dag-draw-add-edge graph 'a 'b)
         
-        (expect (dag-draw-has-cycles graph) :to-be nil))))
+        (expect (dag-draw-has-cycles graph) :to-be nil)))))
 
 ;;; dag-draw-algorithms-minimal-test.el ends here

@@ -5,12 +5,12 @@
 ;; Dependencies for development and testing
 (eldev-use-package-archive 'melpa)
 
+;; Main package dependencies (required by dag-draw.el and dag-draw-core.el)
+(eldev-add-extra-dependencies 'runtime 'dash)
+(eldev-add-extra-dependencies 'runtime 'ht)
+
 ;; Testing framework
 (eldev-add-extra-dependencies 'test 'buttercup)
-
-;; Documentation dependencies
-(eldev-add-extra-dependencies 'test 'dash)
-(eldev-add-extra-dependencies 'test 'ht)
 
 ;; Add test loading roots
 (eldev-add-loading-roots 'test "test")
