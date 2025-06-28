@@ -194,6 +194,63 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
        ">" "&gt;"
        (replace-regexp-in-string "<" "&lt;" escaped-ampersand))))))
 
+;;; Node Port Integration Functions
+
+(defun dag-draw--calculate-edge-ports (from-node to-node)
+  "Calculate appropriate ports for edge between FROM-NODE and TO-NODE.
+Returns list of (from-port to-port) based on edge direction."
+  (let* ((from-x (dag-draw-node-x-coord from-node))
+         (from-y (dag-draw-node-y-coord from-node))
+         (to-x (dag-draw-node-x-coord to-node))
+         (to-y (dag-draw-node-y-coord to-node))
+         (dx (- to-x from-x))
+         (dy (- to-y from-y)))
+    
+    ;; Determine primary direction and select appropriate ports
+    (cond
+     ;; Vertical edge (down)
+     ((and (< (abs dx) 20) (> dy 0))
+      (list (dag-draw--get-node-port from-node 'bottom)
+            (dag-draw--get-node-port to-node 'top)))
+     ;; Vertical edge (up)
+     ((and (< (abs dx) 20) (< dy 0))
+      (list (dag-draw--get-node-port from-node 'top)
+            (dag-draw--get-node-port to-node 'bottom)))
+     ;; Horizontal edge (right)
+     ((and (< (abs dy) 20) (> dx 0))
+      (list (dag-draw--get-node-port from-node 'right)
+            (dag-draw--get-node-port to-node 'left)))
+     ;; Horizontal edge (left)
+     ((and (< (abs dy) 20) (< dx 0))
+      (list (dag-draw--get-node-port from-node 'left)
+            (dag-draw--get-node-port to-node 'right)))
+     ;; Diagonal edge - prefer vertical direction (including equal distances)
+     ((>= (abs dy) (abs dx))
+      (if (> dy 0)
+          (list (dag-draw--get-node-port from-node 'bottom)
+                (dag-draw--get-node-port to-node 'top))
+        (list (dag-draw--get-node-port from-node 'top)
+              (dag-draw--get-node-port to-node 'bottom))))
+     ;; Diagonal edge - prefer horizontal direction
+     (t
+      (if (> dx 0)
+          (list (dag-draw--get-node-port from-node 'right)
+                (dag-draw--get-node-port to-node 'left))
+        (list (dag-draw--get-node-port from-node 'left)
+              (dag-draw--get-node-port to-node 'right)))))))
+
+(defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
+  "Convert world coordinate point to ASCII grid coordinates."
+  (dag-draw-point-create 
+   :x (float (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale))
+   :y (float (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale))))
+
+(defun dag-draw--get-edge-connection-points (graph edge)
+  "Get connection points for edge in ASCII rendering context."
+  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+    (dag-draw--calculate-edge-ports from-node to-node)))
+
 ;;; ASCII Art Rendering
 
 (defun dag-draw-render-ascii (graph)
@@ -344,17 +401,53 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
                     (aset (aref grid label-y) char-x (aref text-to-place i))))))))))))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
-  "Draw edges on ASCII grid using simple line characters."
+  "Draw edges on ASCII grid using port-based boundary connections."
   (dolist (edge (dag-draw-graph-edges graph))
-    (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-           (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-           (from-x (dag-draw--world-to-grid-coord (or (dag-draw-node-x-coord from-node) 0) min-x scale))
-           (from-y (dag-draw--world-to-grid-coord (or (dag-draw-node-y-coord from-node) 0) min-y scale))
-           (to-x (dag-draw--world-to-grid-coord (or (dag-draw-node-x-coord to-node) 0) min-x scale))
-           (to-y (dag-draw--world-to-grid-coord (or (dag-draw-node-y-coord to-node) 0) min-y scale)))
+    ;; Use port-based routing for clean boundary-to-boundary connections
+    (dag-draw--ascii-draw-port-based-edge graph edge grid min-x min-y scale)))
 
-      ;; Simple straight line for now (could be enhanced with spline routing)
-      (dag-draw--ascii-draw-line grid from-x from-y to-x to-y))))
+(defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
+  "Draw edge using node port calculations for boundary-to-boundary connections."
+  (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
+    (when (= (length connection-points) 2)
+      (let* ((from-port (car connection-points))
+             (to-port (cadr connection-points))
+             (from-grid (dag-draw--world-point-to-grid from-port min-x min-y scale))
+             (to-grid (dag-draw--world-point-to-grid to-port min-x min-y scale))
+             (from-x (round (dag-draw-point-x from-grid)))
+             (from-y (round (dag-draw-point-y from-grid)))
+             (to-x (round (dag-draw-point-x to-grid)))
+             (to-y (round (dag-draw-point-y to-grid))))
+        ;; Draw simple orthogonal path between ports
+        (dag-draw--ascii-draw-orthogonal-path grid from-x from-y to-x to-y)))))
+
+(defun dag-draw--ascii-draw-orthogonal-path (grid x1 y1 x2 y2)
+  "Draw clean orthogonal path avoiding node overlaps."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; Draw horizontal segment first, then vertical
+    ;; This creates clean L-shaped connections
+    
+    ;; Horizontal from x1 to x2 at y1
+    (let ((start-x (min x1 x2))
+          (end-x (max x1 x2)))
+      (dotimes (i (1+ (- end-x start-x)))
+        (let ((x (+ start-x i)))
+          (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+            ;; Only draw if cell is empty (avoid overwriting node borders)
+            (when (= (aref (aref grid y1) x) ?\s)
+              (aset (aref grid y1) x ?─))))))
+    
+    ;; Vertical from y1 to y2 at x2
+    (let ((start-y (min y1 y2))
+          (end-y (max y1 y2)))
+      (dotimes (i (1+ (- end-y start-y)))
+        (let ((y (+ start-y i)))
+          (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+            ;; Only draw if cell is empty (avoid overwriting node borders)
+            (when (= (aref (aref grid y) x2) ?\s)
+              (aset (aref grid y) x2 ?│))))))))
 
 (defun dag-draw--ascii-draw-line (grid x1 y1 x2 y2)
   "Draw a simple line from (X1,Y1) to (X2,Y2) on ASCII grid."
