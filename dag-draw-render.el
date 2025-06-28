@@ -562,8 +562,11 @@ Returns a 2D array where t = occupied by node, nil = empty space."
     (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
                (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
       
-      ;; Try horizontal-first L-path
-      (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map 'horizontal-first))))
+      ;; Draw the L-path
+      (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map 'horizontal-first)
+      
+      ;; Add directional arrow at the endpoint
+      (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2 occupancy-map))))
 
 (defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 occupancy-map direction)
   "Draw L-shaped path with ultra-conservative safety checks."
@@ -616,15 +619,20 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (when (and 
                ;; Occupancy map says it's safe
                (not (aref (aref occupancy-map y) x))
-               ;; Current position has space character
-               (eq current-char ?\s)
-               ;; Not near any box drawing characters (extra safety)
-               (dag-draw--is-safe-to-draw-at grid x y))
+               ;; Current position has space character OR we're drawing an arrow
+               (or (eq current-char ?\s)
+                   (and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│))))
+               ;; Not near any box drawing characters (extra safety), unless drawing arrow
+               (or (memq char '(?v ?^ ?> ?<))
+                   (dag-draw--is-safe-to-draw-at grid x y)))
           
-          ;; Handle intersections properly without overwriting content
+          ;; Handle intersections and arrows properly without overwriting content
           (cond
            ;; Space - safe to draw
            ((eq current-char ?\s) 
+            (aset (aref grid y) x char))
+           ;; Arrow characters can replace edge characters for endpoints
+           ((and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
             (aset (aref grid y) x char))
            ;; Intersection with existing edge - create proper junction
            ((and (eq current-char ?─) (eq char ?│))
@@ -658,6 +666,27 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                            (not (memq neighbor-char '(?─ ?│ ?┼))))  ; Allow edge characters
                   (throw 'unsafe nil)))))))
       t)))  ; Safe if we get here
+
+(defun dag-draw--add-ultra-safe-arrow (grid x1 y1 x2 y2 occupancy-map)
+  "Add directional arrow at the endpoint of a path with ultra-safe collision detection."
+  (let* ((dx (- x2 x1))
+         (dy (- y2 y1))
+         (arrow-char (cond
+                      ;; Vertical arrows
+                      ((and (= dx 0) (> dy 0)) ?v)  ; downward
+                      ((and (= dx 0) (< dy 0)) ?^)  ; upward
+                      ;; Horizontal arrows  
+                      ((and (= dy 0) (> dx 0)) ?>)  ; rightward
+                      ((and (= dy 0) (< dx 0)) ?<)  ; leftward
+                      ;; L-shaped paths - determine arrow based on final direction
+                      ((> dy 0) ?v)  ; if final segment goes down
+                      ((< dy 0) ?^)  ; if final segment goes up
+                      ((> dx 0) ?>)  ; if final segment goes right
+                      ((< dx 0) ?<)  ; if final segment goes left
+                      (t ?>))))      ; default rightward arrow
+    
+    ;; Draw arrow at endpoint with ultra-safe collision detection
+    (dag-draw--ultra-safe-draw-char grid x2 y2 arrow-char occupancy-map)))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using spline data when available, otherwise boundary-aware routing."

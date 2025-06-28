@@ -84,11 +84,22 @@
          (from-rank (dag-draw-node-rank from-node))
          (to-rank (dag-draw-node-rank to-node)))
     
-    (if (< from-rank to-rank)
-        ;; Forward edge (downward)
-        (dag-draw--create-downward-spline graph from-node to-node)
-      ;; Backward edge (upward) - these are reversed edges from cycle breaking
-      (dag-draw--create-upward-spline graph from-node to-node))))
+    ;; Handle case where ranks aren't set - use node coordinates to determine direction
+    (if (and from-rank to-rank)
+        ;; Ranks are available - use them
+        (if (< from-rank to-rank)
+            ;; Forward edge (downward)
+            (dag-draw--create-downward-spline graph from-node to-node)
+          ;; Backward edge (upward) - these are reversed edges from cycle breaking
+          (dag-draw--create-upward-spline graph from-node to-node))
+      ;; Ranks not available - fall back to coordinate-based direction
+      (let ((from-y (or (dag-draw-node-y-coord from-node) 0))
+            (to-y (or (dag-draw-node-y-coord to-node) 0)))
+        (if (<= from-y to-y)
+            ;; Downward or horizontal
+            (dag-draw--create-downward-spline graph from-node to-node)
+          ;; Upward
+          (dag-draw--create-upward-spline graph from-node to-node))))))
 
 (defun dag-draw--create-downward-spline (graph from-node to-node)
   "Create downward spline from higher rank to lower rank."

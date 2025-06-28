@@ -76,6 +76,31 @@
           ;; No task names should be corrupted
           (expect ascii-output :not :to-match "Task [A-F][─│┼]"))))
     
+    (it "should connect simple two-node graph with visible edges"
+      ;; This replicates the failing boundary connection test
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'source "Source")
+        (dag-draw-add-node graph 'target "Target")
+        (dag-draw-add-edge graph 'source 'target)
+        
+        ;; Set coordinates like the failing test
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'source)) 100)
+        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'source)) 50)
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'target)) 100)
+        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'target)) 150)
+        
+        (let ((ascii-output (dag-draw-render-ascii graph)))
+          ;; Debug: print the output
+          (message "=== BOUNDARY CONNECTION TEST OUTPUT ===")
+          (message "%s" ascii-output)
+          (message "=== END BOUNDARY OUTPUT ===")
+          
+          ;; Should have both nodes
+          (expect ascii-output :to-match "Source")
+          (expect ascii-output :to-match "Target")
+          ;; Should have vertical connection
+          (expect ascii-output :to-match "│"))))
+    
     (it "should preserve box drawing characters in node borders"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'test "Test")
