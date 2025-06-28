@@ -521,20 +521,36 @@ Returns a 2D array where t = occupied by node, nil = empty space."
           (dotimes (i (1+ (- end-x start-x)))
             (let ((x (+ start-x i)))
               (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
-                (when (and (= (aref (aref grid y1) x) ?\s)
-                          (not (aref (aref occupancy-map y1) x)))
-                  (aset (aref grid y1) x ?─))))))
-        
+                (when (not (aref (aref occupancy-map y1) x))
+                  ;; Allow sharing of horizontal lines, use proper junction characters
+                  (let ((current-char (aref (aref grid y1) x)))
+                    (cond
+                     ((eq current-char ?\s) (aset (aref grid y1) x ?─))
+                     ((eq current-char ?│) (aset (aref grid y1) x ?┼)) ; intersection
+                     ;; If already horizontal line, keep it (share the path)
+                     ((eq current-char ?─) nil) ; no change needed
+                     ;; Handle other junction cases
+                     ((eq current-char ?┼) nil) ; already intersection
+                     (t (aset (aref grid y1) x ?─)))))))))
+
         ;; Draw vertical segment: y1 to y2 at x2
         (let ((start-y (min y1 y2))
               (end-y (max y1 y2)))
           (dotimes (i (1+ (- end-y start-y)))
             (let ((y (+ start-y i)))
               (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
-                (when (and (= (aref (aref grid y) x2) ?\s)
-                          (not (aref (aref occupancy-map y) x2)))
-                  (aset (aref grid y) x2 ?│)))))))
-       
+                (when (not (aref (aref occupancy-map y) x2))
+                  ;; Allow sharing of vertical lines, use proper junction characters
+                  (let ((current-char (aref (aref grid y) x2)))
+                    (cond
+                     ((eq current-char ?\s) (aset (aref grid y) x2 ?│))
+                     ((eq current-char ?─) (aset (aref grid y) x2 ?┼)) ; intersection
+                     ;; If already vertical line, keep it (share the path)
+                     ((eq current-char ?│) nil) ; no change needed
+                     ;; Handle other junction cases
+                     ((eq current-char ?┼) nil) ; already intersection
+                     (t (aset (aref grid y) x2 ?│))))))))))
+
        ;; If horizontal-first is blocked, try vertical-first as alternative
        (t
         (dag-draw--try-vertical-first-path grid x1 y1 x2 y2 occupancy-map))))))
@@ -573,28 +589,40 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (dotimes (i (1+ (- end-y start-y)))
               (let ((y (+ start-y i)))
                 (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
-                  (when (and (= (aref (aref grid y) x1) ?\s)
-                            (not (aref (aref occupancy-map y) x1)))
-                    (aset (aref grid y) x1 ?│))))))
-          
+                  (when (not (aref (aref occupancy-map y) x1))
+                    ;; Allow sharing of vertical lines, use proper junction characters
+                    (let ((current-char (aref (aref grid y) x1)))
+                      (cond
+                       ((eq current-char ?\s) (aset (aref grid y) x1 ?│))
+                       ((eq current-char ?─) (aset (aref grid y) x1 ?┼)) ; intersection
+                       ((eq current-char ?│) nil) ; already vertical, share path
+                       ((eq current-char ?┼) nil) ; already intersection
+                       (t (aset (aref grid y) x1 ?│)))))))))
+
           ;; Draw horizontal segment: x1 to x2 at y2
           (let ((start-x (min x1 x2))
                 (end-x (max x1 x2)))
             (dotimes (i (1+ (- end-x start-x)))
               (let ((x (+ start-x i)))
                 (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
-                  (when (and (= (aref (aref grid y2) x) ?\s)
-                            (not (aref (aref occupancy-map y2) x)))
-                    (aset (aref grid y2) x ?─)))))))
-      
-      ;; If both L-paths are blocked, draw direct line as fallback
-      (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))))
+                  (when (not (aref (aref occupancy-map y2) x))
+                    ;; Allow sharing of horizontal lines, use proper junction characters
+                    (let ((current-char (aref (aref grid y2) x)))
+                      (cond
+                       ((eq current-char ?\s) (aset (aref grid y2) x ?─))
+                       ((eq current-char ?│) (aset (aref grid y2) x ?┼)) ; intersection
+                       ((eq current-char ?─) nil) ; already horizontal, share path
+                       ((eq current-char ?┼) nil) ; already intersection
+                       (t (aset (aref grid y2) x ?─))))))))))
+
+    ;; If both L-paths are blocked, draw direct line as fallback
+    (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))))
 
 (defun dag-draw--draw-direct-fallback-line (grid x1 y1 x2 y2 occupancy-map)
   "Draw direct line as fallback when both L-paths are blocked."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
+
     ;; Simple direct line - better than disconnected segments
     (if (= x1 x2)
         ;; Pure vertical line
@@ -604,9 +632,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (let ((y (+ start-y i)))
               (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
                 (when (and (= (aref (aref grid y) x1) ?\s)
-                          (not (aref (aref occupancy-map y) x1)))
+                           (not (aref (aref occupancy-map y) x1)))
                   (aset (aref grid y) x1 ?│))))))
-      
+
       (if (= y1 y2)
           ;; Pure horizontal line
           (let ((start-x (min x1 x2))
@@ -615,9 +643,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
               (let ((x (+ start-x i)))
                 (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
                   (when (and (= (aref (aref grid y1) x) ?\s)
-                            (not (aref (aref occupancy-map y1) x)))
+                             (not (aref (aref occupancy-map y1) x)))
                     (aset (aref grid y1) x ?─))))))
-        
+
         ;; Diagonal line - draw horizontal-first as best effort
         (progn
           ;; Draw horizontal segment
@@ -627,9 +655,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
               (let ((x (+ start-x i)))
                 (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
                   (when (and (= (aref (aref grid y1) x) ?\s)
-                            (not (aref (aref occupancy-map y1) x)))
+                             (not (aref (aref occupancy-map y1) x)))
                     (aset (aref grid y1) x ?─))))))
-          
+
           ;; Draw vertical segment
           (let ((start-y (min y1 y2))
                 (end-y (max y1 y2)))
@@ -637,8 +665,10 @@ Returns a 2D array where t = occupied by node, nil = empty space."
               (let ((y (+ start-y i)))
                 (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
                   (when (and (= (aref (aref grid y) x2) ?\s)
-                            (not (aref (aref occupancy-map y) x2)))
-                    (aset (aref grid y) x2 ?│)))))))))))(defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
+                             (not (aref (aref occupancy-map y) x2)))
+                    (aset (aref grid y) x2 ?│)))))))))))
+
+(defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
   "Draw edge using node port calculations for boundary-to-boundary connections."
   (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
     (when (and connection-points (= (length connection-points) 2))
