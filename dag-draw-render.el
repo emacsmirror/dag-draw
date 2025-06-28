@@ -622,11 +622,11 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Draw path with arrows using existing boundary-aware logic."
   ;; First draw the path using existing logic
   (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map)
-  ;; Then enhance with proper corner arrows
-  (dag-draw--add-corner-arrows-to-path grid x1 y1 x2 y2))
+  ;; Then enhance with proper corner arrows that respect node boundaries
+  (dag-draw--add-corner-arrows-to-path grid x1 y1 x2 y2 occupancy-map))
 
-(defun dag-draw--add-corner-arrows-to-path (grid x1 y1 x2 y2)
-  "Add proper corner arrows to L-shaped paths."
+(defun dag-draw--add-corner-arrows-to-path (grid x1 y1 x2 y2 occupancy-map)
+  "Add proper corner arrows to L-shaped paths while respecting node boundaries."
   (when (and grid (> (length grid) 0))
     (let ((grid-height (length grid))
           (grid-width (length (aref grid 0))))
@@ -637,21 +637,24 @@ Returns a 2D array where t = occupied by node, nil = empty space."
       ;; Create a connected path that doesn't float inside nodes
       (when (and (>= (- x2 1) 0) (< (+ x2 1) grid-width)
                  (>= (+ y2 1) 0) (< (+ y2 2) grid-height))
-        ;; Draw corner connector outside the node
-        (aset (aref grid (+ y2 1)) (- x2 1) ?└)
-        ;; Draw arrow directly connected to corner (no floating)
+        ;; Check if corner position is outside node boundaries (corners should not be in nodes)
+        (when (not (aref (aref occupancy-map (+ y2 1)) (- x2 1)))
+          ;; Draw corner connector outside the node
+          (aset (aref grid (+ y2 1)) (- x2 1) ?└))
+        ;; Always allow arrow at connection point (arrows are expected at ports)
         (aset (aref grid (+ y2 1)) x2 ?v)))
      
      ;; Horizontal then vertical (corner at x2, y1)
      ((and (/= x1 x2) (/= y1 y2))
       (let ((corner-x x2)
             (corner-y y1))
-        ;; Add corner character at the turn
+        ;; Add corner character at the turn, but only if outside node boundaries
         (when (and (>= corner-x 0) (< corner-x grid-width)
-                   (>= corner-y 0) (< corner-y grid-height))
+                   (>= corner-y 0) (< corner-y grid-height)
+                   (not (aref (aref occupancy-map corner-y) corner-x)))
           (let ((corner-char (if (< y1 y2) ?└ ?┌)))  ; Down or up turn
             (aset (aref grid corner-y) corner-x corner-char)))
-        ;; Add arrow at final destination
+        ;; Add arrow at final destination (arrows are allowed at port positions)
         (when (and (>= x2 0) (< x2 grid-width)
                    (>= y2 0) (< y2 grid-height))
           (let ((direction (if (< y1 y2) 'down 'up)))
