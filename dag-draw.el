@@ -226,7 +226,8 @@ Returns a list of lines."
 (defun dag-draw--calculate-wrapped-node-size (text-lines)
   "Calculate appropriate node size for wrapped text lines.
 Returns (width . height) where width accommodates the longest line
-and height accommodates all lines with padding."
+and height accommodates all lines with padding.
+GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
          ;; Base calculations for ASCII rendering
@@ -238,10 +239,10 @@ and height accommodates all lines with padding."
          (calculated-width (ceiling (/ required-grid-chars
                                       (* grid-scale ascii-box-scale))))
          (node-width (max min-width calculated-width))
-         ;; Calculate height for multiple lines
-         (line-height 20)  ; Height per line of text
-         (base-height 40)  ; Minimum height
-         (node-height (max base-height (+ base-height (* (1- num-lines) line-height)))))
+         ;; GKNV-compatible: Use fixed height to maintain algorithm assumptions
+         ;; The original GKNV algorithm expects consistent node dimensions
+         (base-height 40)  ; Fixed height per GKNV paper
+         (node-height base-height))  ; Always use base height for layout consistency
     
     (cons node-width node-height)))
 

@@ -430,16 +430,20 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                       (y (or (dag-draw-node-y-coord node) 0))
                       (width (dag-draw-node-x-size node))
                       (height (dag-draw-node-y-size node))
-                      (grid-x (dag-draw--world-to-grid-coord x min-x scale))
-                      (grid-y (dag-draw--world-to-grid-coord y min-y scale))
+                      ;; Calculate grid center position  
+                      (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                      (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
                       (grid-width-node (dag-draw--world-to-grid-size width scale))
-                      (grid-height-node (dag-draw--world-to-grid-size height scale)))
+                      (grid-height-node (dag-draw--world-to-grid-size height scale))
+                      ;; Calculate top-left corner from center
+                      (grid-x (- grid-center-x (/ grid-width-node 2)))
+                      (grid-y (- grid-center-y (/ grid-height-node 2))))
 
                  ;; Mark all cells within this node's bounding box as occupied
                  (dotimes (dy grid-height-node)
                    (dotimes (dx grid-width-node)
-                     (let ((map-x (+ grid-x dx))
-                           (map-y (+ grid-y dy)))
+                     (let ((map-x (round (+ grid-x dx)))
+                           (map-y (round (+ grid-y dy))))
                        (when (and (>= map-x 0) (< map-x grid-width)
                                   (>= map-y 0) (< map-y grid-height))
                          (aset (aref occupancy-map map-y) map-x t)))))))
@@ -452,8 +456,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   ;; Create node occupancy map to avoid drawing through nodes
   (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
     (dolist (edge (dag-draw-graph-edges graph))
-      ;; Use enhanced port-based routing for clean connections
-      (dag-draw--ascii-draw-port-based-edge graph edge grid min-x min-y scale))))
+      ;; Use boundary-aware routing that respects the occupancy map
+      (dag-draw--ascii-draw-boundary-aware-edge graph edge grid min-x min-y scale occupancy-map))))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using boundary-aware routing that avoids node interiors."
@@ -475,7 +479,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
-    ;; Enhanced L-shaped routing that checks occupancy and avoids conflicts
+    ;; Fix: Use all-or-nothing routing with alternative paths
+    ;; Don't draw partial segments that create disconnected lines
 
     ;; Try horizontal-first path (x1->x2 at y1, then y1->y2 at x2)
     (let ((horizontal-blocked nil)
@@ -499,28 +504,134 @@ Returns a 2D array where t = occupied by node, nil = empty space."
               (when (aref (aref occupancy-map y) x2)
                 (setq vertical-blocked t))))))
 
-      ;; Only draw if the path segments are clear
-      (unless horizontal-blocked
+      ;; Fix: Only draw complete connected paths, never partial segments
+      (cond
+       ;; If horizontal-first L-path is completely clear, draw it
+       ((not (or horizontal-blocked vertical-blocked))
         ;; Draw horizontal segment: x1 to x2 at y1
         (let ((start-x (min x1 x2))
               (end-x (max x1 x2)))
           (dotimes (i (1+ (- end-x start-x)))
             (let ((x (+ start-x i)))
               (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
-                (when (= (aref (aref grid y1) x) ?\s)
-                  (aset (aref grid y1) x ?─)))))))
-
-      (unless vertical-blocked
+                (when (and (= (aref (aref grid y1) x) ?\s)
+                          (not (aref (aref occupancy-map y1) x)))
+                  (aset (aref grid y1) x ?─))))))
+        
         ;; Draw vertical segment: y1 to y2 at x2
         (let ((start-y (min y1 y2))
               (end-y (max y1 y2)))
           (dotimes (i (1+ (- end-y start-y)))
             (let ((y (+ start-y i)))
               (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
-                (when (= (aref (aref grid y) x2) ?\s)
-                  (aset (aref grid y) x2 ?│))))))))))
+                (when (and (= (aref (aref grid y) x2) ?\s)
+                          (not (aref (aref occupancy-map y) x2)))
+                  (aset (aref grid y) x2 ?│)))))))
+       
+       ;; If horizontal-first is blocked, try vertical-first as alternative
+       (t
+        (dag-draw--try-vertical-first-path grid x1 y1 x2 y2 occupancy-map))))))
 
-(defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
+(defun dag-draw--try-vertical-first-path (grid x1 y1 x2 y2 occupancy-map)
+  "Try vertical-first L-path as alternative when horizontal-first is blocked."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (vertical-blocked nil)
+         (horizontal-blocked nil))
+
+    ;; Check if vertical segment (y1->y2 at x1) would go through occupied areas
+    (let ((start-y (min y1 y2))
+          (end-y (max y1 y2)))
+      (dotimes (i (1+ (- end-y start-y)))
+        (let ((y (+ start-y i)))
+          (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+            (when (aref (aref occupancy-map y) x1)
+              (setq vertical-blocked t))))))
+
+    ;; Check if horizontal segment (x1->x2 at y2) would go through occupied areas
+    (let ((start-x (min x1 x2))
+          (end-x (max x1 x2)))
+      (dotimes (i (1+ (- end-x start-x)))
+        (let ((x (+ start-x i)))
+          (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+            (when (aref (aref occupancy-map y2) x)
+              (setq horizontal-blocked t))))))
+
+    ;; If vertical-first path is clear, draw it
+    (if (not (or vertical-blocked horizontal-blocked))
+        (progn
+          ;; Draw vertical segment: y1 to y2 at x1
+          (let ((start-y (min y1 y2))
+                (end-y (max y1 y2)))
+            (dotimes (i (1+ (- end-y start-y)))
+              (let ((y (+ start-y i)))
+                (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                  (when (and (= (aref (aref grid y) x1) ?\s)
+                            (not (aref (aref occupancy-map y) x1)))
+                    (aset (aref grid y) x1 ?│))))))
+          
+          ;; Draw horizontal segment: x1 to x2 at y2
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+                  (when (and (= (aref (aref grid y2) x) ?\s)
+                            (not (aref (aref occupancy-map y2) x)))
+                    (aset (aref grid y2) x ?─)))))))
+      
+      ;; If both L-paths are blocked, draw direct line as fallback
+      (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))))
+
+(defun dag-draw--draw-direct-fallback-line (grid x1 y1 x2 y2 occupancy-map)
+  "Draw direct line as fallback when both L-paths are blocked."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; Simple direct line - better than disconnected segments
+    (if (= x1 x2)
+        ;; Pure vertical line
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                (when (and (= (aref (aref grid y) x1) ?\s)
+                          (not (aref (aref occupancy-map y) x1)))
+                  (aset (aref grid y) x1 ?│))))))
+      
+      (if (= y1 y2)
+          ;; Pure horizontal line
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                  (when (and (= (aref (aref grid y1) x) ?\s)
+                            (not (aref (aref occupancy-map y1) x)))
+                    (aset (aref grid y1) x ?─))))))
+        
+        ;; Diagonal line - draw horizontal-first as best effort
+        (progn
+          ;; Draw horizontal segment
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                  (when (and (= (aref (aref grid y1) x) ?\s)
+                            (not (aref (aref occupancy-map y1) x)))
+                    (aset (aref grid y1) x ?─))))))
+          
+          ;; Draw vertical segment
+          (let ((start-y (min y1 y2))
+                (end-y (max y1 y2)))
+            (dotimes (i (1+ (- end-y start-y)))
+              (let ((y (+ start-y i)))
+                (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+                  (when (and (= (aref (aref grid y) x2) ?\s)
+                            (not (aref (aref occupancy-map y) x2)))
+                    (aset (aref grid y) x2 ?│)))))))))))(defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
   "Draw edge using node port calculations for boundary-to-boundary connections."
   (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
     (when (and connection-points (= (length connection-points) 2))
