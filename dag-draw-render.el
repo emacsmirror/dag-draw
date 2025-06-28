@@ -66,32 +66,42 @@ Corresponds to the coordinate system transformation described in the paper."
 Returns a list of strings representing the formatted rows."
   (if (<= (length text) 20)
       (list text)
-    ;; Word wrapping for text longer than 20 chars
-    (let ((words (split-string text " "))
-          (line1 "")
-          (line2 ""))
-      ;; Fill first line up to 20 chars
-      (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
-        (setq line1 (if (string-empty-p line1)
-                        (car words)
-                      (concat line1 " " (car words))))
-        (setq words (cdr words)))
-      ;; Fill second line up to 20 chars  
-      (when words
-        (let ((remaining-text (mapconcat 'identity words " ")))
-          (if (<= (length remaining-text) 20)
-              ;; All remaining text fits in second line
-              (setq line2 remaining-text)
-            ;; Need to truncate with ellipsis
-            (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
-              (setq line2 (if (string-empty-p line2)
-                              (car words)
-                            (concat line2 " " (car words))))
-              (setq words (cdr words)))
-            (setq line2 (concat line2 "...")))))
-      (if (string-empty-p line2)
-          (list line1)
-        (list line1 line2)))))
+    ;; Check if text has no spaces (single long word)
+    (if (not (string-match " " text))
+        ;; Handle single long word - truncate with ellipsis
+        (list (concat (substring text 0 17) "..."))
+      ;; Word wrapping for text longer than 20 chars
+      (let ((words (split-string text " "))
+            (line1 "")
+            (line2 ""))
+        ;; Fill first line up to 20 chars
+        (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
+          (setq line1 (if (string-empty-p line1)
+                          (car words)
+                        (concat line1 " " (car words))))
+          (setq words (cdr words)))
+        ;; Fill second line up to 20 chars
+        (when words
+          (let ((remaining-text (mapconcat 'identity words " ")))
+            (if (<= (length remaining-text) 20)
+                ;; All remaining text fits in second line
+                (setq line2 remaining-text)
+              ;; Need to truncate with ellipsis
+              (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
+                (setq line2 (if (string-empty-p line2)
+                                (car words)
+                              (concat line2 " " (car words))))
+                (setq words (cdr words)))
+              (setq line2 (concat line2 "...")))))
+        (if (string-empty-p line2)
+            (list line1)
+          (list line1 line2))))))
+
+(defun dag-draw--get-fixed-node-dimensions (text)
+  "Return fixed dimensions for any node text.
+Returns (width height) where width accounts for 20-char text + borders,
+height accounts for 2 text rows + borders."
+  '(22 4))
 
 ;;; ASCII Scaling Helper Functions
 
@@ -363,8 +373,10 @@ Returns nil if either node lacks coordinates."
                     (grid-x (- grid-center-x (/ grid-width 2)))
                     (grid-y (- grid-center-y (/ grid-height 2))))
 
-               (dag-draw--ascii-draw-box grid grid-x grid-y grid-width grid-height label)))
+               ;; Round coordinates to match occupancy map exactly
+               (dag-draw--ascii-draw-box grid (round grid-x) (round grid-y) (round grid-width) (round grid-height) label)))
            (dag-draw-graph-nodes graph)))
+
 
 (defun dag-draw--ascii-draw-box (grid x y width height label)
   "Draw a box with LABEL on ASCII grid at position (X,Y) with given WIDTH and HEIGHT."
@@ -430,7 +442,7 @@ Returns nil if either node lacks coordinates."
 
         ;; Draw label(s) in center - support multi-line text
         (when (and label (>= width 4) (>= height 3))
-          (let* ((text-lines (split-string label "\n"))
+          (let* ((text-lines (if (listp label) label (split-string label "\n")))
                  (num-lines (length text-lines))
                  (interior-width (- width 2))
                  (interior-height (- height 2))
@@ -496,12 +508,156 @@ Returns a 2D array where t = occupied by node, nil = empty space."
     occupancy-map))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
-  "Draw edges on ASCII grid using boundary-aware routing."
+  "Draw edges on ASCII grid using boundary-aware routing with enhanced collision detection."
   ;; Create node occupancy map to avoid drawing through nodes
   (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
     (dolist (edge (dag-draw-graph-edges graph))
-      ;; Use boundary-aware routing that respects the occupancy map
-      (dag-draw--ascii-draw-boundary-aware-edge graph edge grid min-x min-y scale occupancy-map))))
+      ;; Use enhanced boundary-aware routing with real-time collision detection
+      (dag-draw--ascii-draw-safe-edge graph edge grid min-x min-y scale occupancy-map))))
+
+(defun dag-draw--ascii-draw-safe-edge (graph edge grid min-x min-y scale occupancy-map)
+  "Draw edge with enhanced collision detection that prevents any overwrites of node content."
+  (let ((spline-points (dag-draw-get-edge-spline-points edge)))
+    (if (and spline-points (> (length spline-points) 2))
+        ;; Use spline-guided routing with enhanced safety
+        (dag-draw--ascii-draw-safe-spline-edge edge grid min-x min-y scale occupancy-map spline-points)
+      ;; Fall back to safe orthogonal routing
+      (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))))
+
+(defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
+  "Draw orthogonal edge with comprehensive collision avoidance."
+  (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
+    (when (and connection-points (= (length connection-points) 2))
+      (let* ((from-port (car connection-points))
+             (to-port (cadr connection-points))
+             (from-grid (dag-draw--world-point-to-grid from-port min-x min-y scale))
+             (to-grid (dag-draw--world-point-to-grid to-port min-x min-y scale))
+             (from-x (round (dag-draw-point-x from-grid)))
+             (from-y (round (dag-draw-point-y from-grid)))
+             (to-x (round (dag-draw-point-x to-grid)))
+             (to-y (round (dag-draw-point-y to-grid))))
+        ;; Use safe path drawing that absolutely will not overwrite node content
+        (dag-draw--ascii-draw-ultra-safe-path grid from-x from-y to-x to-y occupancy-map)))))
+
+(defun dag-draw--ascii-draw-safe-spline-edge (edge grid min-x min-y scale occupancy-map spline-points)
+  "Draw spline edge with enhanced safety checks."
+  ;; For now, fall back to safe orthogonal routing for splined edges too
+  ;; This ensures consistency while we debug the collision issues
+  (let* ((start-point (car spline-points))
+         (end-point (car (last spline-points)))
+         (start-grid (dag-draw--world-point-to-grid start-point min-x min-y scale))
+         (end-grid (dag-draw--world-point-to-grid end-point min-x min-y scale))
+         (start-x (round (dag-draw-point-x start-grid)))
+         (start-y (round (dag-draw-point-y start-grid)))
+         (end-x (round (dag-draw-point-x end-grid)))
+         (end-y (round (dag-draw-point-y end-grid))))
+    (dag-draw--ascii-draw-ultra-safe-path grid start-x start-y end-x end-y occupancy-map)))
+
+(defun dag-draw--ascii-draw-ultra-safe-path (grid x1 y1 x2 y2 occupancy-map)
+  "Draw path with absolute safety - never overwrites any non-space character."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; Only draw if we can do so safely
+    (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
+               (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
+      
+      ;; Try horizontal-first L-path
+      (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map 'horizontal-first))))
+
+(defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 occupancy-map direction)
+  "Draw L-shaped path with ultra-conservative safety checks."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (if (eq direction 'horizontal-first)
+        ;; Horizontal segment first: x1 to x2 at y1
+        (progn
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map))))
+          
+          ;; Vertical segment: y1 to y2 at x2  
+          (let ((start-y (min y1 y2))
+                (end-y (max y1 y2)))
+            (dotimes (i (1+ (- end-y start-y)))
+              (let ((y (+ start-y i)))
+                (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map)))))
+      
+      ;; Vertical-first path as alternative
+      (progn
+        ;; Vertical segment first: y1 to y2 at x1
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map))))
+        
+        ;; Horizontal segment: x1 to x2 at y2
+        (let ((start-x (min x1 x2))
+              (end-x (max x1 x2)))
+          (dotimes (i (1+ (- end-x start-x)))
+            (let ((x (+ start-x i)))
+              (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))))))
+
+(defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
+  "Draw character only if absolutely safe - never overwrites anything but spaces."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+      ;; Triple safety check:
+      ;; 1. Check occupancy map
+      ;; 2. Check current character is space
+      ;; 3. Never overwrite box drawing characters (node borders)
+      (let ((current-char (aref (aref grid y) x)))
+        (when (and 
+               ;; Occupancy map says it's safe
+               (not (aref (aref occupancy-map y) x))
+               ;; Current position has space character
+               (eq current-char ?\s)
+               ;; Not near any box drawing characters (extra safety)
+               (dag-draw--is-safe-to-draw-at grid x y))
+          
+          ;; Handle intersections properly without overwriting content
+          (cond
+           ;; Space - safe to draw
+           ((eq current-char ?\s) 
+            (aset (aref grid y) x char))
+           ;; Intersection with existing edge - create proper junction
+           ((and (eq current-char ?─) (eq char ?│))
+            (aset (aref grid y) x ?┼))
+           ((and (eq current-char ?│) (eq char ?─))
+            (aset (aref grid y) x ?┼))
+           ;; Already has the same character - no change needed
+           ((eq current-char char) nil)
+           ;; Already has intersection - no change needed
+           ((eq current-char ?┼) nil)
+           ;; Any other case - DO NOT DRAW (ultra-conservative)
+           (t nil)))))))
+
+(defun dag-draw--is-safe-to-draw-at (grid x y)
+  "Check if it's safe to draw at position (x,y) by examining neighboring cells."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (unsafe-chars '(?┌ ?┐ ?└ ?┘ ?│ ?─)))  ; Box drawing characters
+    
+    ;; Check the position itself and immediate neighbors for box drawing characters
+    (catch 'unsafe
+      (dotimes (dy 3)
+        (dotimes (dx 3)
+          (let ((check-x (+ x dx -1))
+                (check-y (+ y dy -1)))
+            (when (and (>= check-x 0) (< check-x grid-width)
+                       (>= check-y 0) (< check-y grid-height))
+              (let ((neighbor-char (aref (aref grid check-y) check-x)))
+                ;; If we find any box drawing characters nearby, it's unsafe
+                (when (and (not (eq neighbor-char ?\s))
+                           (not (memq neighbor-char '(?─ ?│ ?┼))))  ; Allow edge characters
+                  (throw 'unsafe nil)))))))
+      t)))  ; Safe if we get here
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using spline data when available, otherwise boundary-aware routing."
@@ -534,21 +690,21 @@ Returns a 2D array where t = occupied by node, nil = empty space."
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
            (prev-grid-x nil)
            (prev-grid-y nil))
-      
+
       ;; Convert each spline point to grid coordinates and draw segments
       (dolist (point spline-points)
         (let* ((world-x (dag-draw-point-x point))
                (world-y (dag-draw-point-y point))
                (grid-x (round (dag-draw--world-to-grid-coord world-x min-x scale)))
                (grid-y (round (dag-draw--world-to-grid-coord world-y min-y scale))))
-          
+
           ;; Draw segment from previous point to current point
           (when (and prev-grid-x prev-grid-y)
             (dag-draw--ascii-draw-spline-segment grid prev-grid-x prev-grid-y grid-x grid-y occupancy-map))
-          
+
           (setq prev-grid-x grid-x)
           (setq prev-grid-y grid-y)))
-      
+
       ;; Add arrow at the end point
       (when (and prev-grid-x prev-grid-y
                  (>= prev-grid-x 0) (< prev-grid-x grid-width)
@@ -556,10 +712,10 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (let* ((last-point (car (last spline-points)))
                (second-last-point (car (last spline-points 2)))
                (direction (if second-last-point
-                             (dag-draw--detect-direction
-                              (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
-                              (dag-draw-point-x last-point) (dag-draw-point-y last-point))
-                           'right)))
+                              (dag-draw--detect-direction
+                               (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
+                               (dag-draw-point-x last-point) (dag-draw-point-y last-point))
+                            'right)))
           (aset (aref grid prev-grid-y) prev-grid-x (dag-draw--get-arrow-char direction)))))))
 
 (defun dag-draw--ascii-draw-spline-segment (grid x1 y1 x2 y2 occupancy-map)
@@ -567,33 +723,35 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (when grid
     (let* ((grid-height (length grid))
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
-    ;; For spline segments, use simpler direct routing
-    (cond
-     ;; Same point - no line needed
-     ((and (= x1 x2) (= y1 y2)) nil)
-     
-     ;; Horizontal line
-     ((= y1 y2)
-      (let ((start-x (min x1 x2))
-            (end-x (max x1 x2)))
-        (dotimes (i (1+ (- end-x start-x)))
-          (let ((x (+ start-x i)))
-            (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
-              (aset (aref grid y1) x ?─))))))
-     
-     ;; Vertical line
-     ((= x1 x2)
-      (let ((start-y (min y1 y2))
-            (end-y (max y1 y2)))
-        (dotimes (i (1+ (- end-y start-y)))
-          (let ((y (+ start-y i)))
-            (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
-              (aset (aref grid y) x1 ?│))))))
-     
-     ;; Diagonal - approximate with L-shape for ASCII
-     (t
-      (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map))))))
+
+      ;; For spline segments, use simpler direct routing
+      (cond
+       ;; Same point - no line needed
+       ((and (= x1 x2) (= y1 y2)) nil)
+
+       ;; Horizontal line
+       ((= y1 y2)
+        (let ((start-x (min x1 x2))
+              (end-x (max x1 x2)))
+          (dotimes (i (1+ (- end-x start-x)))
+            (let ((x (+ start-x i)))
+              (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height)
+                         (= (aref (aref grid y1) x) ?\s))  ; Only draw if cell is empty
+                (aset (aref grid y1) x ?─))))))
+
+       ;; Vertical line
+       ((= x1 x2)
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height)
+                         (= (aref (aref grid y) x1) ?\s))  ; Only draw if cell is empty
+                (aset (aref grid y) x1 ?│))))))
+
+       ;; Diagonal - approximate with L-shape for ASCII
+       (t
+        (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map))))))
 
 (defun dag-draw--ascii-draw-boundary-aware-path (grid x1 y1 x2 y2 occupancy-map)
   "Draw clean orthogonal path that avoids node interiors using occupancy map."
@@ -636,16 +794,15 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (let ((x (+ start-x i)))
               (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
                 (when (not (aref (aref occupancy-map y1) x))
-                  ;; Allow sharing of horizontal lines, use proper junction characters
+                  ;; SAFETY: Only draw on space characters to prevent corrupting node content
                   (let ((current-char (aref (aref grid y1) x)))
                     (cond
                      ((eq current-char ?\s) (aset (aref grid y1) x ?─))
-                     ((eq current-char ?│) (aset (aref grid y1) x ?┼)) ; intersection
-                     ;; If already horizontal line, keep it (share the path)
-                     ((eq current-char ?─) nil) ; no change needed
-                     ;; Handle other junction cases
-                     ((eq current-char ?┼) nil) ; already intersection
-                     (t (aset (aref grid y1) x ?─)))))))))
+                     ((eq current-char ?│) (aset (aref grid y1) x ?┼)) ; intersection with vertical
+                     ((eq current-char ?─) nil) ; already horizontal line, no change needed
+                     ((eq current-char ?┼) nil) ; already intersection, no change needed
+                     ;; CRITICAL: Never overwrite any other characters (node content, borders, etc.)
+                     (t nil))))))))
 
         ;; Draw vertical segment: y1 to y2 at x2
         (let ((start-y (min y1 y2))
@@ -654,18 +811,17 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (let ((y (+ start-y i)))
               (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
                 (when (not (aref (aref occupancy-map y) x2))
-                  ;; Allow sharing of vertical lines, use proper junction characters
+                  ;; SAFETY: Only draw on space characters to prevent corrupting node content
                   (let ((current-char (aref (aref grid y) x2)))
                     (cond
                      ((eq current-char ?\s) (aset (aref grid y) x2 ?│))
-                     ((eq current-char ?─) (aset (aref grid y) x2 ?┼)) ; intersection
-                     ;; If already vertical line, keep it (share the path)
-                     ((eq current-char ?│) nil) ; no change needed
-                     ;; Handle other junction cases
-                     ((eq current-char ?┼) nil) ; already intersection
-                     (t (aset (aref grid y) x2 ?│))))))))))
+                     ((eq current-char ?─) (aset (aref grid y) x2 ?┼)) ; intersection with horizontal
+                     ((eq current-char ?│) nil) ; already vertical line, no change needed
+                     ((eq current-char ?┼) nil) ; already intersection, no change needed
+                     ;; CRITICAL: Never overwrite any other characters (node content, borders, etc.)
+                     (t nil)))))))))
 
-       ;; If horizontal-first is blocked, try vertical-first as alternative
+      ;; If horizontal-first is blocked, try vertical-first as alternative
        (t
         (dag-draw--try-vertical-first-path grid x1 y1 x2 y2 occupancy-map))))))
 
@@ -711,26 +867,26 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                        ((eq current-char ?─) (aset (aref grid y) x1 ?┼)) ; intersection
                        ((eq current-char ?│) nil) ; already vertical, share path
                        ((eq current-char ?┼) nil) ; already intersection
-                       (t (aset (aref grid y) x1 ?│)))))))))
+                       (t (when (= current-char ?\s) (aset (aref grid y) x1 ?│)))))))))))
 
-          ;; Draw horizontal segment: x1 to x2 at y2
-          (let ((start-x (min x1 x2))
-                (end-x (max x1 x2)))
-            (dotimes (i (1+ (- end-x start-x)))
-              (let ((x (+ start-x i)))
-                (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
-                  (when (not (aref (aref occupancy-map y2) x))
-                    ;; Allow sharing of horizontal lines, use proper junction characters
-                    (let ((current-char (aref (aref grid y2) x)))
-                      (cond
-                       ((eq current-char ?\s) (aset (aref grid y2) x ?─))
-                       ((eq current-char ?│) (aset (aref grid y2) x ?┼)) ; intersection
-                       ((eq current-char ?─) nil) ; already horizontal, share path
-                       ((eq current-char ?┼) nil) ; already intersection
-                       (t (aset (aref grid y2) x ?─))))))))))
+      ;; Draw horizontal segment: x1 to x2 at y2
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+              (when (not (aref (aref occupancy-map y2) x))
+                ;; Allow sharing of horizontal lines, use proper junction characters
+                (let ((current-char (aref (aref grid y2) x)))
+                  (cond
+                   ((eq current-char ?\s) (aset (aref grid y2) x ?─))
+                   ((eq current-char ?│) (aset (aref grid y2) x ?┼)) ; intersection
+                   ((eq current-char ?─) nil) ; already horizontal, share path
+                   ((eq current-char ?┼) nil) ; already intersection
+                   (t (when (= current-char ?\s) (aset (aref grid y2) x ?─))))))))))))
 
-    ;; If both L-paths are blocked, draw direct line as fallback
-    (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))))
+  ;; If both L-paths are blocked, draw direct line as fallback
+  (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))
 
 (defun dag-draw--ascii-draw-boundary-aware-path-with-arrows (grid x1 y1 x2 y2 occupancy-map)
   "Draw path with arrows using existing boundary-aware logic."
@@ -744,47 +900,47 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (when (and grid (> (length grid) 0))
     (let ((grid-height (length grid))
           (grid-width (length (aref grid 0))))
-    ;; For paths, detect the type and add appropriate arrow
-    (cond
-     ;; Same point - create a clean connected path with arrow
-     ((and (= x1 x2) (= y1 y2))
-      ;; Create a connected path that doesn't float inside nodes
-      (when (and (>= (- x2 1) 0) (< (+ x2 1) grid-width)
-                 (>= (+ y2 1) 0) (< (+ y2 2) grid-height))
-        ;; Check if corner position is outside node boundaries (corners should not be in nodes)
-        (when (not (aref (aref occupancy-map (+ y2 1)) (- x2 1)))
-          ;; Draw corner connector outside the node
-          (aset (aref grid (+ y2 1)) (- x2 1) ?└))
-        ;; Always allow arrow at connection point (arrows are expected at ports)
-        (aset (aref grid (+ y2 1)) x2 ?v)))
-     
-     ;; Horizontal then vertical (corner at x2, y1)
-     ((and (/= x1 x2) (/= y1 y2))
-      (let ((corner-x x2)
-            (corner-y y1))
-        ;; Add corner character at the turn, but only if outside node boundaries
-        (when (and (>= corner-x 0) (< corner-x grid-width)
-                   (>= corner-y 0) (< corner-y grid-height)
-                   (not (aref (aref occupancy-map corner-y) corner-x)))
-          (let ((corner-char (if (< y1 y2) ?└ ?┌)))  ; Down or up turn
-            (aset (aref grid corner-y) corner-x corner-char)))
-        ;; Add arrow at final destination (arrows are allowed at port positions)
+      ;; For paths, detect the type and add appropriate arrow
+      (cond
+       ;; Same point - create a clean connected path with arrow
+       ((and (= x1 x2) (= y1 y2))
+        ;; Create a connected path that doesn't float inside nodes
+        (when (and (>= (- x2 1) 0) (< (+ x2 1) grid-width)
+                   (>= (+ y2 1) 0) (< (+ y2 2) grid-height))
+          ;; Check if corner position is outside node boundaries (corners should not be in nodes)
+          (when (not (aref (aref occupancy-map (+ y2 1)) (- x2 1)))
+            ;; Draw corner connector outside the node
+            (aset (aref grid (+ y2 1)) (- x2 1) ?└))
+          ;; Always allow arrow at connection point (arrows are expected at ports)
+          (aset (aref grid (+ y2 1)) x2 ?v)))
+
+       ;; Horizontal then vertical (corner at x2, y1)
+       ((and (/= x1 x2) (/= y1 y2))
+        (let ((corner-x x2)
+              (corner-y y1))
+          ;; Add corner character at the turn, but only if outside node boundaries
+          (when (and (>= corner-x 0) (< corner-x grid-width)
+                     (>= corner-y 0) (< corner-y grid-height)
+                     (not (aref (aref occupancy-map corner-y) corner-x)))
+            (let ((corner-char (if (< y1 y2) ?└ ?┌)))  ; Down or up turn
+              (aset (aref grid corner-y) corner-x corner-char)))
+          ;; Add arrow at final destination (arrows are allowed at port positions)
+          (when (and (>= x2 0) (< x2 grid-width)
+                     (>= y2 0) (< y2 grid-height))
+            (let ((direction (if (< y1 y2) 'down 'up)))
+              (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction))))))
+
+       ;; Straight horizontal line
+       ((= y1 y2)
         (when (and (>= x2 0) (< x2 grid-width)
                    (>= y2 0) (< y2 grid-height))
-          (let ((direction (if (< y1 y2) 'down 'up)))
-            (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction))))))
-     
-     ;; Straight horizontal line
-     ((= y1 y2)
-      (when (and (>= x2 0) (< x2 grid-width)
-                 (>= y2 0) (< y2 grid-height))
-        (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))
-     
-     ;; Straight vertical line  
-     ((= x1 x2)
-      (when (and (>= x2 0) (< x2 grid-width)
-                 (>= y2 0) (< y2 grid-height))
-        (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))))))
+          (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))
+
+       ;; Straight vertical line
+       ((= x1 x2)
+        (when (and (>= x2 0) (< x2 grid-width)
+                   (>= y2 0) (< y2 grid-height))
+          (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))))))
 
 (defun dag-draw--draw-direct-fallback-line (grid x1 y1 x2 y2 occupancy-map)
   "Draw direct line as fallback when both L-paths are blocked."
@@ -951,7 +1107,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
             (when (and (>= x 0) (< x grid-width)
-                       (>= y1 0) (< y1 grid-height))
+                       (>= y1 0) (< y1 grid-height)
+                       (= (aref (aref grid y1) x) ?\s))  ; Only draw if cell is empty
               (aset (aref grid y1) x ?─))))))
 
      ;; Vertical line
@@ -961,7 +1118,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (when (and (>= x1 0) (< x1 grid-width)
-                       (>= y 0) (< y grid-height))
+                       (>= y 0) (< y grid-height)
+                       (= (aref (aref grid y) x1) ?\s))  ; Only draw if cell is empty
               (aset (aref grid y) x1 ?│))))))
 
      ;; L-shaped line (horizontal then vertical)
@@ -1041,9 +1199,16 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (end-x (max x1 x2)))
     ;; Draw line characters (exclude endpoints)
     (dotimes (i (1- (- end-x start-x)))
-      (aset (aref grid y1) (+ start-x i 1) ?─))
-    ;; Draw arrow at destination
-    (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction))))
+      (let ((x (+ start-x i 1)))
+        (when (and (>= x 0) (< x (length (aref grid 0)))
+                   (>= y1 0) (< y1 (length grid))
+                   (= (aref (aref grid y1) x) ?\s))  ; Only draw if cell is empty
+          (aset (aref grid y1) x ?─))))
+    ;; Draw arrow at destination - only if cell is empty
+    (when (and (>= x2 0) (< x2 (length (aref grid 0)))
+               (>= y2 0) (< y2 (length grid))
+               (= (aref (aref grid y2) x2) ?\s))
+      (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction)))))
 
 (defun dag-draw--detect-direction (x1 y1 x2 y2)
   "Detect direction from coordinates (X1,Y1) to (X2,Y2)."

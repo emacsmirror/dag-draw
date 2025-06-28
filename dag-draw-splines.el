@@ -52,7 +52,7 @@
     (cond
      ((eq (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
       'self-edge)
-     ((= from-rank to-rank)
+     ((and from-rank to-rank (= from-rank to-rank))
       'flat-edge)
      (t 'inter-rank-edge))))
 

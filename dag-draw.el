@@ -115,22 +115,19 @@
 ;;;###autoload
 (defun dag-draw-add-node (graph node-id &optional label attributes)
   "Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES.
-Auto-sizes the node based on label length and wraps long text for better layout."
+Auto-sizes the node based on label length using 2 rows × 20 characters constraint."
   (let* ((node-label (or label (symbol-name node-id)))
-         (max-single-line-width 15)  ; Wrap text longer than this
-         ;; Wrap text if it's too long
-         (text-lines (if (> (length node-label) max-single-line-width)
-                         (dag-draw--smart-wrap-text node-label max-single-line-width)
-                       (list node-label)))
-         ;; Calculate node size based on wrapped text
-         (size-info (dag-draw--calculate-wrapped-node-size text-lines))
+         ;; Use the constrained text formatting (2 rows × 20 chars max)
+         (text-lines (dag-draw--format-node-text-with-constraints node-label))
+         ;; Calculate variable node size based on actual formatted text
+         (size-info (dag-draw--calculate-constrained-node-size text-lines))
          (node-width (car size-info))
          (node-height (cdr size-info))
-         ;; Create the node with wrapped text as label (joined by newlines)
-         (wrapped-label (mapconcat #'identity text-lines "\n"))
+         ;; Create the node with formatted text as label (joined by newlines)
+         (formatted-label (mapconcat #'identity text-lines "\n"))
          (node (dag-draw-node-create
                 :id node-id
-                :label wrapped-label
+                :label formatted-label
                 :x-size node-width
                 :y-size node-height
                 :attributes (or attributes (ht-create)))))
@@ -194,6 +191,66 @@ Returns a string representation of the rendered graph."
 (autoload 'dag-draw-render-dot "dag-draw-render" "Render graph as DOT format." nil)
 
 ;;; Text Processing Utilities
+
+(defun dag-draw--format-node-text-with-constraints (text)
+  "Format TEXT for constrained node size (max 2 rows, 20 chars each).
+Returns a list of strings representing the formatted rows.
+This implements the user requirement for variable node sizes with constraints."
+  (if (<= (length text) 20)
+      (list text)
+    ;; Check if text has no spaces (single long word)
+    (if (not (string-match " " text))
+        ;; Handle single long word - truncate with ellipsis
+        (list (concat (substring text 0 17) "..."))
+      ;; Word wrapping for text longer than 20 chars
+      (let ((words (split-string text " "))
+            (line1 "")
+            (line2 ""))
+        ;; Fill first line up to 20 chars
+        (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
+          (setq line1 (if (string-empty-p line1)
+                          (car words)
+                        (concat line1 " " (car words))))
+          (setq words (cdr words)))
+        ;; Fill second line up to 20 chars
+        (when words
+          (let ((remaining-text (mapconcat 'identity words " ")))
+            (if (<= (length remaining-text) 20)
+                ;; All remaining text fits in second line
+                (setq line2 remaining-text)
+              ;; Need to truncate with ellipsis
+              (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
+                (setq line2 (if (string-empty-p line2)
+                                (car words)
+                              (concat line2 " " (car words))))
+                (setq words (cdr words)))
+              (setq line2 (concat line2 "...")))))
+        (if (string-empty-p line2)
+            (list line1)
+          (list line1 line2))))))
+
+(defun dag-draw--calculate-constrained-node-size (text-lines)
+  "Calculate appropriate variable node size for constrained text lines.
+Returns (width . height) where dimensions fit the actual text content.
+This enables GKNV variable node sizing while respecting user constraints."
+  (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
+         (num-lines (length text-lines))
+         ;; Base calculations for ASCII rendering scale factors
+         (grid-scale 2)
+         (ascii-box-scale 0.071)
+         (min-width 80)
+         ;; Calculate width to fit the longest line (variable sizing)
+         (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
+         (calculated-width (ceiling (/ required-grid-chars
+                                      (* grid-scale ascii-box-scale))))
+         (node-width (max min-width calculated-width))
+         ;; Calculate height based on actual number of lines (variable sizing)
+         (base-height-per-line 20)
+         (border-height 20)
+         (calculated-height (+ (* num-lines base-height-per-line) border-height))
+         (node-height calculated-height))
+    
+    (cons node-width node-height)))
 
 (defun dag-draw--smart-wrap-text (text max-width)
   "Wrap TEXT to lines no longer than MAX-WIDTH, breaking at whitespace nearest to middle.
