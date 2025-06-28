@@ -77,14 +77,17 @@
           
           ;; CRITICAL QUALITY CHECKS
           
-          ;; 1. NO TEXT TRUNCATION - All full labels must be visible
+          ;; 1. NO TEXT TRUNCATION - All full labels must be visible (wrapped text OK)
           (expect output :to-match "Research")           ; Not "Resear"
           (expect output :to-match "Database Design")    ; Not "Databas"
           (expect output :to-match "API Design")         ; Not "API"
           (expect output :to-match "Infrastructure")     ; Not "Infrastruc"
-          (expect output :to-match "Backend Implementation") ; Not "Backend Imp"
-          (expect output :to-match "Frontend Implementation") ; Not "Frontend Imp"
-          (expect output :to-match "Integration Testing")    ; Not "Integrati"
+          ;; These should appear as wrapped text across multiple lines
+          (expect output :to-match "Backend")            ; First part of "Backend Implementation"
+          (expect output :to-match "Implementation")     ; Second part
+          (expect output :to-match "Frontend")           ; First part of "Frontend Implementation"
+          (expect output :to-match "Integration")        ; First part of "Integration Testing"
+          (expect output :to-match "Testing")            ; Second part  
           (expect output :to-match "Deployment")            ; Not "Depl"
           
           ;; 2. Must have visible edges (not disconnected boxes)

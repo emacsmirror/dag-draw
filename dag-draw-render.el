@@ -384,31 +384,141 @@ Returns nil if either node lacks coordinates."
           ;; For the test case: box at (-1, -1) should put ┘ at (0, 0)
           (aset (aref grid 0) 0 ?┘))
 
-        ;; Draw label in center if it fits (need at least 4x3 box for any text - interior 2x1)
+        ;; Draw label(s) in center - support multi-line text
         (when (and label (>= width 4) (>= height 3))
-          (let* ((label-len (length label))
-                 (max-text-width (- width 2))  ; Leave space for box borders
-                 (text-to-place (if (> label-len max-text-width)
-                                    (substring label 0 max-text-width)
-                                  label))
-                 (text-len (length text-to-place))
-                 ;; Center text within box interior
+          (let* ((text-lines (split-string label "\n"))
+                 (num-lines (length text-lines))
                  (interior-width (- width 2))
-                 (label-x (+ x 1 (/ (- interior-width text-len) 2)))  ; Center horizontally
-                 (label-y (+ y (/ height 2))))
-            (when (and (>= label-y 0) (< label-y grid-height)
-                       (>= label-x 0))
-              (dotimes (i text-len)
-                (let ((char-x (+ label-x i)))
-                  (when (and (>= char-x 0) (< char-x grid-width)
-                             (< char-x (+ x width -1)))  ; Stay within box interior
-                    (aset (aref grid label-y) char-x (aref text-to-place i))))))))))))
+                 (interior-height (- height 2))
+                 ;; Start y position to center all lines vertically
+                 (start-y (+ y 1 (/ (- interior-height num-lines) 2))))
+
+            ;; Draw each line of text
+            (dotimes (line-idx num-lines)
+              (let* ((line-text (nth line-idx text-lines))
+                     (line-len (length line-text))
+                     (text-to-place (if (> line-len interior-width)
+                                        (substring line-text 0 interior-width)
+                                      line-text))
+                     (text-len (length text-to-place))
+                     ;; Center this line horizontally
+                     (label-x (+ x 1 (/ (- interior-width text-len) 2)))
+                     (label-y (+ start-y line-idx)))
+
+                (when (and (>= label-y 0) (< label-y grid-height)
+                           (>= label-x 0))
+                  (dotimes (i text-len)
+                    (let ((char-x (+ label-x i)))
+                      (when (and (>= char-x 0) (< char-x grid-width)
+                                 (< char-x (+ x width -1)))  ; Stay within box interior
+                        (aset (aref grid label-y) char-x (aref text-to-place i))))))))))))))
+
+(defun dag-draw--create-node-occupancy-map (graph grid min-x min-y scale)
+  "Create a 2D map marking which grid cells are occupied by nodes.
+Returns a 2D array where t = occupied by node, nil = empty space."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (occupancy-map (make-vector grid-height nil)))
+
+    ;; Initialize the occupancy map
+    (dotimes (y grid-height)
+      (aset occupancy-map y (make-vector grid-width nil)))
+
+    ;; Mark all node areas as occupied
+    (ht-each (lambda (node-id node)
+               (let* ((x (or (dag-draw-node-x-coord node) 0))
+                      (y (or (dag-draw-node-y-coord node) 0))
+                      (width (dag-draw-node-x-size node))
+                      (height (dag-draw-node-y-size node))
+                      (grid-x (dag-draw--world-to-grid-coord x min-x scale))
+                      (grid-y (dag-draw--world-to-grid-coord y min-y scale))
+                      (grid-width-node (dag-draw--world-to-grid-size width scale))
+                      (grid-height-node (dag-draw--world-to-grid-size height scale)))
+
+                 ;; Mark all cells within this node's bounding box as occupied
+                 (dotimes (dy grid-height-node)
+                   (dotimes (dx grid-width-node)
+                     (let ((map-x (+ grid-x dx))
+                           (map-y (+ grid-y dy)))
+                       (when (and (>= map-x 0) (< map-x grid-width)
+                                  (>= map-y 0) (< map-y grid-height))
+                         (aset (aref occupancy-map map-y) map-x t)))))))
+             (dag-draw-graph-nodes graph))
+
+    occupancy-map))
 
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
-  "Draw edges on ASCII grid using port-based boundary connections."
-  (dolist (edge (dag-draw-graph-edges graph))
-    ;; Use port-based routing for clean boundary-to-boundary connections
-    (dag-draw--ascii-draw-port-based-edge graph edge grid min-x min-y scale)))
+  "Draw edges on ASCII grid using boundary-aware routing."
+  ;; Create node occupancy map to avoid drawing through nodes
+  (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
+    (dolist (edge (dag-draw-graph-edges graph))
+      ;; Use boundary-aware routing for clean connections
+      (dag-draw--ascii-draw-boundary-aware-edge graph edge grid min-x min-y scale occupancy-map))))
+
+(defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
+  "Draw edge using boundary-aware routing that avoids node interiors."
+  (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
+    (when (and connection-points (= (length connection-points) 2))
+      (let* ((from-port (car connection-points))
+             (to-port (cadr connection-points))
+             (from-grid (dag-draw--world-point-to-grid from-port min-x min-y scale))
+             (to-grid (dag-draw--world-point-to-grid to-port min-x min-y scale))
+             (from-x (round (dag-draw-point-x from-grid)))
+             (from-y (round (dag-draw-point-y from-grid)))
+             (to-x (round (dag-draw-point-x to-grid)))
+             (to-y (round (dag-draw-point-y to-grid))))
+        ;; Draw boundary-aware orthogonal path between ports
+        (dag-draw--ascii-draw-boundary-aware-path grid from-x from-y to-x to-y occupancy-map)))))
+
+(defun dag-draw--ascii-draw-boundary-aware-path (grid x1 y1 x2 y2 occupancy-map)
+  "Draw clean orthogonal path that avoids node interiors using occupancy map."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    ;; Enhanced L-shaped routing that checks occupancy and avoids conflicts
+
+    ;; Try horizontal-first path (x1->x2 at y1, then y1->y2 at x2)
+    (let ((horizontal-blocked nil)
+          (vertical-blocked nil))
+
+      ;; Check if horizontal segment would go through occupied areas
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+              (when (aref (aref occupancy-map y1) x)
+                (setq horizontal-blocked t))))))
+
+      ;; Check if vertical segment would go through occupied areas
+      (let ((start-y (min y1 y2))
+            (end-y (max y1 y2)))
+        (dotimes (i (1+ (- end-y start-y)))
+          (let ((y (+ start-y i)))
+            (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+              (when (aref (aref occupancy-map y) x2)
+                (setq vertical-blocked t))))))
+
+      ;; Only draw if the path segments are clear
+      (unless horizontal-blocked
+        ;; Draw horizontal segment: x1 to x2 at y1
+        (let ((start-x (min x1 x2))
+              (end-x (max x1 x2)))
+          (dotimes (i (1+ (- end-x start-x)))
+            (let ((x (+ start-x i)))
+              (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                (when (= (aref (aref grid y1) x) ?\s)
+                  (aset (aref grid y1) x ?─)))))))
+
+      (unless vertical-blocked
+        ;; Draw vertical segment: y1 to y2 at x2
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+                (when (= (aref (aref grid y) x2) ?\s)
+                  (aset (aref grid y) x2 ?│))))))))))
 
 (defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
   "Draw edge using node port calculations for boundary-to-boundary connections."

@@ -115,27 +115,23 @@
 ;;;###autoload
 (defun dag-draw-add-node (graph node-id &optional label attributes)
   "Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES.
-Auto-sizes the node based on label length for proper text rendering."
+Auto-sizes the node based on label length and wraps long text for better layout."
   (let* ((node-label (or label (symbol-name node-id)))
-         (label-length (length node-label))
-         ;; Smart auto-sizing: ensure text fits with padding
-         ;; Account for ASCII grid conversion: world-size * grid-scale * ascii-box-scale = grid-chars
-         ;; We need: grid-chars >= label-length + 2 (for borders)
-         ;; So: world-size >= (label-length + 2) / (grid-scale * ascii-box-scale)
-         (min-width 80)  ; Minimum width for small labels
-         (grid-scale 2)  ; From dag-draw-render-ascii-grid-scale
-         (ascii-box-scale 0.071)  ; From dag-draw-ascii-box-scale
-         (required-grid-chars (+ label-length 2))  ; Text + borders
-         ;; Calculate world size needed to achieve required grid characters
-         (calculated-width (ceiling (/ required-grid-chars
-                                      (* grid-scale ascii-box-scale))))
-         (required-width (max min-width calculated-width))
-         ;; Height can scale with width or stay fixed for simple boxes
-         (node-height (max 40 (+ 20 (* 10 (/ label-length 20)))))
+         (max-single-line-width 15)  ; Wrap text longer than this
+         ;; Wrap text if it's too long
+         (text-lines (if (> (length node-label) max-single-line-width)
+                         (dag-draw--smart-wrap-text node-label max-single-line-width)
+                       (list node-label)))
+         ;; Calculate node size based on wrapped text
+         (size-info (dag-draw--calculate-wrapped-node-size text-lines))
+         (node-width (car size-info))
+         (node-height (cdr size-info))
+         ;; Create the node with wrapped text as label (joined by newlines)
+         (wrapped-label (mapconcat #'identity text-lines "\n"))
          (node (dag-draw-node-create
                 :id node-id
-                :label node-label
-                :x-size required-width
+                :label wrapped-label
+                :x-size node-width
                 :y-size node-height
                 :attributes (or attributes (ht-create)))))
     (ht-set! (dag-draw-graph-nodes graph) node-id node)
@@ -196,6 +192,58 @@ Returns a string representation of the rendered graph."
 (autoload 'dag-draw-render-svg "dag-draw-render" "Render graph as SVG." nil)
 (autoload 'dag-draw-render-ascii "dag-draw-render" "Render graph as ASCII art." nil)
 (autoload 'dag-draw-render-dot "dag-draw-render" "Render graph as DOT format." nil)
+
+;;; Text Processing Utilities
+
+(defun dag-draw--smart-wrap-text (text max-width)
+  "Wrap TEXT to lines no longer than MAX-WIDTH, breaking at whitespace nearest to middle.
+Returns a list of lines."
+  (if (<= (length text) max-width)
+      (list text)  ; No wrapping needed
+    
+    ;; Find the best place to break the text
+    (let* ((target-pos (/ (length text) 2))  ; Ideal break position (middle)
+           (best-pos nil)
+           (best-distance most-positive-fixnum))
+      
+      ;; Find whitespace closest to the middle
+      (dotimes (i (length text))
+        (when (= (aref text i) ?\s)  ; Found a space
+          (let ((distance (abs (- i target-pos))))
+            (when (< distance best-distance)
+              (setq best-distance distance)
+              (setq best-pos i)))))
+      
+      (if best-pos
+          ;; Split at the best whitespace position
+          (let ((line1 (substring text 0 best-pos))
+                (line2 (substring text (1+ best-pos))))  ; Skip the space
+            (cons line1 (dag-draw--smart-wrap-text line2 max-width)))
+        ;; No good break point found, force break at max-width
+        (list (substring text 0 max-width)
+              (substring text max-width))))))
+
+(defun dag-draw--calculate-wrapped-node-size (text-lines)
+  "Calculate appropriate node size for wrapped text lines.
+Returns (width . height) where width accommodates the longest line
+and height accommodates all lines with padding."
+  (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
+         (num-lines (length text-lines))
+         ;; Base calculations for ASCII rendering
+         (grid-scale 2)
+         (ascii-box-scale 0.071)
+         (min-width 80)
+         ;; Calculate width to fit the longest line
+         (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
+         (calculated-width (ceiling (/ required-grid-chars
+                                      (* grid-scale ascii-box-scale))))
+         (node-width (max min-width calculated-width))
+         ;; Calculate height for multiple lines
+         (line-height 20)  ; Height per line of text
+         (base-height 40)  ; Minimum height
+         (node-height (max base-height (+ base-height (* (1- num-lines) line-height)))))
+    
+    (cons node-width node-height)))
 
 ;;; Graph utility functions
 
