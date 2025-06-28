@@ -296,7 +296,10 @@ Returns nil if either node lacks coordinates."
         ;; Draw nodes
         (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
 
-        ;; Draw edges
+        ;; Generate splines for smoother edge routing (GKNV algorithm Pass 4)
+        (dag-draw-generate-splines graph)
+
+        ;; Draw edges using spline data when available
         (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
 
         ;; Convert grid to string
@@ -467,7 +470,16 @@ Returns a 2D array where t = occupied by node, nil = empty space."
       (dag-draw--ascii-draw-boundary-aware-edge graph edge grid min-x min-y scale occupancy-map))))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
-  "Draw edge using boundary-aware routing that avoids node interiors."
+  "Draw edge using spline data when available, otherwise boundary-aware routing."
+  (let ((spline-points (dag-draw-get-edge-spline-points edge)))
+    (if (and spline-points (> (length spline-points) 2))
+        ;; Use spline-guided routing for smoother paths
+        (dag-draw--ascii-draw-spline-guided-edge edge grid min-x min-y scale occupancy-map spline-points)
+      ;; Fall back to orthogonal routing
+      (dag-draw--ascii-draw-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))))
+
+(defun dag-draw--ascii-draw-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
+  "Draw edge using orthogonal (L-shaped) routing - the original method."
   (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
     (when (and connection-points (= (length connection-points) 2))
       (let* ((from-port (car connection-points))
@@ -480,6 +492,74 @@ Returns a 2D array where t = occupied by node, nil = empty space."
              (to-y (round (dag-draw-point-y to-grid))))
         ;; Draw boundary-aware orthogonal path between ports with arrows
         (dag-draw--ascii-draw-boundary-aware-path-with-arrows grid from-x from-y to-x to-y occupancy-map)))))
+
+(defun dag-draw--ascii-draw-spline-guided-edge (edge grid min-x min-y scale occupancy-map spline-points)
+  "Draw edge using spline points for smoother, more natural routing."
+  (when (and grid (> (length spline-points) 1))
+    (let* ((grid-height (length grid))
+           (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+           (prev-grid-x nil)
+           (prev-grid-y nil))
+      
+      ;; Convert each spline point to grid coordinates and draw segments
+      (dolist (point spline-points)
+        (let* ((world-x (dag-draw-point-x point))
+               (world-y (dag-draw-point-y point))
+               (grid-x (round (dag-draw--world-to-grid-coord world-x min-x scale)))
+               (grid-y (round (dag-draw--world-to-grid-coord world-y min-y scale))))
+          
+          ;; Draw segment from previous point to current point
+          (when (and prev-grid-x prev-grid-y)
+            (dag-draw--ascii-draw-spline-segment grid prev-grid-x prev-grid-y grid-x grid-y occupancy-map))
+          
+          (setq prev-grid-x grid-x)
+          (setq prev-grid-y grid-y)))
+      
+      ;; Add arrow at the end point
+      (when (and prev-grid-x prev-grid-y
+                 (>= prev-grid-x 0) (< prev-grid-x grid-width)
+                 (>= prev-grid-y 0) (< prev-grid-y grid-height))
+        (let* ((last-point (car (last spline-points)))
+               (second-last-point (car (last spline-points 2)))
+               (direction (if second-last-point
+                             (dag-draw--detect-direction
+                              (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
+                              (dag-draw-point-x last-point) (dag-draw-point-y last-point))
+                           'right)))
+          (aset (aref grid prev-grid-y) prev-grid-x (dag-draw--get-arrow-char direction)))))))
+
+(defun dag-draw--ascii-draw-spline-segment (grid x1 y1 x2 y2 occupancy-map)
+  "Draw a single segment of a spline path between two grid points."
+  (when grid
+    (let* ((grid-height (length grid))
+           (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; For spline segments, use simpler direct routing
+    (cond
+     ;; Same point - no line needed
+     ((and (= x1 x2) (= y1 y2)) nil)
+     
+     ;; Horizontal line
+     ((= y1 y2)
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+              (aset (aref grid y1) x ?─))))))
+     
+     ;; Vertical line
+     ((= x1 x2)
+      (let ((start-y (min y1 y2))
+            (end-y (max y1 y2)))
+        (dotimes (i (1+ (- end-y start-y)))
+          (let ((y (+ start-y i)))
+            (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+              (aset (aref grid y) x1 ?│))))))
+     
+     ;; Diagonal - approximate with L-shape for ASCII
+     (t
+      (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map))))))
 
 (defun dag-draw--ascii-draw-boundary-aware-path (grid x1 y1 x2 y2 occupancy-map)
   "Draw clean orthogonal path that avoids node interiors using occupancy map."

@@ -1,0 +1,68 @@
+;;; dag-draw-spline-ascii-test.el --- Tests for spline-based ASCII rendering -*- lexical-binding: t -*-
+
+;; Copyright (C) 2024
+
+;;; Commentary:
+
+;; TDD Iteration 13: Fix spline integration for curved routing in ASCII.
+;; Test using spline data to create smoother ASCII edge routing instead of pure orthogonal.
+
+;;; Code:
+
+(require 'buttercup)
+(require 'dag-draw-render)
+(require 'dag-draw-splines)
+
+(describe "dag-draw spline integration for ASCII"
+  (describe "spline data utilization"
+    (it "should use spline points when available for smoother routing"
+      (let ((graph (dag-draw-create-graph)))
+        ;; Create a graph that will generate splines
+        (dag-draw-add-node graph 'A "Node A")
+        (dag-draw-add-node graph 'B "Node B")
+        (dag-draw-add-edge graph 'A 'B)
+        (dag-draw-layout-graph graph)
+        
+        ;; Generate splines (this should populate edge spline data)
+        (dag-draw-generate-splines graph)
+        
+        ;; Get the edge to verify spline data exists
+        (let* ((edge (car (dag-draw-graph-edges graph)))
+               (spline-points (dag-draw-get-edge-spline-points edge)))
+          
+          ;; Should have spline points generated
+          (expect spline-points :not :to-be nil)
+          (expect (length spline-points) :to-be-greater-than 2)
+          
+          ;; ASCII rendering should use this spline data for smoother paths
+          (let ((result (dag-draw-render-ascii graph)))
+            ;; Should still have directional arrows
+            (expect result :to-match "[>v<^]")
+            ;; Should have connected paths
+            (expect result :to-match "[─│]"))))))
+
+  (describe "spline sampling for ASCII grid"
+    (it "should sample spline curves appropriately for ASCII character grid"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'START "Start")
+        (dag-draw-add-node graph 'END "End")
+        (dag-draw-add-edge graph 'START 'END)
+        (dag-draw-layout-graph graph)
+        
+        ;; Generate splines
+        (dag-draw-generate-splines graph)
+        
+        ;; Verify the edge has spline data that could be used for ASCII
+        (let* ((edge (car (dag-draw-graph-edges graph)))
+               (spline-points (dag-draw-get-edge-spline-points edge)))
+          ;; Should have multiple sample points along the curve
+          (expect (length spline-points) :to-be-greater-than 5)
+          
+          ;; Each point should have valid coordinates
+          (dolist (point spline-points)
+            (expect (numberp (dag-draw-point-x point)) :to-be t)
+            (expect (numberp (dag-draw-point-y point)) :to-be t)))))))
+
+(provide 'dag-draw-spline-ascii-test)
+
+;;; dag-draw-spline-ascii-test.el ends here
