@@ -84,7 +84,7 @@
           (setf (dag-draw-node-y-size node) 60)
 
           (let ((port (dag-draw--get-node-port node 'top)))
-            (expect (dag-draw-point-x port) :to-equal 100)
+            (expect (dag-draw-point-x port) :to-equal 100.0)
             (expect (dag-draw-point-y port) :to-equal 170.0)))))  ; 200 - 60/2
 
   (it "should calculate all four ports correctly"
@@ -169,9 +169,9 @@
 
             (let ((curve (car splines)))
               ;; Start should be at bottom of node A
-              (expect (dag-draw-point-x (dag-draw-bezier-curve-p0 curve)) :to-equal 50)
+              (expect (dag-draw-point-x (dag-draw-bezier-curve-p0 curve)) :to-equal 50.0)
               ;; End should be at top of node B
-              (expect (dag-draw-point-x (dag-draw-bezier-curve-p3 curve)) :to-equal 100))))))
+              (expect (dag-draw-point-x (dag-draw-bezier-curve-p3 curve)) :to-equal 100.0))))))
 
   (it "should create horizontal flat splines"
       (let ((graph (dag-draw-create-graph)))

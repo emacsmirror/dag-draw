@@ -144,7 +144,8 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
 (defun dag-draw--position-nodes-heuristic (graph)
   "Simple heuristic approach for X-coordinate assignment.
 This is a fallback when the auxiliary graph approach is too complex."
-  (let ((rank-to-nodes (ht-create)))
+  (let ((rank-to-nodes (ht-create))
+        (max-rank-width 0))
     
     ;; Group nodes by rank
     (ht-each (lambda (node-id node)
@@ -153,21 +154,44 @@ This is a fallback when the auxiliary graph approach is too complex."
                           (cons node-id (ht-get rank-to-nodes rank '())))))
              (dag-draw-graph-nodes graph))
     
-    ;; Position nodes within each rank
+    ;; Calculate the width needed for each rank and find maximum
     (ht-each (lambda (rank node-list)
-               (let ((ordered-nodes (dag-draw--get-ordered-nodes-in-rank 
-                                   graph node-list))
-                     (current-x 0))
-                 
+               (let ((ordered-nodes (dag-draw--get-ordered-nodes-in-rank graph node-list))
+                     (rank-width 0))
                  (dolist (node-id ordered-nodes)
-                   (let ((node (dag-draw-get-node graph node-id)))
-                     ;; Set X coordinate
-                     (setf (dag-draw-node-x-coord node) current-x)
-                     
-                     ;; Update position for next node
-                     (let ((node-width (dag-draw-node-x-size node))
-                           (node-sep (dag-draw-graph-node-separation graph)))
-                       (setq current-x (+ current-x node-width node-sep)))))))
+                   (let* ((node (dag-draw-get-node graph node-id))
+                          (node-width (dag-draw-node-x-size node))
+                          (node-sep (dag-draw-graph-node-separation graph)))
+                     (setq rank-width (+ rank-width node-width node-sep))))
+                 (setq max-rank-width (max max-rank-width rank-width))))
+             rank-to-nodes)
+    
+    ;; Position nodes within each rank, centering smaller ranks
+    (ht-each (lambda (rank node-list)
+               (let ((ordered-nodes (dag-draw--get-ordered-nodes-in-rank graph node-list))
+                     (rank-width 0))
+                 
+                 ;; Calculate this rank's total width
+                 (dolist (node-id ordered-nodes)
+                   (let* ((node (dag-draw-get-node graph node-id))
+                          (node-width (dag-draw-node-x-size node))
+                          (node-sep (dag-draw-graph-node-separation graph)))
+                     (setq rank-width (+ rank-width node-width node-sep))))
+                 
+                 ;; Center this rank within the maximum width
+                 (let ((start-x (/ (- max-rank-width rank-width) 2.0))
+                       (current-x 0))
+                   (setq current-x start-x)
+                   
+                   (dolist (node-id ordered-nodes)
+                     (let ((node (dag-draw-get-node graph node-id)))
+                       ;; Set X coordinate
+                       (setf (dag-draw-node-x-coord node) current-x)
+                       
+                       ;; Update position for next node
+                       (let ((node-width (dag-draw-node-x-size node))
+                             (node-sep (dag-draw-graph-node-separation graph)))
+                         (setq current-x (+ current-x node-width node-sep))))))))
              rank-to-nodes)))
 
 ;;; Network simplex solver (simplified)
@@ -220,7 +244,29 @@ for optimal X-coordinate assignment."
       ;; Simple heuristic approach
       (dag-draw--position-nodes-heuristic graph)))
   
+  ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
+  (dag-draw--ensure-all-nodes-have-coordinates graph)
+  
   graph)
+
+(defun dag-draw--ensure-all-nodes-have-coordinates (graph)
+  "Ensure all nodes have valid X and Y coordinates.
+This is a fallback to prevent nil coordinate errors in rendering."
+  (let ((default-x 100)
+        (default-y 100)
+        (x-offset 0)
+        (y-offset 0))
+    
+    (ht-each (lambda (node-id node)
+               ;; Assign default coordinates if missing
+               (unless (dag-draw-node-x-coord node)
+                 (setf (dag-draw-node-x-coord node) (+ default-x x-offset))
+                 (setq x-offset (+ x-offset 100)))  ; Space out nodes horizontally
+               
+               (unless (dag-draw-node-y-coord node)
+                 (setf (dag-draw-node-y-coord node) (+ default-y y-offset))
+                 (setq y-offset (+ y-offset 60))))  ; Space out nodes vertically
+             (dag-draw-graph-nodes graph))))
 
 ;;; Coordinate normalization and adjustment
 

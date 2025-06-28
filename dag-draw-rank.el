@@ -218,8 +218,7 @@ This is a simplified version of the balancing described in the paper."
             (aset rank-counts current-rank (1- (aref rank-counts current-rank)))
             (aset rank-counts new-rank (1+ (aref rank-counts new-rank)))
             ;; Move the node
-            (setf (dag-draw-node-rank node) new-rank)
-            (return)))))))
+            (setf (dag-draw-node-rank node) new-rank)))))))
 
 (defun dag-draw--rank-move-valid-p (graph node-id new-rank)
   "Check if moving NODE-ID to NEW-RANK preserves edge direction constraints."

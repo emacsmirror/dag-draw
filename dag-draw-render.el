@@ -198,50 +198,54 @@ SIZE is the node size in world coordinates, SCALE is the grid scale factor."
 
 (defun dag-draw--calculate-edge-ports (from-node to-node)
   "Calculate appropriate ports for edge between FROM-NODE and TO-NODE.
-Returns list of (from-port to-port) based on edge direction."
+Returns list of (from-port to-port) based on edge direction.
+Returns nil if either node lacks coordinates."
   (let* ((from-x (dag-draw-node-x-coord from-node))
          (from-y (dag-draw-node-y-coord from-node))
          (to-x (dag-draw-node-x-coord to-node))
-         (to-y (dag-draw-node-y-coord to-node))
-         (dx (- to-x from-x))
-         (dy (- to-y from-y)))
-    
-    ;; Determine primary direction and select appropriate ports
-    (cond
-     ;; Vertical edge (down)
-     ((and (< (abs dx) 20) (> dy 0))
-      (list (dag-draw--get-node-port from-node 'bottom)
-            (dag-draw--get-node-port to-node 'top)))
-     ;; Vertical edge (up)
-     ((and (< (abs dx) 20) (< dy 0))
-      (list (dag-draw--get-node-port from-node 'top)
-            (dag-draw--get-node-port to-node 'bottom)))
-     ;; Horizontal edge (right)
-     ((and (< (abs dy) 20) (> dx 0))
-      (list (dag-draw--get-node-port from-node 'right)
-            (dag-draw--get-node-port to-node 'left)))
-     ;; Horizontal edge (left)
-     ((and (< (abs dy) 20) (< dx 0))
-      (list (dag-draw--get-node-port from-node 'left)
-            (dag-draw--get-node-port to-node 'right)))
-     ;; Diagonal edge - prefer vertical direction (including equal distances)
-     ((>= (abs dy) (abs dx))
-      (if (> dy 0)
+         (to-y (dag-draw-node-y-coord to-node)))
+
+    ;; Return nil if any coordinate is missing - prevents arithmetic errors
+    (when (and from-x from-y to-x to-y)
+      (let* ((dx (- to-x from-x))
+             (dy (- to-y from-y)))
+
+        ;; Determine primary direction and select appropriate ports
+        (cond
+         ;; Vertical edge (down)
+         ((and (< (abs dx) 20) (> dy 0))
           (list (dag-draw--get-node-port from-node 'bottom)
-                (dag-draw--get-node-port to-node 'top))
-        (list (dag-draw--get-node-port from-node 'top)
-              (dag-draw--get-node-port to-node 'bottom))))
-     ;; Diagonal edge - prefer horizontal direction
-     (t
-      (if (> dx 0)
+                (dag-draw--get-node-port to-node 'top)))
+         ;; Vertical edge (up)
+         ((and (< (abs dx) 20) (< dy 0))
+          (list (dag-draw--get-node-port from-node 'top)
+                (dag-draw--get-node-port to-node 'bottom)))
+         ;; Horizontal edge (right)
+         ((and (< (abs dy) 20) (> dx 0))
           (list (dag-draw--get-node-port from-node 'right)
-                (dag-draw--get-node-port to-node 'left))
-        (list (dag-draw--get-node-port from-node 'left)
-              (dag-draw--get-node-port to-node 'right)))))))
+                (dag-draw--get-node-port to-node 'left)))
+         ;; Horizontal edge (left)
+         ((and (< (abs dy) 20) (< dx 0))
+          (list (dag-draw--get-node-port from-node 'left)
+                (dag-draw--get-node-port to-node 'right)))
+         ;; Diagonal edge - prefer vertical direction (including equal distances)
+         ((>= (abs dy) (abs dx))
+          (if (> dy 0)
+              (list (dag-draw--get-node-port from-node 'bottom)
+                    (dag-draw--get-node-port to-node 'top))
+            (list (dag-draw--get-node-port from-node 'top)
+                  (dag-draw--get-node-port to-node 'bottom))))
+         ;; Diagonal edge - prefer horizontal direction
+         (t
+          (if (> dx 0)
+              (list (dag-draw--get-node-port from-node 'right)
+                    (dag-draw--get-node-port to-node 'left))
+            (list (dag-draw--get-node-port from-node 'left)
+                  (dag-draw--get-node-port to-node 'right)))))))))
 
 (defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
   "Convert world coordinate point to ASCII grid coordinates."
-  (dag-draw-point-create 
+  (dag-draw-point-create
    :x (float (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale))
    :y (float (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale))))
 
@@ -372,8 +376,8 @@ Returns list of (from-port to-port) based on edge direction."
             (let ((pos-x (+ x width -1)))
               (when (and (>= pos-x 0) (< pos-x grid-width))
                 (aset (aref grid pos-y) pos-x ?┘)))))
-        
-        ;; Special handling for negative coordinates: 
+
+        ;; Special handling for negative coordinates:
         ;; When box starts at negative coords, draw bottom-right corner at (0,0)
         ;; This matches the expected behavior in the test case
         (when (and (< x 0) (< y 0))
@@ -409,7 +413,7 @@ Returns list of (from-port to-port) based on edge direction."
 (defun dag-draw--ascii-draw-port-based-edge (graph edge grid min-x min-y scale)
   "Draw edge using node port calculations for boundary-to-boundary connections."
   (let ((connection-points (dag-draw--get-edge-connection-points graph edge)))
-    (when (= (length connection-points) 2)
+    (when (and connection-points (= (length connection-points) 2))
       (let* ((from-port (car connection-points))
              (to-port (cadr connection-points))
              (from-grid (dag-draw--world-point-to-grid from-port min-x min-y scale))
@@ -425,10 +429,10 @@ Returns list of (from-port to-port) based on edge direction."
   "Draw clean orthogonal path avoiding node overlaps."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
+
     ;; Draw horizontal segment first, then vertical
     ;; This creates clean L-shaped connections
-    
+
     ;; Horizontal from x1 to x2 at y1
     (let ((start-x (min x1 x2))
           (end-x (max x1 x2)))
@@ -438,7 +442,7 @@ Returns list of (from-port to-port) based on edge direction."
             ;; Only draw if cell is empty (avoid overwriting node borders)
             (when (= (aref (aref grid y1) x) ?\s)
               (aset (aref grid y1) x ?─))))))
-    
+
     ;; Vertical from y1 to y2 at x2
     (let ((start-y (min y1 y2))
           (end-y (max y1 y2)))
