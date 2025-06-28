@@ -208,24 +208,27 @@ Returns nil if either node lacks coordinates."
     ;; Return nil if any coordinate is missing - prevents arithmetic errors
     (when (and from-x from-y to-x to-y)
       (let* ((dx (- to-x from-x))
-             (dy (- to-y from-y)))
+             (dy (- to-y from-y))
+             ;; Calculate node-size-aware thresholds instead of hard-coded 20
+             (horizontal-threshold (/ (+ (dag-draw-node-x-size from-node) (dag-draw-node-x-size to-node)) 4.0))
+             (vertical-threshold (/ (+ (dag-draw-node-y-size from-node) (dag-draw-node-y-size to-node)) 4.0)))
 
-        ;; Determine primary direction and select appropriate ports
+        ;; Determine primary direction using adaptive thresholds
         (cond
          ;; Vertical edge (down)
-         ((and (< (abs dx) 20) (> dy 0))
+         ((and (< (abs dx) horizontal-threshold) (> dy 0))
           (list (dag-draw--get-node-port from-node 'bottom)
                 (dag-draw--get-node-port to-node 'top)))
          ;; Vertical edge (up)
-         ((and (< (abs dx) 20) (< dy 0))
+         ((and (< (abs dx) horizontal-threshold) (< dy 0))
           (list (dag-draw--get-node-port from-node 'top)
                 (dag-draw--get-node-port to-node 'bottom)))
          ;; Horizontal edge (right)
-         ((and (< (abs dy) 20) (> dx 0))
+         ((and (< (abs dy) vertical-threshold) (> dx 0))
           (list (dag-draw--get-node-port from-node 'right)
                 (dag-draw--get-node-port to-node 'left)))
          ;; Horizontal edge (left)
-         ((and (< (abs dy) 20) (< dx 0))
+         ((and (< (abs dy) vertical-threshold) (< dx 0))
           (list (dag-draw--get-node-port from-node 'left)
                 (dag-draw--get-node-port to-node 'right)))
          ;; Diagonal edge - prefer vertical direction (including equal distances)
@@ -314,10 +317,14 @@ Returns nil if either node lacks coordinates."
                     (width (dag-draw-node-x-size node))
                     (height (dag-draw-node-y-size node))
                     (label (dag-draw-node-label node))
-                    (grid-x (dag-draw--world-to-grid-coord x min-x scale))
-                    (grid-y (dag-draw--world-to-grid-coord y min-y scale))
+                    ;; FIX: Node coordinates are CENTER points, convert to top-left for drawing
+                    (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                    (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
                     (grid-width (dag-draw--world-to-grid-size width scale))
-                    (grid-height (dag-draw--world-to-grid-size height scale)))
+                    (grid-height (dag-draw--world-to-grid-size height scale))
+                    ;; Calculate top-left corner for box drawing
+                    (grid-x (- grid-center-x (/ grid-width 2)))
+                    (grid-y (- grid-center-y (/ grid-height 2))))
 
                (dag-draw--ascii-draw-box grid grid-x grid-y grid-width grid-height label)))
            (dag-draw-graph-nodes graph)))
@@ -430,7 +437,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                       (y (or (dag-draw-node-y-coord node) 0))
                       (width (dag-draw-node-x-size node))
                       (height (dag-draw-node-y-size node))
-                      ;; Calculate grid center position  
+                      ;; Calculate grid center position (same as node drawing)
                       (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
                       (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
                       (grid-width-node (dag-draw--world-to-grid-size width scale))
