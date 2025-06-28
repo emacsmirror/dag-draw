@@ -478,8 +478,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
              (from-y (round (dag-draw-point-y from-grid)))
              (to-x (round (dag-draw-point-x to-grid)))
              (to-y (round (dag-draw-point-y to-grid))))
-        ;; Draw boundary-aware orthogonal path between ports
-        (dag-draw--ascii-draw-boundary-aware-path grid from-x from-y to-x to-y occupancy-map)))))
+        ;; Draw boundary-aware orthogonal path between ports with arrows
+        (dag-draw--ascii-draw-boundary-aware-path-with-arrows grid from-x from-y to-x to-y occupancy-map)))))
 
 (defun dag-draw--ascii-draw-boundary-aware-path (grid x1 y1 x2 y2 occupancy-map)
   "Draw clean orthogonal path that avoids node interiors using occupancy map."
@@ -617,6 +617,59 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
     ;; If both L-paths are blocked, draw direct line as fallback
     (dag-draw--draw-direct-fallback-line grid x1 y1 x2 y2 occupancy-map))))
+
+(defun dag-draw--ascii-draw-boundary-aware-path-with-arrows (grid x1 y1 x2 y2 occupancy-map)
+  "Draw path with arrows using existing boundary-aware logic."
+  ;; First draw the path using existing logic
+  (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map)
+  ;; Then enhance with proper corner arrows
+  (dag-draw--add-corner-arrows-to-path grid x1 y1 x2 y2))
+
+(defun dag-draw--add-corner-arrows-to-path (grid x1 y1 x2 y2)
+  "Add proper corner arrows to L-shaped paths."
+  (when (and grid (> (length grid) 0))
+    (let ((grid-height (length grid))
+          (grid-width (length (aref grid 0))))
+    ;; For paths, detect the type and add appropriate arrow
+    (cond
+     ;; Same point - create an L-shaped connection manually
+     ((and (= x1 x2) (= y1 y2))
+      ;; Create L-shape: horizontal line then vertical with arrow
+      (when (and (>= (- x2 1) 0) (< (+ x2 2) grid-width)
+                 (>= (+ y2 1) 0) (< (+ y2 3) grid-height))
+        ;; Draw L corner
+        (aset (aref grid (+ y2 1)) (- x2 1) ?└)
+        ;; Draw horizontal line
+        (aset (aref grid (+ y2 1)) x2 ?─)
+        ;; Draw arrow at end
+        (aset (aref grid (+ y2 2)) x2 ?v)))
+     
+     ;; Horizontal then vertical (corner at x2, y1)
+     ((and (/= x1 x2) (/= y1 y2))
+      (let ((corner-x x2)
+            (corner-y y1))
+        ;; Add corner character at the turn
+        (when (and (>= corner-x 0) (< corner-x grid-width)
+                   (>= corner-y 0) (< corner-y grid-height))
+          (let ((corner-char (if (< y1 y2) ?└ ?┌)))  ; Down or up turn
+            (aset (aref grid corner-y) corner-x corner-char)))
+        ;; Add arrow at final destination
+        (when (and (>= x2 0) (< x2 grid-width)
+                   (>= y2 0) (< y2 grid-height))
+          (let ((direction (if (< y1 y2) 'down 'up)))
+            (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction))))))
+     
+     ;; Straight horizontal line
+     ((= y1 y2)
+      (when (and (>= x2 0) (< x2 grid-width)
+                 (>= y2 0) (< y2 grid-height))
+        (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))
+     
+     ;; Straight vertical line  
+     ((= x1 x2)
+      (when (and (>= x2 0) (< x2 grid-width)
+                 (>= y2 0) (< y2 grid-height))
+        (aset (aref grid y2) x2 (dag-draw--get-arrow-char (dag-draw--detect-direction x1 y1 x2 y2)))))))))
 
 (defun dag-draw--draw-direct-fallback-line (grid x1 y1 x2 y2 occupancy-map)
   "Draw direct line as fallback when both L-paths are blocked."
@@ -854,6 +907,39 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (replace-regexp-in-string
    "\"" "\\\\\\\\\""
    (replace-regexp-in-string "\\\\" "\\\\\\\\\\\\\\\\" text)))
+
+;;; ASCII Arrow Functions
+
+(defun dag-draw--get-arrow-char (direction)
+  "Get arrow character for given DIRECTION."
+  (pcase direction
+    ('left ?<)
+    ('right ?>)
+    ('down ?v)
+    ('up ?^)
+    (_ ?>)))
+
+(defun dag-draw--draw-horizontal-with-arrow (grid x1 y1 x2 y2)
+  "Draw horizontal line from (X1,Y1) to (X2,Y2) with arrow at end."
+  (let ((direction (dag-draw--detect-direction x1 y1 x2 y2))
+        (start-x (min x1 x2))
+        (end-x (max x1 x2)))
+    ;; Draw line characters (exclude endpoints)
+    (dotimes (i (1- (- end-x start-x)))
+      (aset (aref grid y1) (+ start-x i 1) ?─))
+    ;; Draw arrow at destination
+    (aset (aref grid y2) x2 (dag-draw--get-arrow-char direction))))
+
+(defun dag-draw--detect-direction (x1 y1 x2 y2)
+  "Detect direction from coordinates (X1,Y1) to (X2,Y2)."
+  (let ((dx (- x2 x1))
+        (dy (- y2 y1)))
+    (cond
+     ((> dx 0) 'right)
+     ((< dx 0) 'left)
+     ((> dy 0) 'down)
+     ((< dy 0) 'up)
+     (t 'right))))  ; default case
 
 ;;; Utility functions
 
