@@ -1,0 +1,2376 @@
+____
+*A Technique for Drawing Directed Graphs* +
+_Emden R. Gansner_ +
+_Eleftherios Koutsofios_ +
+_Stephen C. North_ +
+_Kiem-Phong Vo_
+
+AT&T Bell Laboratories +
+Murray Hill, New Jersey 07974
+____
+
+_ABSTRACT_
+
+____
+We describe a four-pass algorithm for drawing directed graphs. The first
+pass finds an optimal rank assignment using a network simplex algorithm.
+The second pass sets the vertex order within ranks by an iterative
+heuristic incorporating a novel weight function and local transpositions
+to reduce crossings. The third pass finds optimal coordinates for nodes
+by constructing and ranking an auxiliary graph. The fourth pass makes
+splines to draw edges. The algorithm makes good drawings and runs fast.
+____
+
+*1. Introduction*
+
+Drawing abstract graphs is a topic of ongoing research, having such
+applications as visualization of programs and data structures, and
+document preparation. This paper describes a technique for drawing
+directed graphs in the plane. The goal is to make high-quality drawings
+quickly enough for interactive use. These algorithms are the basis of a
+practical implementation [GNV1].
+
+*1.1 Aesthetic criteria*
+
+To make drawings, it helps to assume that a directed graph has an
+overall flow or direction, such as top to bottom (assumed in most
+examples in this paper) or left to right. Such flows can be seen in
+hand-made drawings of finite automata where the flow is from initial to
+terminal states, or in data flow graphs from input to output. This
+observation has motivated a collection of methods for drawing digraphs
+based on the following aesthetic principles:
+
+*A1.* Expose hierarchical structure in the graph. In particular, aim
+edges in the same general direction if possible. This aids finding
+directed paths and highlights source and sink nodes.
+
+*A2.* Avoid visual anomalies that do not convey information about the
+underlying graph. For example, avoid edge crossings and sharp bends.
+
+*A3.* Keep edges short. This makes it easier to find related nodes and
+contributes to A2.
+
+*A4.* Favor symmetry and balance. This aesthetic has a secondary role in
+a few places in our algorithm.
+
+There is no way to optimize all these aesthetics simultaneously. For
+instance, a placement of nodes and orientation of edges preferred
+according to A1 may force edge crossings that are undesirable according
+to A2. What is more, it is computationally intractable to minimize edge
+crossings or to find subgraphs
+
+- 2 -
+
+having symmetry. We therefore make some simplifying assumptions and rely
+on heuristics that run quickly and make good layouts in common cases.
+For a survey of other aesthetic principles, we refer the reader to the
+annotated bibliography on graph-drawing algorithms by Eades and Tamassia
+[ET].
+
+*1.2 Problem description*
+
+The input to the drawing algorithm is an attributed graph _G_ =
+(_V_,_E_) possibly containing loops and multi-edges. We assume that _G_
+is connected, as each connected component can be laid out separately.
+
+The attributes are:
+
+____
+_xsize_(_v_) ,_ysize_(_v_) Size of bounding box of a node _v_.
+
+_nodesep_(_G_) Minimum horizontal separation between node boxes.
+_ranksep_(_G_) Minimum vertical separation between node boxes.ω(_e_)
+Weight of an edge _e_, usually 1. The weight signifies the edge’s
+importance, which translates to keeping the edge short and vertically
+aligned.
+____
+
+The algorithm assigns each node _v_ to a rectangle in the plane with the
+center point (_x_(_v_) ,_y_(_v_) ) and assigns each edge _e_ to a
+sequence of B-spline control points (_x_ 0 (_e_) ,_y_ 0 (_e_) ) ,... ,
+(_x n_ (_e_) ,_y n_ (_e_) ). Though the unit of these dimensions is not
+specified, it is convenient to use the traditional coordinate system of
+72 units per inch in an implementation. The layout is generally guided
+by the aesthetic criteria A1-A4, and specifically by the graph
+attributes. The details of these constraints will be supplied in the
+following sections.
+
+The user can further constrain the layout in a way that is useful for
+drawing graphs that have time-lines or for highlighting source and sink
+nodes. The initial pass of the algorithm described in the next section
+assigns nodes to discrete ranks 0..._Max___rank_. Nodes in the same rank
+receive the same _Y_ coordinate value. The user may provide sets _S_ max
+,_S_ min ,_S_ 0 ,_S_ 1 , . . . , _S k_ !_subset V_. These are (possibly
+empty) sets of nodes that must be placed together on the maximum,
+minimum, or same rank, respectively.
+
+*1.3 Related work*
+
+Drawing digraphs using an iterative method to reduce edge crossing was
+first studied by Warfield [Wa], and similar methods were discovered by
+Carpano [Ca] and Sugiyama, Tagawa, and Toda [STT]. Di Battista and
+Tamassia describe an algorithm for embedding planar acyclic digraphs
+such that all edges flow in the same direction [DT]. We view our work as
+building on the approach of Warfield, Sugiyama et al.
+
+- 3 -
+
+*1.4 Overview*
+
+The graph drawing algorithm has four passes, as shown in figure 1-1. The
+first pass places the nodes in discrete ranks. The second sets the order
+of nodes within ranks to avoid edge crossings. The third sets the actual
+layout coordinates of nodes. The final pass finds the spline control
+points for edges.
+
+____
+{empty}1. *procedure* draw_graph() +
+2. *begin* +
+3. rank();
+
+{empty}4. ordering();
+
+{empty}5. position();
+
+{empty}6. make_splines();
+
+{empty}7. *end* +
+*Figure 1-1.* Main algorithm
+____
+
+Our contributions are: (1) an efficient way of ranking the nodes using a
+network simplex algorithm; (2) improved heuristics to reduce edge
+crossings; (3) a method for computing the node coordinates as a rank
+assignment problem; and (4) a method for setting spline control points.
+Techniques (1) and (2) were first implemented in the graph drawing
+program _dag_, described in [GNV1]. Further work, especially (3) and
+(4), have been incorporated in _dot_ [KN], a successor to _dag_. Figures
+1-2 and 1-3 are samples of _dot_’s output with the corresponding input
+files.
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image1.png[image,width=477,height=312]
+
+- 4 -
+
+____
+S35 S1
+____
+
+[width="99%",cols="16%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%,4%",options="header",]
+|===
+|27 |S8 |42 a|
+____
+S24
+____
+
+|26 |38 |37 |11 |43 |3 |36 | |10 |17 a|
+____
+2
+____
+
+|12 |18 |T30 |34 |33 |S30 a|
+____
+31
+____
+
+| |9 | |25 | | | | |40 | |13 | | | | | | | | | | |
+| | | | | | | | | | |41 |19 |14 | | | | | | | | |
+| | |T24 | |4 |5 a|
+____
+39
+____
+
+|21 a|
+____
+23
+____
+
+|20 |16 | |28 | | |29 | | | | | |
+| | | | | | | |22 | | a|
+____
+15
+____
+
+| | | | | | | | | | a|
+____
+32
+____
+
+| | | | | | |T35 | | | | | | | | | | | | | | |
+| | | | | a|
+____
+6
+____
+
+| | | | | | | | | | | | | | | |
+| | | | | | | | | | a|
+____
+T1
+____
+
+| | | | | | | | | | |
+| | | | | a|
+____
+7
+____
+
+| | | | | | | | | | | | | | | |
+| | | | | a|
+____
+T8
+____
+
+| | | | a|
+____
+*Figure 1-2a.*
+____
+
+| | | | | | | | | | |
+|===
+
+(1.11 sec. user time on a Sun-4/280)
+
+digraph world_dynamics \{ +
+size="6,6"; +
+S8 -> 9; S24 -> 27; S24 -> 25; S1 -> 10; S1 -> 2; S35 -> 36; S35 -> 43;
+S30 -> 31; S30 -> 33; 9 -> 42; 9 -> T1; 25 -> T1; 25 -> 26; 27 -> T24; 2
+-> 3; 2 -> 16; 2 -> 17; 2 -> T1; 2 -> 18; 10 -> 11; 10 -> 14; 10 -> T1;
+10 -> 13; 10 -> 12; +
+31 -> T1; 31 -> 32; 33 -> T30; 33 -> 34; 42 -> 4; 26 -> 4; +
+3 -> 4; 16 -> 15; 17 -> 19; 18 -> 29; 11 -> 4; 14 -> 15; +
+37 -> 39; 37 -> 41; 37 -> 38; 37 -> 40; 13 -> 19; 12 -> 29; 43 -> 38; 43
+-> 40; 36 -> 19; 32 -> 23; 34 -> 29; 39 -> 15; 41 -> 29; 38 -> 4; 40 ->
+19; 4 -> 5; 19 -> 21; 19 -> 20; +
+19 -> 28; 5 -> 6; 5 -> T35; 5 -> 23; 21 -> 22; 20 -> 15; 28 -> 29; 6 ->
+7; 15 -> T1; 22 -> 23; 22 -> T35; 29 -> T30; 7 -> T8; +
+23 -> T24; 23 -> T1; +
+}
+
+*Figure 1-2b.* Graph File Listing
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image2.png[image,width=222,height=384]
+
+- 5 -
+
+____
+1972 Thompson
+____
+
+[width="99%",cols="16%,14%,14%,14%,14%,14%,14%",options="header",]
+|===
+|1976 |v9sh |esh a|
+____
+Bourne
+____
+
+|Mashey |csh a|
+____
+tcsh
+____
+
+|1978 | | |Formshell | | |
+|1980 | | a|
+____
+vsh
+____
+
+| |System-V |
+|1982 | | a|
+____
+ksh
+____
+
+| | |
+|1984 | | | | | |
+|1986 |rc |KornShell a|
+____
+ksh-i
+____
+
+| | a|
+____
+tcl
+____
+
+|1988 | | a|
+____
+Perl
+____
+
+| | |
+|1990 | | |Bash | | |
+|future | |ksh-POSIX |POSIX | | |
+|===
+
+*Figure 1-3a.*
+
+(0.50 sec. user time on a Sun-4/280) +
+digraph shells \{ +
+size="7,8"; +
+node [fontsize=24, shape = plaintext]; +
+1972 -> 1976 -> 1978 -> 1980 -> 1982 -> 1984 -> 1986 -> 1988 -> 1990 ->
+future;
+
+____
+node [fontsize=20, shape = box]; +
+\{ rank = same; 1976 Mashey Bourne; } +
+\{ rank = same; 1978 Formshell csh; } +
+\{ rank = same; 1980 esh vsh; } +
+\{ rank = same; 1982 ksh "System-V"; } +
+\{ rank = same; 1984 v9sh tcsh; } +
+\{ rank = same; 1986 "ksh-i"; } +
+\{ rank = same; 1988 KornShell Perl rc; } +
+\{ rank = same; 1990 tcl Bash; } +
+\{ rank = same; "future" POSIX "ksh-POSIX"; }
+
+Thompson -> \{Mashey Bourne csh}; csh -> tcsh; +
+Bourne -> \{ksh esh vsh "System-V" v9sh}; v9sh -> rc; \{Bourne "ksh-i"
+KornShell} -> Bash; +
+\{esh vsh Formshell csh} -> ksh; +
+\{KornShell "System-V"} -> POSIX; +
+ksh -> "ksh-i" -> KornShell -> "ksh-POSIX"; +
+Bourne -> Formshell;
+____
+
+[width="100%",cols="50%,50%",options="header",]
+|===
+|} a|
+____
+/* ’invisible’ edges to adjust node placement */ edge [style=invis]; +
+1984 -> v9sh -> tcsh ; 1988 -> rc -> KornShell; +
+Formshell -> csh; KornShell -> Perl;
+____
+
+|===
+
+*Figure 1-3b.* Graph File Listing
+
+- 6 -
+
+*2. Optimal Rank Assignment*
+
+The first pass assigns each node _v member G_ to an integer rank λ(_v_)
+consistent with its edges. This means that for every _e_ = (_v_,_w_)
+_member E_, _l_(_e_) ≥ δ(_e_), where the _length l(e)_ of _e_ =
+(_v_,_w_) is defined asλ(_w_) − λ(_v_), and δ(_e_) represents some given
+_minimum length_ constraint. δ(_e_) is usually 1, but can take any
+non-negative integer value. δ(_e_) may be set internally for technical
+reasons as described below, or externally if the user wants to adjust
+the rank assignment. For this pass, each of the nonempty sets _S_ max
+,_S_ min ,_S_ 0 , . . . ,_S k_ is temporarily merged into one node. In
+addition, loops are ignored, and multiple edges are merged into one edge
+whose weight is the sum of the weights of the merged edges. For
+efficiency, leaf nodes that are not a member of one of the above sets
+may be ignored, since the rank of a leaf is trivially determined in an
+optimal ranking.
+
+*2.1 Making the graph acyclic*
+
+A graph must be acyclic to have a consistent rank assignment. Because
+the input graph may contain cycles, a preprocessing step detects cycles
+and breaks them by reversing certain edges [RDM]. Of course these edges
+are only reversed internally; arrowheads in the drawing show the
+original direction. A useful procedure for breaking cycles is based on
+depth-first search. Edges are searched in the‘‘natural order’’ of the
+graph input, starting from some source or sink nodes if any exist.
+Depth-first search partitions edges into two sets: tree edges and
+non-tree edges [AHU]. The tree defines a partial order on nodes. Given
+this partial order, the non-tree edges further partition into three
+sets: cross edges, forward edges, and back edges. Cross edges connect
+unrelated nodes in the partial order. Forward edges connect a node to
+some of its descendants. Back edges connect a descendant to some of its
+ancestors. It is clear that adding forward and cross edges to the
+partial order does not create cycles.
+
+Because reversing back edges makes them into forward edges, all cycles
+are broken by this procedure.
+
+It seems reasonable to try to reverse a smaller or even minimal set of
+edges. One difficulty is that finding a minimal set (the ‘‘feedback arc
+set’’ problem) is NP-complete [EMW] [GJ]. More important, this would
+probably not improve the drawings. We implemented a heuristic to reverse
+edges that participate in many cycles. The heuristic takes one
+non-trivial strongly connected component at a time, in an arbitrary
+order. Within each component, it counts the number of times each edge
+forms a cycle in a depth-first traversal. An edge with a maximal count
+is reversed. This is repeated until there are no more non-trivial
+strongly connected components.
+
+Experiments with this heuristic show that most directed graphs arising
+from practical applications have a natural edge direction even when they
+contain cycles. Graph input usually reflects this natural direction. In
+fact, graphs are often created by a graph search performed by some other
+tool. Reversing an inappropriate edge disturbs the drawing. For
+instance, even when a procedure call graph has cycles, one still expects
+to see top-level functions near the top of the drawing, and not
+somewhere in the middle. From the standpoint of stability, the
+depth-first, cycle-breaking heuristic seems preferable. It also makes
+more informative drawings than would be obtained by collapsing all the
+nodes in a cycle into one node, or placing the nodes in a cycle on the
+same rank, or duplicating one of the nodes in the cycle, as various
+
+- 7 -
+
+researchers have suggested [Ca] [Ro] [STT].
+
+One other detail is that the nodes representing _S_ max and _S_ min must
+always have the maximum and minimum rank assignments. This property is
+ensured by reversing out-edges of _S_ max and in-edges of _S_ min. Also,
+for all nodes _v_ with no in-edge, we make a temporary edge (_S_ min
+,_v_) with δ = 0, and for all
+
+[width="99%",cols="9%,7%,7%,7%,7%,7%,7%,7%,7%,7%,7%,7%,7%,7%",options="header",]
+|===
+|nodes |_v_ |with |no |out-edge, |we |make |a |temporary |edge |(_v_,_S_
+max ) |with |δ = 0. a|
+____
+Thus,
+____
+
+|===
+
+λ(_S_ min ) ≤ λ(_v_) ≤ λ(_S_ max ) for all _v_.
+
+*2.2 Problem Definition*
+
+Principle A3 prescribes making short edges. Besides making better
+layouts, short edges reduce the running time of later passes whose time
+depends on the total edge length. So it is desirable to find an optimal
+node ranking, _i.e._, one for which the sum of all the weighted edge
+lengths is minimal.
+
+Finding an optimal ranking can be reformulated as the following integer
+program:
+
+[width="100%",cols="34%,33%,33%",options="header",]
+|===
+|_min_ |(_v_,_w_) __member E__Σ a|
+____
+ω(_v_,_w_) (λ(_w_) − λ(_v_) )
+____
+
+|===
+
+____
+_subject to:_ λ(_w_) − λ(_v_) ≥ δ(_v_,_w_) ∀(_v_,_w_) _memberE_
+____
+
+The _weight_ function ω and the _minimum length_ function δ as
+previously described map the edge set _E_ into the non-negative rational
+numbers and the non-negative integers, respectively.
+
+There are various ways to solve this integer program in polynomial time.
+One method is to solve the equivalent linear program, then transform the
+solution to an integer one in polynomial time. Another involves
+converting the optimal rank assignment problem to an equivalent min-cost
+flow or circulation problem, for which there are polynomial-time
+algorithms (see [GT] and its references). As the constraint matrix is
+totally unimodular, the problem can also be solved, though not
+necessarily in polynomial time, by applying the simplex method. A more
+complete discussion of these and other techniques will be reported in
+[GNV2].
+
+*2.3 Network simplex*
+
+Here, we describe a simple approach to the problem based on a network
+simplex formulation [Ch]. Although its time complexity has not been
+proven polynomial, in practice it takes few iterations and runs quickly.
+
+We begin with a few definitions and observations. A _feasible_ ranking
+is one satisfying the length constraints _l_(_e_) ≥ δ(_e_) for all _e_.
+Given any ranking, not necessarily feasible, the _slack_ of an edge is
+the difference of its length and its minimum length. Thus, a ranking is
+feasible if the slack of every edge is non-negative. An edge is _tight_
+if its slack is zero.
+
+A spanning tree of a graph induces a ranking, or rather, a family of
+equivalent rankings. (Note that the spanning tree is on the underlying
+unrooted undirected graph, and is not necessarily a directed tree.) This
+ranking is generated by picking an initial node and assigning it a rank.
+Then, for each node
+
+- 8 -
+
+adjacent in the spanning tree to a ranked node, assign it the rank of
+the adjacent node, incremented or decremented by the minimum length of
+the connecting edge, depending on whether it is the head or tail of the
+connecting edge. This process is continued until all nodes are ranked. A
+spanning tree is _feasible_ if it induces a feasible ranking. By
+construction, all edges in the feasible tree are tight.
+
+Given a feasible spanning tree, we can associate an integer _cut value_
+with each tree edge as follows. If the tree edge is deleted, the tree
+breaks into two connected components, the tail component containing the
+tail node of the edge, and the head component containing the head node.
+The cut value is defined as the sum of the weights of all edges from the
+tail component to the head component, including the tree edge, minus the
+sum of the weights of all edges from the head component to the tail
+component.
+
+Typically (but not always because of degeneracy) a negative cut value
+indicates that the weighted edge length sum could be reduced by
+lengthening the tree edge as much as possible, until one of the head
+component-to-tail component edges becomes tight. This corresponds to
+replacing the tree edge in the spanning tree with the newly tight edge,
+obtaining a new feasible spanning tree. It is also simple to see that an
+optimal ranking can be used to generate another optimal ranking induced
+by a feasible spanning tree. These observations are the key to solving
+the ranking problem in a graphical rather than algebraic context. Tree
+edges with negative cut values are replaced by appropriate non-tree
+edges, until all tree edges have non-negative cut values. To guarantee
+termination, the implementation should employ an anti-cycling technique,
+though we have never found this necessary in practice. The resulting
+spanning tree corresponds to an optimal ranking. For further discussion
+of the termination of the network simplex algorithm and optimality of
+the result, the interested reader is referred to the literature [Ch]
+[Cu] [GNV2].
+
+Figure 2-1 below describes our version of the network simplex algorithm.
+
+____
+{empty}1. *procedure* rank() +
+2. feasible_tree();
+
+{empty}3. *while* (e = leave_edge()) ≠nil *do* +
+4. f = enter_edge(e);
+
+{empty}5. exchange(e,f);
+
+{empty}6. *end* +
+7. normalize();
+
+{empty}8. balance();
+
+{empty}9. *end*
+____
+
+*Figure 2-1.* Network simplex
+
+_Remarks on Figure 2-1_.
+
+2: The function feasible_tree constructs an initial feasible spanning
+tree. This procedure is described more fully below. The simplex method
+starts with a feasible solution and maintains this
+
+- 9 -
+
+____
+invariant.
+____
+
+3: leave_edge returns a tree edge with a negative cut value, or nil if
+there is none, meaning the solution is optimal. Any edge with a negative
+cut value may be selected as the edge to remove. 4: enter_edge finds a
+non-tree edge to replace e. This is done by breaking the edge e, which
+divides the tree into a head and tail component. All edges going from
+the head component to the tail are considered, with an edge of minimum
+slack being chosen. This is necessary to maintain feasibility.
+
+5: The edges are exchanged, updating the tree and its cut values.
+
+7: The solution is normalized by setting the least rank to zero.
+
+8: Nodes having equal in- and out-edge weights and multiple feasible
+ranks are moved to a feasible rank with the fewest nodes. The purpose is
+to reduce crowding and improve the aspect ratio of the drawing,
+following principle A4. The adjustment does not change the cost of the
+rank assignment. Nodes are adjusted in a greedy fashion, which works
+sufficiently well. Globally balancing ranks is considered in a
+forthcoming paper [GNV2].
+
+____
+{empty}1. *procedure* feasible_tree() +
+2. init_rank();
+
+{empty}3. *while* tight_tree() < V**do** +
+4. e = a non-tree edge incident on the tree
+
+{empty}5. with a minimal amount of slack;
+
+{empty}6. delta = slack(e);
+
+{empty}7. *if* incident node is e.head *then* delta = -delta; +
+8. *for* v *in* Tree *do* v.rank = v.rank + delta; +
+9. *end* +
+10. init_cutvalues();
+
+{empty}11. *end*
+____
+
+*Figure 2-2.* Finding an initial feasible tree
+
+_Remarks on Figure 2-2_.
+
+2: An initial feasible ranking is computed. For brevity, init_rank is
+not given here. Our version keeps nodes in a queue. Nodes are placed in
+the queue when they have no unscanned in-edges. As nodes are taken off
+the queue, they are assigned the least rank that satisfies their
+in-edges, and their out-edges are marked as scanned. In the simplest
+case, where δ = 1 for all edges, this corresponds to viewing the graph
+as a poset and assigning the minimal elements to rank 0. These nodes are
+removed from the poset and the new set of minimal elements are assigned
+rank 1, etc.
+
+3: The function tight_tree finds a maximal tree of tight edges
+containing some fixed node and returns the number of nodes in the tree.
+Note that such a maximal tree is just a spanning tree for the subgraph
+induced by all nodes reachable from the fixed node in the underlying
+undirected
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image3.png[image,width=121,height=313]image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image4.png[image,width=124,height=316]
+
+- 10 -
+
+____
+graph using only tight edges. In particular, all such trees have the
+same number of nodes.
+____
+
+4-8:This finds an edge to a non-tree node that is adjacent to the tree,
+and adjusts the ranks of the tree nodes to make this edge tight. As the
+edge was picked to have minimal slack, the resulting ranking is still
+feasible. Thus, on every iteration, the maximal tight tree gains at
+least one node, and the algorithm eventually terminates with a feasible
+spanning tree. This technique is essentially the one described by
+Sugiyama et al [STT].
+
+10: The init_cutvalues function computes the cut values of the tree
+edges. For each tree edge, this is computed by marking the nodes as
+belonging to the head or tail component, and then performing the sum of
+the signed weights of all edges whose head and tail are in different
+components, the sign being negative for those edges going from the head
+to the tail component.
+
+____
+a a
+____
+
+[width="100%",cols="16%,12%,12%,12%,12%,12%,12%,12%",options="header",]
+|===
+|e |f |3 a|
+____
+3
+____
+
+|1 |f a|
+____
+2
+____
+
+|
+| | | | |e | |b |
+| | |b | | | | |
+| | | | |1 |g a|
+____
+0
+____
+
+a|
+____
+2
+____
+
+| | |c | | | | |
+| | | | | | |c |
+|0 |g a|
+____
+0
+____
+
+a|
+____
+3
+____
+
+| | |2 |
+| | |d | | | |d |
+| |-1 |3 | | | |2 |
+| | |h | | | a|
+____
+h
+____
+
+|
+| | a|
+____
+(a)
+____
+
+| | | a|
+____
+(b)
+____
+
+|
+|===
+
+*Figure 2-3.* Finding an optimal feasible tree
+
+A small example of running the network simplex algorithm is shown in
+figure 2-3. Non-tree edges are dotted, and all edges have weight 1. In
+(a), the graph is shown after the initial ranking, with cut values as
+indicated. For instance, the cut value of edge (_g_,_h_) is −1,
+corresponding to the weight of edge (_g_,_h_) (from the tail component
+to the head component) minus the weights of edges (_a_,_e_) and (_a_,
+_f_ ) (from the head component to the tail component). In (b), the edge
+(_g_,_h_) with a negative cut value has been replaced by the non-tree
+edge (_a_,_e_), with the new cut values shown. Because they are all
+non-negative,
+
+- 11 -
+
+the solution is optimal and the algorithm terminates.
+
+*2.4 Implementation details*
+
+Versions of the network simplex algorithm are well understood and there
+are results in the literature to help tune an implementation [Ch]. We
+feel, however, it is worth pointing out several specific points to
+prospective implementors. These optimizations are useful here, but
+become crucial when we use the network simplex again in section 4,
+applied to much larger graphs.
+
+Computing the initial feasible tree and initial cut values is frequently
+a significant proportion of the cost in solving the network simplex
+algorithm. For many graphs in practice, the initial solution is close to
+optimal, requiring just a few iterations to reach the final solution. In
+a naive implementation, initial cut values can be found by taking every
+tree edge in turn, breaking it, labeling each node according to whether
+it belongs to the head or tail component, and performing the sum. This
+takes _O_(_VE_) time.
+
+To reduce this cost, we note that the cut values can be computed using
+information local to an edge if the search is ordered from the leaves of
+the feasible tree inward. It is trivial to compute the cut value of a
+tree edge with one of its endpoints a leaf in the tree, since either the
+head or the tail component consists of a single node. Now, assuming the
+cut values are known for all the edges incident on a given node except
+one, the cut value of the remaining edge is the sum of the known cut
+values plus a term dependent only on the edges incident to the given
+node.
+
+We illustrate this computation in figure 2-4 in the case where two tree
+edges, with known cut values, join a third, with the shown orientations.
+The other cases are handled similarly. We assume the cut values of
+(_u_,_w_) and (_v_,_w_) are known. The edges labeled with capital
+letters represent the set of all non-tree edges with the given direction
+and whose heads and tails belong to the components shown.
+
+The cut values of (_u_,_w_) and (_v_,_w_) are given by
+
+_c_ (_u_,_w_) = ω(_u_,_w_) + _A_ + _C_ + _F_ −__B__ −__E__ −__D__
+
+and
+
+____
+_c_ (_v_,_w_) = ω(_v_,_w_) + _L_ + _I_ + _D_ −__K__ −__J__ −__C__
+____
+
+respectively. The cut value of (_w_,_x_) is then
+
+_c_ (_w_,_x_) = ω(_w_,_x_) + _G_ −__H__ + _A_ −__B__ + _L_ −__K__ +
+= ω(_w_,_x_) + _G_ −__H__ + (_c_ (_u_,_w_) − ω(_u_,_w_) −__C__ −__F__ +
+_E_ + _D_) + (_c_ (_v_,_w_) − ω(_v_,_w_) −__I__ −__D__ + _J_ + _C_)
+= ω(_w_,_x_) + _G_ −__H__ + _c_ (_u_,_w_) − ω(_u_,_w_) + _c_
+(_v_,_w_) − ω(_v_,_w_) −__F__ + _E_ −__I__ + _J_
+
+an expression involving only local edge information and the known cut
+values. By thus computing cut values incrementally, we can ensure that
+every edge is examined only twice. This greatly reduces the time spent
+computing initial cut values.
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image5.png[image,width=274,height=257]image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image6.png[image,width=222,height=194]
+
+- 12 -
+
+____
+*A* +
+*B*
+____
+
+[width="100%",cols="12%,11%,11%,11%,11%,11%,11%,11%,11%",options="header",]
+|===
+|*C* |*D* |*I* a|
+____
+*u*
+____
+
+|*E* |*w* |*G* a|
+____
+*H*
+____
+
+a|
+____
+*x*
+____
+
+| | | a|
+____
+*F*
+____
+
+|*J* | | | |
+| | | a|
+____
+*v*
+____
+
+| | | | |
+|===
+
+____
+*K* +
+*L*
+
+*Figure 2-4.* Incrementally computing cut values.
+____
+
+Another valuable optimization, similar to a technique described in [Ch],
+is to perform a postorder traversal of the tree, starting from some
+fixed root node _v root_, and labeling each node _v_ with its postorder
+traversal number _lim_(_v_), the least number _low_(_v_) of any
+descendant in the search, and the edge _parent_(_v_) by which the node
+was reached (see figure 2-5).
+
+[width="100%",cols="50%,50%",options="header",]
+|===
+|v root a|
+____
+(1,9)
+____
+
+|===
+
+[width="100%",cols="20%,20%,20%,20%,20%",options="header",]
+|===
+|(1,1) |(1,3) |(4,5) a|
+____
+(4,8)
+____
+
+a|
+____
+(7,7)
+____
+
+| |(2,2) | | |
+|===
+
+(6,6)
+
+(4,4)
+
+____
+*Figure 2-5.* Postorder traversal with nodes labeled by (low,lim).
+____
+
+- 13 -
+
+This provides an inexpensive way to test whether a node lies in the head
+or tail component of a tree edge, and thus whether a non-tree edge
+crosses between the two components. For example, if _e_ = (_u_,_v_) is a
+tree edge and _v root_ is in the head component of the edge (_i.e._,
+_lim_(_u_) < _lim_(_v_)), then a node _w_ is in the tail component of
+_e_ if and only if _low_(_u_) ≤__lim__(_w_) ≤__lim__(_u_). These numbers
+can also be used to update the tree efficiently during the network
+simplex iterations. If _f_ = (_w_,_x_) is the entering edge, the only
+edges whose cut values must be adjusted are those in the path connecting
+_w_ and _x_ in the tree. This path is determined by following the
+_parent_ edges back from _w_ and _x_ until the least common ancestor is
+reached, _i.e._, the first node _l_ such that _low_(_l_) ≤__lim__(_w_)
+,_lim_(_x_) ≤__lim__(_l_). Of course, these postorder parameters must
+also be adjusted when exchanging tree edges, but only for nodes below
+_l_.
+
+The network simplex is also very sensitive to the choice of the negative
+edge to replace. We observed that searching cyclically through all the
+tree edges, instead of searching from the beginning of the list of tree
+edges every time, can save many iterations.
+
+*3. Vertex Ordering Within Ranks*
+
+After rank assignment, edges between nodes more than one rank apart are
+replaced by chains of unit length edges between temporary or ‘‘virtual’’
+nodes. The virtual nodes are placed on the intermediate ranks,
+converting the original graph into one whose edges connect only nodes on
+adjacent ranks. Self-edges are ignored in this pass, and multi-edges are
+merged as in the previous pass.
+
+The vertex order within ranks determines the edge crossings in the
+layout, so a good ordering is one with few crossings. Heuristics are
+appropriate since minimizing edge crossings in layouts of ranked graphs
+is NP-complete, even for only two ranks [EMW].
+
+Several important heuristics for reducing edge crossings in ranked
+graphs are based on the following scheme first suggested by Warfield
+[Wa]. An initial ordering within each rank is computed. Then a sequence
+of iterations is performed to try to improve the orderings. Each
+iteration traverses from the first rank to the last one, or vice versa.
+When visiting a rank, each of its vertices is assigned a weight based on
+the relative positions of its incident vertices on the preceding rank.
+Then the vertices in the rank are re-ordered by sorting on these
+weights.
+
+Two common vertex weighting methods are the barycenter function [STT]
+and the median function [EW]. Let _v_ be a vertex and _P_ the list of
+positions of its incident vertices on the appropriate adjacent rank.
+Note that the position of an adjacent node is only its ordinal number in
+the current ordering. The barycenter method defines the weight of _v_ as
+the average of elements in _P_. The median method defines the weight of
+_v_ as the median of elements in _P_. When the number of elements in _P_
+is even, there are two medians. This gives rise to two median methods:
+always using the left median, and always using the right median. The
+median method consistently performs better than the barycenter method
+and has a slight theoretical advantage since Eades and Wormald [EW] have
+shown that the median layout of a two-level graph has no more than 3
+times the minimum number of crossings. No such bound is known for the
+barycenter method.
+
+- 14 -
+
+Our node ordering heuristic is a refinement of the median method with
+two major innovations. First, when there are two median values, we use
+an interpolated value biased toward the side where vertices are more
+closely packed. The second improvement uses an additional heuristic to
+reduce obvious crossings after the vertices have been sorted,
+transforming a given ordering to one that is locally optimal with
+respect to transposition of adjacent vertices. It typically provides an
+additional 20-50% reduction in edge crossings. We refer the reader to
+[GNV1] for detailed statistics.
+
+Figure 3-1 shows the node ordering algorithm.
+
+____
+{empty}1. *procedure* ordering() +
+2. order = init_order();
+
+{empty}3. best = order;
+
+{empty}4. *for* i = 0 *to* Max_iterations *do* +
+5. wmedian(order,i);
+
+{empty}6. transpose(order);
+
+{empty}7. *if* crossing(order) < crossing(best) *then* +
+8. best = order;
+
+{empty}9. *end* +
+10. *return* best; +
+11. *end*
+____
+
+*Figure 3-1.* Vertex ordering algorithm
+
+_Remarks on Figure 3-1_.
+
+2: init_order initially orders the nodes in each rank. This may be done
+by a depth-first or breadth-first search starting with vertices of
+minimum rank. Vertices are assigned positions in their ranks in
+left-to-right order as the search progresses. This strategy ensures that
+the initial ordering of a tree has no crossings. This is important
+because such crossings are obvious, easily-avoided ‘‘mistakes.’’
+
+4-9: Max_iterations is the maximum number of iterations. We set
+Max_iterations to 24. At each iteration, if the number of crossings
+improves, the new ordering is saved. In an actual implementation, one
+might prefer an adaptive strategy that iterates as long as the solution
+has improved at least a few percent over the last several iterations.
+wmedian re-orders the nodes within each rank based on the weighted
+median heuristic. transpose repeatedly exchanges adjacent vertices on
+the same rank if this decreases the number of crossings. Both of these
+functions are described more completely below.
+
+The weighted median heuristic is shown in figure 3-2. Depending on the
+parity of the current iteration number, the ranks are traversed from top
+to bottom or from bottom to top. To simplify the presentation, figure
+3-2 only shows one direction in detail.
+
+- 15 -
+
+____
+{empty}1. *procedure* wmedian(order,iter)
+
+{empty}2. *if* iter *mod* 2 == 0 *then*
+
+{empty}3. *for* r = 1 *to* Max_rank *do*
+
+{empty}4. *for* v *in* order[r] *do*
+
+{empty}5. median[v] = median_value(v,r-1);
+
+{empty}6. sort(order[r],median);
+
+{empty}7. *end*
+
+{empty}8. *else* . . .
+
+{empty}9. *endif*
+
+{empty}10. *end*
+
+11.
+
+{empty}12. *procedure* median_value(v,adj_rank)
+
+{empty}13. P = adj_position(v,adj_rank);
+
+{empty}14. m = P/2;
+
+{empty}15. *if* P= 0 *then*
+
+{empty}16. *return* -1.0;
+
+{empty}17. *elseif* P**mod** 2 == 1 *then*
+
+{empty}18. *return* P[m];
+
+{empty}19. *elseif* P= 2 *then*
+
+{empty}20. *return* (P[0] + P[1])/2;
+
+{empty}21. *else*
+
+{empty}22. left = P[m-1] - P[0];
+
+{empty}23. right = P[P-1] - P[m];
+
+{empty}24. *return* (P[m-1]*right + P[m]*left)/(left+right);
+
+{empty}25. *endif*
+
+{empty}26. *end*
+____
+
+*Figure 3-2.* The weighted median heuristic
+
+_Remarks on Figure 3-2_.
+
+1-10: In the forward traversal of the ranks, the main loop starts at
+rank 1 and ends at the maximum
+
+____
+rank. At each rank a vertex is assigned a median based on the adjacent
+vertices on the previous
+
+rank. Then, the vertices in the rank are sorted by their medians. An
+important consideration is
+
+what to do with vertices that have no adjacent vertices on the previous
+rank. In our
+
+implementation such vertices are left fixed in their current positions
+with non-fixed vertices sorted
+
+into the remaining positions.
+____
+
+12-26: The median value of a vertex is defined as the median position of
+the adjacent vertices if that
+
+____
+is uniquely defined. Otherwise, it is interpolated between the two
+median positions using a
+
+measure of tightness. Generally, the weighted median is biased toward
+the side where vertices are
+____
+
+- 16 -
+
+____
+more closely packed.
+____
+
+13: The adj_position function returns an ordered array of the present
+positions of the nodes
+
+____
+adjacent to v in the given adjacent rank.
+____
+
+15-16: Nodes with no adjacent vertices are given a median value of -1.
+This is used within the sort
+
+____
+function to indicate that these nodes should be left in their current
+positions.
+____
+
+Figure 3-3 shows the transposition heuristic.
+
+____
+{empty}1. *procedure* transpose(rank)
+
+{empty}2. improved = *True*;
+
+{empty}3. *while* improved *do*
+
+{empty}4. improved = *False*;
+
+{empty}5. *for* r = 0 *to* Max_rank *do*
+
+{empty}6. *for* i = 0 *to* rank[r]-2 *do*
+
+{empty}7. v = rank[r][i];
+
+{empty}8. w = rank[r][i+1];
+
+{empty}9. *if* crossing(v,w) > crossing(w,v) *then*
+
+{empty}10. improved = *True*;
+
+{empty}11. exchange(rank[r][i],rank[r][i+1]);
+
+{empty}12. *endif*
+
+{empty}13. *end*
+
+{empty}14. *end*
+
+{empty}15. *end*
+
+{empty}16. *end*
+
+*Figure 3-3.* The transposition heuristic for reducing edge crossings
+____
+
+_Remarks on Figure 3-3_.
+
+3-15: This is the main loop that iterates as long as the number of edge
+crossings can be reduced by
+
+____
+transpositions. As in the loop in the ordering function, an adaptive
+strategy could be applied
+
+here to terminate the loop once the improvement is a sufficiently small
+fraction of the number of
+
+crossings.
+____
+
+7-12: Each adjacent pair of vertices is examined. Their order is
+switched if this reduces the number of
+
+____
+crossings. The function crossing(v,w) simply counts the number of edge
+crossings if v
+
+appears to the left of w in their rank.
+____
+
+One small point is that the original graph may have edges between nodes
+on the same rank. We call
+
+these ‘‘flat edges.’’ Following criterion A1, we try to aim them all in
+the same direction across the
+
+rank. If ranks are ordered from top to bottom, flat edges generally
+point from left to right. This
+
+involves some minor modifications to the vertex ordering algorithms. If
+there are flat edges, their
+
+- 17 -
+
+transitive closure is computed before finding the vertex order. The
+vertex order must always embed this partial order. In particular, the
+initial order must be consistent with it, and the transpose and the sort
+routines must not exchange nodes against the partial order.
+
+When sorting nodes by medians and transposing adjacent nodes, equality
+can occur when comparing median values or number of edge crossings. We
+have found it helpful, and in keeping with the spirit of A4, to flip
+nodes with equal values during the sorting or transposing passes on
+every other forward and backward traversal.
+
+One final point is that it is generally worth the extra cost to run the
+vertex ordering algorithm twice: once for an initial order determined by
+starting with vertices of minimal rank and searching out-edges, and the
+second time by starting with vertices of maximal rank and searching
+in-edges. This allows one to pick the better of two different solutions.
+
+*4. Node Coordinates*
+
+The third pass sets node coordinates. Previous work has treated this as
+a postprocessing step of the barycenter or median methods, making local
+adjustments to avoid bad layouts. Considering node placement as a
+separate, well-defined problem, however, yields better layouts and
+provides a foundation for further extensions, such as trying to set the
+vertex order by methods that are more topological than geometric.
+
+_X_ and _Y_ coordinates are computed in two separate steps. The first
+step assigns _X_ coordinates to all nodes (including virtual nodes),
+subject to the order within ranks already determined. The second step
+assigns _Y_ coordinates, giving the same value to nodes in the same
+rank. The _Y_ coordinate assignment maintains the minimum separation
+_ranksep_(_G_) between node boxes. Optionally, the separation between
+adjacent ranks can be increased to improve the slope of nearly
+horizontal edges to make them more readable. Because the _Y_ coordinate
+step is straightforward, the remainder of this section deals with _X_
+coordinates.
+
+According to the aesthetic principles already mentioned, short, straight
+edges are preferable to long, crooked ones. This property of _X_
+coordinates is captured in the following integer optimization problem:
+
+[width="100%",cols="34%,33%,33%",options="header",]
+|===
+|_min_ |_e_ = (_v_,_w_)Σ a|
+____
+Ω(_e_) ω(_e_) __x w__ −__x v__ 
+____
+
+|===
+
+_subject to: x b_ −__x a__ ≥ ρ(_a_,_b_)
+
+where _a_ is the left neighbor of _b_ on the same rank and ρ(_a_,_b_) =
+
+____
+_ _xsize_(_a_) + _xsize_(_b_) _______________ + _nodesep_(_G_)
+
+2
+____
+
+Ω(_e_), an internal value distinct from the input edge weight ω(_e_), is
+defined to favor straightening long edges. Since edges between real
+nodes in adjacent ranks can always be drawn as straight lines, it is
+more important to reduce the horizontal distance between virtual nodes,
+so chains may be aligned vertically and thus straightened. The failure
+to straighten long edges can result in a ‘‘spaghetti effect’’
+
+- 18 -
+
+of edges having many different slopes. Accordingly, edges are divided
+into three types depending on
+
+their end vertices: (1) both real nodes, (2) one real node and one
+virtual node, or (3) both virtual nodes.
+
+If _e_, _f_, and _g_ are edges of types (1), (2), and (3), respectively,
+then Ω(_e_) ≤ Ω( _f_ ) ≤ Ω(_g_). Our
+
+implementation uses 1, 2, and 8. ρ is a function on pairs of adjacent
+nodes in the same rank giving the
+
+minimum separation between their center points.
+
+There are standard techniques for transforming this problem into a
+linear program by the addition of
+
+auxiliary variables and inequalities to remove the absolute values [Ch].
+As the resulting constraints are
+
+totally unimodular, solving the linear program with the simplex method
+produces a solution to the
+
+integer program. This is easy to program, and the layouts it gives are
+aesthetically pleasing.
+
+Unfortunately, the transformation increases the size of the simplex
+matrix from _VE_ to 2__VE__ + __E__2entries.
+
+Graphs of a few dozen nodes and edges can be drawn in a few seconds, but
+larger graphs take much
+
+longer, and even the amount of memory available becomes a limitation. So
+this is not a completely
+
+satisfactory way to make layouts, particularly on smaller computers.
+
+*4.1 Heuristic Approach*
+
+This approach replaces the linear program with a heuristic for finding
+_X_ coordinates. The heuristic finds
+
+a ‘‘good’’ initial placement, then iteratively tries to improve it by
+sweeping up and down the ranks
+
+similar to the vertex ordering algorithm described in the previous
+section. The heuristic is sketched
+
+below.
+
+____
+{empty}1. *procedure* xcoordinate()
+
+{empty}2. xcoord = init_xcoord();
+
+{empty}3. xbest = xcoord;
+
+{empty}4. *for* i = 0 *to* Max_iterations *do*
+
+{empty}5. medianpos(i,xcoord);
+
+{empty}6. minedge(i,xcoord);
+
+{empty}7. minnode(i,xcoord);
+
+{empty}8. minpath(i,xcoord);
+
+{empty}9. packcut(i,xcoord);
+
+{empty}10. *if* xlength(xcoord) < xlength(xbest) *then*
+
+{empty}11. xbest = xcoord;
+
+{empty}12. *end*
+
+{empty}13. *return* xbest;
+
+{empty}14. *end*
+____
+
+*Figure 4-1.* Assigning x-coordinates to vertices
+
+- 19 -
+
+_Remarks on Figure 4-1_.
+
+2: An initial set of coordinates is computed as follows. For each rank,
+the left-most node is assigned coordinate 0. The coordinate of the next
+node is then assigned a value sufficient to satisfy the minimal
+separation from the previous one, and so on. Thus, on each rank, nodes
+are initially packed as far left as possible.
+
+4-12: In each iteration, a collection of heuristics is applied to
+improve the coordinate assignment. If this results in an improvement
+over the previous best assignment, the coordinates are saved. The
+function xlength implements the objective function from the above
+optimization problem. In
+
+[width="100%",cols="50%,50%",options="header",]
+|===
+|5: a|
+____
+our implementation, Max_iterations is 8.
+
+The median heuristic is based on the observation that the
+value __x__ −__x__ 0+__x__ −__x__ 1+. . .+__x__ −__x i__
+____
+
+|===
+
+____
+is minimized when _x_ is the median of the _x i_. The heuristic assigns
+each node both an upward and downward priority given by the weighted sum
+of its in- and out-edges, respectively. On downward iterations, nodes
+are processed in the downward priority order and placed at the median
+position of their downward neighbors subject to the placement of higher
+priority nodes and space requirements of nodes not yet placed. When
+there are two medians, taking their mean improves symmetry (A4). Upward
+placement is handled similarly.
+____
+
+6: minedge is similar to medianpos but considers only edges between two
+real nodes. It places the edge, oriented vertically, as close as
+possible to the median of the nodes adjacent to either endpoint of the
+edge.
+
+7: minnode performs local optimization one node at a time, using a
+queue. Initially all nodes are queued. When a node is removed from the
+queue, it is placed as close as possible to the median of all its
+neighbors (both up and down) subject to the separation function ρ. If
+the node’s placement is changed, its neighbors are re-queued if not
+already in the queue. minnode terminates when it achieves a local
+minimum.
+
+8: minpath straightens chains of virtual nodes by sequentially finding
+sub-chains that may be assigned the same _X_ coordinate.
+
+9: packcut sweeps the layout from left to right, searching for blocks
+that can be compacted. For each node, if all the nodes to the right of
+it can be shifted to the left by some increment without violating any
+positioning constraints, the shift is performed. This is performed by an
+algorithm that operates on a list of nodes sorted in order of _X_
+coordinates. Though the algorithm is quadratic in the worst case, it
+performs well in practice since at every possible cut it only needs to
+search the nodes in the neighborhood that is affected by the candidate
+shift.
+
+These heuristics make good layouts quickly, but they are complicated to
+program and the results are sometimes noticeably imperfect. Further fine
+tuning is difficult because the heuristics begin to interfere with each
+other.
+
+*4.2 Optimal Node Placement*
+
+We noticed that the _packcut_ heuristic does not find all subgraphs that
+could be compacted to improve the solution. We considered a more general
+heuristic to search for subgraphs and shift them. We then
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image7.png[image,width=290,height=180]
+
+- 20 -
+
+observed that this is very similar to the way the network simplex
+algorithm moves entire subgraphs to find an optimal rank assignment (see
+section 2). This suggested that we apply the network simplex algorithm
+find optimal node coordinates, using the _X_ coordinates as ‘‘ranks.’’
+
+The method involves constructing an auxiliary graph as illustrated in
+figure 4-2. This transformation is the graphical analogue of the
+algebraic transformation mentioned above for removing the absolute
+values from the optimization problem. The nodes of the auxiliary graph
+_G_′ are the nodes of the original graph _G_ plus, for every edge _e_ in
+_G_, there is a new node _n e_. There are two kinds of edges in _G_′.
+One edge class encodes the cost of the original edges. Every edge _e_ =
+(_u_,_v_) in _G_ is replaced by two edges (_n e_ ,_u_) and (_n e_, _v_)
+with δ = 0 and ω = ω(_e_) Ω(_e_). The other class of edges separates
+nodes in the same rank. If _v_ is the left neighbor of _w_, then _G_′
+has an edge _f_ = _e_ (_v_,_w_) with δ( _f_ ) = ρ(_v_,_w_) and ω( _f_
+) = 0. This edge forces the nodes to be sufficiently separated but does
+not affect the cost of the layout.
+
+_u_
+
+_e u_
+
+____
+_n e_ _e_
+____
+
+_e v_
+
+[width="100%",cols="34%,33%,33%",options="header",]
+|===
+|_v_ |_e_ (_v_,_w_) a|
+____
+_w_
+____
+
+|===
+
+*Figure 4-2.*
+
+We can now consider the level assignment problem on _G_′, which can be
+solved using the network simplex method. Any solution of the positioning
+problem on _G_ corresponds to a solution of the level assignment problem
+on _G_′ with the same cost. This is achieved by assigning each _n e_ the
+value _min_(_x u_ ,_x v_ ), using the notation of figure 4-2 and where
+_x u_ and _x v_ are the _X_ coordinates assigned to _u_ and _v_ in _G_.
+Conversely, any level assignment in _G_′ induces a valid positioning in
+_G_. In addition, in an optimal level assignment, one of _e u_ or _e v_
+must have length 0, and the other has length __x u__ −__x v__ . This
+means the cost of an original edge (_u_,_v_) in _G_ equals the sum of
+the cost of the two edges _e u_ ,_e v_ in _G_′and, globally, the two
+solutions have the same cost, Thus, optimality of _G_′ implies
+optimality for _G_ and solving _G_′ gives us a solution for _G_.
+
+Using the auxiliary graph also permits the specification of ‘‘node
+ports,’’ or edge endpoints offset in the _X_ direction from the center
+of the node. This makes it possible to draw pictures of flat records as
+shown
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image8.png[image,width=384,height=172]
+
+- 21 -
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+a|
+____
+Graphs can be fun
+____
+
+|mid a|
+____
+right
+____
+
+a|
+____
+c
+____
+
+|===
+
+[width="100%",cols="20%,20%,20%,20%,20%",options="header",]
+|===
+|z |b a|
+____
+x
+____
+
+|d a|
+____
+y
+____
+
+|===
+
+*Figure 4-3.* Node ports in a graph drawing
+
+in figure 4-3. When computing coordinates for nodes in these diagrams,
+the edge lengths must include the displacements of the node ports as
+well as the distance between the node center points. Let _e_ = (_u_,_v_)
+be an edge and let ∆__u__ and ∆__v__ be the specified _X_ displacements
+of the endpoints from the centers of _u_ and _v_, respectively. A ∆< 0
+indicates the port is to the left of the vertex’s center. Without loss
+of generality, assume ∆__u__≤ ∆__v__ and let _d e_ = ∆__v__ − ∆__u__. _d
+e_ is a constant since it depends only on the node ports and not the
+assignments of _u_ and _v_. We can now solve the same optimization
+problem, but the cost of edge _e_ is now given by Ω(_e_) ω(_e_) __x
+v__ −__x u__ + _d e_ . In the auxiliary graph, we now set δ(_e u_ ) =
+_d e_ and δ(_e v_ ) = 0. We can then extend the argument above to show
+that any positioning for _G_ corresponds to a level assignment for _G_′;
+that any optimal level assignment for _G_′ induces a valid positioning
+for _G_; and, in both cases, we have
+
+_l_(_e u_ ) + _l_(_e v_ ) = __x v__ −__x u__ + _d e_  + _d e_
+
+for all edges (_u_,_v_) in _G_, where _l_ represents the length function
+in the level assignment on _G_′. This equation implies that the optimal
+costs of the problems on _G_ and _G_′ always differ by the constant Σ _d
+e_. Therefore, a minimal assignment for _G_′ corresponds to a minimal
+assignment for _G_.
+
+_ememberE_
+
+The left part of Figure 4-4 exemplifies how port offsets are translated
+into the δ value of edges in the auxiliary graph. The right part shows
+how a solution relates to the original edge.
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image9.png[image,width=237,height=241]image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image10.png[image,width=261,height=241]
+
+- 22 -
+
+[width="100%",cols="34%,33%,33%",options="header",]
+|===
+|∆__u__ a|
+____
+u
+____
+
+|u
+|===
+
+[width="99%",cols="20%,16%,16%,16%,16%,16%",options="header",]
+|===
+a|
+____
+δ = ∆__v__ − ∆__u__
+____
+
+|v a|
+____
+∆__v__
+____
+
+|_x_ |. . . . . . . . . . . . . . . . . . . . . . . . . . . a|
+____
+_e_
+____
+
+a|
+____
+_x_
+____
+
+| | | | |
+|δ = 0 | | |v | |
+|===
+
+*Figure 4-4.*
+
+*4.3 Implementation details revisited*
+
+The auxiliary graph is considerably larger than the original one. If the
+original graph has _V_ nodes, _E_ edges, and _R_ ranks, the graph with
+‘‘virtual’’ nodes added has _V_ + _D_ nodes and _E_ + _D_ edges, where
+_D_ is the number of ‘‘virtual nodes.’’ The auxiliary graph then has
+_V_ + _E_ + 2__D__ nodes and _V_ + 2__E__ + 3__D__ −__R__ edges. This
+graph requires disproportionately more time to use the network simplex
+approach. Consequently, the optimizations to the network simplex
+algorithm described at the end of section 2 are crucial for this pass.
+
+Further improvement is possible by noting that it is easy to construct
+an initial feasible tree for the auxiliary graph by taking advantage of
+its structure. To construct a feasible tree, use all edges connecting
+nodes in the same rank. For each pair of adjacent ranks, pick an edge
+_f_ = (_u_,_v_) between the ranks and add both _f u_ and _f v_ in _G_′
+to the tree. This determines the relative placement of all the nodes in
+the two ranks. Finally, for every edge _e_ = (_w_,_x_) ≠__f__ between
+the two ranks, add either _e w_ or _e x_ to the tree depending on
+whether _w_ or _x_ is placed leftmost.
+
+Without these improvements, using network simplex to position the nodes
+took 5 to 10 times longer. With these improvements, our implementation
+runs as fast or faster than the heuristic implementation. We do not
+doubt that the heuristic in turn could also be tuned further, but the
+real advantage is that the network simplex is much simpler code and
+produces optimal solutions. Also, improvements that could be difficult
+to program into the heuristic can be handled in network simplex. As one
+example, local symmetry (A4) may be improved by scanning the graph after
+network simplex terminates. Tree edges
+
+- 23 -
+
+whose cut value is exactly 0 identify subgraphs that may be adjusted to
+equalize the slack on their incident edges without changing the cost of
+the solution. This could be used to increase symmetry, such as centering
+a node with an even number of descendants.
+
+*5. Drawing Edges*
+
+In our method, edges are drawn as spline curves. Other graph drawing
+programs of which we are aware use line segments, and most make no
+attempt to avoid situations where line segments overlap unrelated nodes.
+Although splines are more difficult to program, they yield better
+drawings and help to satisfy aesthetic criterion A2.
+
+In _dag_, edge splines are made by a collection of heuristics that
+replace the path of line segments between virtual nodes with various
+straight and curved segments, as described in [GNV1]. The drawback is
+that the splines sometimes bend sharply to turn inside virtual node
+boxes or to avoid nearby nodes. The virtual nodes end up being visible
+in the final layout. This method does not use the available space
+effectively.
+
+It is better to try to find the smoothest curve between two points that
+avoids the ‘‘obstacles’’ of other nodes or splines. We can then divide
+the spline routing algorithm into a top half and a bottom half. The top
+half computes a polygonal region of the layout where the spline may be
+drawn. It calls the bottom half to compute the best spline within the
+region. As a final step, the top half resizes virtual nodes according to
+the bounding box of the spline, and splines and clips the spline to the
+boundaries of the endpoint node shapes.
+
+A region and its spline are illustrated in figure 5-1.† The associated
+edge is from ‘‘Interdata’’ to‘‘Unix/TS 3.0’’.
+
+More formally, we draw splines by creating and solving instances of the
+following sub-problem. Given _B_ 0 , . . . , _B m_ ,_q_,θ _q_ ,_r_,θ _r_
+where _B i_ are boxes parallel to the coordinate axes, such that _B i_
+has edges in common with _B i_ −1 and _B i_ + 1; _q_ and _r_ are points
+on or inside the first and last box respectively, find _s_ 0 , . . . ,
+_s n_ and _BB_ 0 , . . . , _BB m_, where _s i_ are the control points of
+a piecewise Bezier curve and _BB i_ are boxes parallel to the coordinate
+axes. The curve must have _q_ and _r_ as its endpoints. θ _q_ and θ _r_
+are optional; if they are specified, then the curve must have the given
+slope at the corresponding endpoint. The _BB i_ correspond to the _B i_
+and are the smallest boxes that contain the generated splines.
+
+We next describe the two parts of the algorithm.
+
+__________________ +
+† Graph data courtesy of Ian F. Darwin, SoftQuad Inc., and Geoffrey
+Collyer, Software Tool & Die.
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image11.png[image,width=501,height=382]
+
+- 24 -
+
+*5.1 Finding the Region*
+
+There are three kinds of edges in the drawing: edges between nodes on
+different ranks, flat edges between different nodes on the same rank,
+and self-edges or loops.
+
+5th Edition
+
+[width="100%",cols="12%,8%,8%,8%,8%,8%,8%,8%,8%,8%,8%,8%",options="header",]
+|===
+|1 BSD |4.3 BSD |32V | |2.9 BSD a|
+____
+Interdata
+____
+
+a|
+____
+6th Edition
+____
+
+| |Wollongong |PWB 1.0 |USG 1.0 a|
+____
+CB Unix 1
+____
+
+| | | | | | a|
+____
+LSX
+____
+
+|Mini Unix | |PWB 1.2 | |
+| | | | | a|
+____
+7th Edition
+____
+
+| | | |PWB 2.0 |USG 2.0 |
+|8th Edition | | | | |Xenix a|
+____
+UniPlus+
+____
+
+| a|
+____
+Unix/TS 1.0
+____
+
+|Unix/TS 3.0 a|
+____
+USG 3.0
+____
+
+a|
+____
+CB Unix 2
+____
+
+| | |3 BSD | | | |V7M | | | | a|
+____
+CB Unix 3
+____
+
+| | | | | | | | | | |Unix/TS++ |
+| | a|
+____
+4 BSD
+____
+
+| | | | | | | | |PDP-11 Sys V
+| | a|
+____
+4.1 BSD
+____
+
+|2 BSD | |Ultrix-11 | | | | |TS 4.0 |
+| | a|
+____
+4.2 BSD
+____
+
+|2.8 BSD | | | | | | |System V.0 |
+| | |Ultrix-32 | | | | | | | |System V.2 |
+|9th Edition | | | | | | | | | |System V.3 |
+|===
+
+*Figure 5-1.* Region for a spline
+
+(0.48 sec. user time Sun4-280)
+
+*5.1.1 Edges between ranks*
+
+In practice, most edges connect nodes on different ranks. The region for
+this kind of edge has a few boxes near its tail port, then an
+alternating sequence of inter-rank boxes and virtual node boxes, and
+finally a few boxes near the head port. The tail and head port boxes
+route the spline to the appropriate side of the node.
+
+To curve as smoothly as possible, a spline should be allowed all the
+space that is available. So the region should include not only virtual
+node boxes, but also any extra space next to them. After the spline has
+been computed, the virtual node boxes are updated according to the _BB
+i_, so splines computed afterward will be able to use all the space
+remaining but not come too close to splines already drawn. Because
+splines are drawn by a ‘‘greedy’’ strategy, they depend on the order in
+which they are computed. It seems reasonable to route the shorter
+splines first because they can often be drawn as straight lines, but the
+order does not seem to affect the drawing quality much.
+
+- 25 -
+
+There are three details that can help to improve the appearance of the
+splines. First, when edges cross, they should not constrain each other
+too much. Otherwise, a spline may have an awkward, sharp turn. This is
+easily avoided by making an adjustment to the boxes. When setting the
+size of a box, we ignore virtual nodes to the left or right that
+correspond to edges that cross within two ranks. Crossings further away
+are not considered because unintended multiple crossings can occur when
+the boxes become too sloppy.
+
+Second, when an edge has a section that is almost vertical, it looks
+better to just draw it as a vertical line. This is most obvious when
+edges run alongside each other, because parallel line segments look
+better than long segments with slightly different slopes. When the
+region finding procedure detects a long vertical section, it terminates
+the current region, draws its spline, draws the vertical line segment,
+and finally begins the region of the rest of the edge. This is one of
+the situations where θ _q_ and θ _r_ are used, since the splines must
+have a vertical tangent at the endpoint where they join the vertical
+line segment.
+
+Third, when several splines approach a common termination point, it is
+important to avoid ‘‘accidental’’intersections. To do this, we check if
+there are previously computed splines with the same endpoint. If so, we
+find the closest ones to the right and the left. We then subdivide the
+inter-rank space, and evaluate the left and right splines at the
+intervals. These points (or the boundaries of the layout, if one of the
+left or right splines does not exist) determine a set of boxes that
+separate the new spline from the existing ones as they approach the
+terminal node. The left and right splines and the boxes that result can
+be seen in figure 5-1.
+
+This subdivision of the inter-rank box could be viewed as approximating
+a polygonal region not necessarily aligned with the coordinate axes. In
+some layouts there are other places where non-aligned boxes or other
+polygons could prevent unintended tangencies. If we were writing this
+program again, we would try general polygons instead of boxes.
+
+Thus far we have not mentioned multiple edges between the same pair of
+nodes. When these exist, a spline is computed for one of the edges, and
+the rest of the edges are drawn by adding an increasing _X_ coordinate
+displacement to each one (multiples of _nodesep_(_G_) work well). Space
+for multiple edges must be reserved in the previous pass, described in
+section 4, when setting the separation between nodes.
+
+*5.1.2 Flat Edges*
+
+Flat edges are handled much like inter-rank edges, but the region routes
+past intervening nodes and spaces between nodes. We omit most of the
+details since they are quite similar. One difference is that if an edge
+connects two adjacent nodes it is drawn as a single spline with the
+following control points:
+
+- 26 -
+
+____
+_dx_ = (_x_(_u_) −__x__(_v_) ) +
+__p__0 = (_x_(_v_) ,_y_(_v_) )
+
+__p__1 = __p__0 + ( 3 _ 1 _ _dx_, 0 )
+
+__p__2 = __p__0 + ( 3 _ 2 _ _dx_, 0 )
+
+__p__3 = (_x_(_u_) ,_y_(_u_) )
+____
+
+For multiple flat edges, a spline is computed for the first one, and
+succeeding edges are drawn by adding _Y_ coordinate displacements. If an
+edge has a label, the label is positioned halfway along the edge.
+
+*5.1.3 Self-edges*
+
+Self-edges are drawn as loops on the sides of nodes. If an edge
+specifies tail or head ports, a polygonal region is generated that
+connects the two ports. The orientation of the region may be either
+clockwise or counter-clockwise, depending on the positions of the ports.
+If an edge does not specify tail and head ports it is drawn as a
+sequence of two splines, __p__0 ,... ,__p__3 and __p__3 ,... ,__p__6.
+These control points are computed as follows:
+
+____
+_dx_ = _nodesep_(_G_)
+____
+
+[width="100%",cols="50%,50%",options="header",]
+|===
+|_dy_ = a|
+____
+_ 1 _ _ysize_(_v_)
+
+2
+____
+
+|===
+
+____
+__p__0 = (_x_(_v_) ,_y_(_v_) )
+
+__p__1 = __p__0 + ( 3 _ 1 _ _dx_,_dy_)
+
+__p__2 = __p__0 + ( 3 _ 2 _ _dx_,_dy_)
+
+__p__3 = __p__0 + (_dx_, 0 )
+
+__p__4 = __p__0 + ( 3 _ 2 _ _dx_, −__dy__)
+
+__p__5 = __p__0 + ( 3 _ 1 _ _dx_, −__dy__)
+
+__p__6 = __p__0
+____
+
+If there are multiple edges, their loops are nested. If an edge has a
+label, the label is positioned halfway along the edge. In the simple
+case mentioned above, the label is positioned to the right of point
+__p__3. In the case of multiple edges with labels, the sizes of the
+labels are added to the displacement between edges. This prevents the
+curve of one edge crossing over the label of another edge. Space for
+self edges is allocated in the previous pass, described in section 4,
+when setting the separation between adjacent nodes.
+
+*5.2 Computing Splines*
+
+The computation of the splines has three stages. First, a piecewise
+linear curve or path lying entirely inside the region is computed. Then,
+the endpoints of this path are used as hints in the computation of a
+piecewise Bezier spline. Finally, the actual space used by the curve is
+computed in terms of the original
+
+- 27 -
+
+boxes. The data structures computed by these three stages are shown in
+figure 5-4. The region shown
+
+in this figure is the same one as in figure 5-1. This example contains
+13 boxes.
+
+The three stages are outlined in figure 5-2.
+
+____
+{empty}1. *procedure* compute_splines (B_array, q, theta_q, use_theta_q,
+s, theta_s, use_theta_s)
+
+{empty}2. compute_L_array (B_array);
+
+{empty}3. compute_p_array (B_array, L_array, q, s);
+
+{empty}4. *if* use_theta_q *then* vector_q = anglevector(theta_q)
+
+{empty}5. *else* vector_q = zero_vector;
+
+{empty}6. *if* use_theta_s *then* vector_s = anglevector(theta_s)
+
+{empty}7. *else* vector_s = zero_vector;
+
+{empty}8. compute_s_array (B_array, L_array, p_array, vector_q,
+vector_s);
+
+{empty}9. compute_bboxes ();
+
+{empty}10. *end*
+____
+
+*Figure 5-2.* Computing splines
+
+_Remarks on Figure 5-2_.
+
+2: compute_L_array computes the array _L_ 0 , . . . , _L m_ + 1 where _L
+i_ is the line segment that is
+
+the intersection of box _B i_ −1 with box _B i_. In figure 5-4, these
+line segments are shown as
+
+____
+thicker lines between boxes. There are 14 such segments.
+____
+
+3: compute_p_array computes an array of points _p_ 0 , . . . , _p k_
+defining a feasible path that
+
+____
+connects q and s. In figure 5-4, there are 3 such points.
+____
+
+4-7: If use_theta_q or use_theta_s are true, the curve is constrained to
+approach the
+
+corresponding endpoint at the specified angles. vector_q and vector_s
+are normalized
+
+____
+vectors.
+____
+
+8: compute_s_array computes an array of points _s_ 0 , . . . , _s k_
+defining a piecewise Bezier
+
+spline that connects q and s and lies entirely inside the region. In the
+worst case, we can have
+
+one Bezier spline per box. In most cases, however, our approach
+generates significantly fewer
+
+splines. For example, in figure 5-4, there are only 2 splines, one
+between _p_ 0 and _p_ 1 and one
+
+between _p_ 1 and _p_ 2. In more complex paths, there may even be fewer
+splines than line
+
+____
+segments, since, unlike a line, a spline can curve around obstacles.
+____
+
+9: compute_bboxes computes the space actually taken up by the curve. It
+computes the array
+
+____
+_BB_ 0 , . . . , _BB m_, where _BB i_ is the narrowest sub-box of _B i_
+containing the curve.
+____
+
+compute_p_array and compute_s_array are both implemented as
+divide-and-conquer methods,
+
+as shown in figure 5-3.
+
+- 28 -
+
+____
+{empty}1. *procedure* compute_p_array (B_array, L_array, q, s)
+
+{empty}2. *if* line_fits (B_array, L_array, q, s) *then return;*
+
+{empty}3. p = compute_linesplit (B_array, L_array);
+
+{empty}4. addto_p_array (p);
+
+{empty}5. compute_p_array (B_array1, L_array1, q, p);
+
+{empty}6. compute_p_array (B_array2, L_array2, p, s);
+
+{empty}7. *end*
+
+8.
+
+{empty}9. *procedure* compute_s_array (B_array, L_array, p_array,
+vector_q, vector_s)
+
+{empty}10. spline = generate_spline (p_array, vector_q, vector_s);
+
+{empty}11. *if* size (p_array) == 2 *then*
+
+{empty}12. *while* spline_fits (spline, B_array, L_array) == *False do*
+
+{empty}13. straighten_spline (spline);
+
+{empty}14. *elseif* spline_fits (spline, B_array, L_array) == *False
+then*
+
+{empty}15. count = 0;
+
+{empty}16. ospline = spline;
+
+{empty}17. *repeat*
+
+{empty}18. spline = refine_spline (p_array, ospline,
+
+{empty}19. mode (count, max_iterations));
+
+{empty}20. fits = spline_fits (spline, B_array, L_array);
+
+{empty}21. count = count + 1;
+
+{empty}22. *while* (fits == *False*) *and* (count <= max_iterations);
+
+{empty}23. *if* fits == *False then*
+
+{empty}24. p = compute_splinesplit (spline, p_array);
+
+{empty}25. compute_s_array (B_array1, L_array1, p_array1,
+
+{empty}26. vector_q, vector_p);
+
+{empty}27. compute_s_array (B_array2, L_array2, p_array2,
+
+{empty}28. reverse (vector_p), vector_s);
+
+{empty}29. *return*;
+
+{empty}30. *endif*
+
+{empty}31. *endif*
+
+{empty}32. addto_s_array (spline);
+
+{empty}33. *end*
+____
+
+*Figure 5-3.* Spline drawing
+
+_Remarks on Figure 5-3_.
+
+2: line_fits checks if the line defined by q and s lies entirely inside
+the feasible region. The
+
+line is clipped to each box; if the line intersects a box, it must do so
+along the corresponding L
+
+- 29 -
+
+____
+segments.
+____
+
+3: If the (_q_, _s_) line does not fit, compute_linesplit finds the L
+segment that is the furthest from the (_q_, _s_) line and subdivides
+B_array and L_array along that segment. p is the one of the two
+endpoints of the subdivision segment that is closer to the (_q_, _s_)
+line. In figure 5-4, for example, the path is subdivided along _L_ 7.
+
+4: addto_p_array adds p to the array of endpoints for the path.
+
+The two recursive calls to compute_p_array complete the computation of
+the path. 5-6: +
+compute_p_array is not guaranteed to be the shortest path, but it works
+very well so we have not developed it further. If it were important, the
+shortest path could be found in linear time using convex hulls [Su].
+
+10: generate_spline computes a Bezier spline that approximates the path.
+This is done using a common technique [Gl].
+
+11-13: The case where there is only one segment in the path is handled
+first. spline_fits checks if the spline lies entirely inside the region.
+The spline is sampled along its length and these samples are then
+clipped as a linear path against the box region. The process is similar
+to that of line_fits. As long as the spline does not fit,
+straighten_spline adjusts the control points of the spline to reduce the
+curvature. In the worst case, the spline becomes a line, and that is
+known to fit inside the path. This worst case can produce sharp turns.
+Most of the time, however, the spline fits inside the region after just
+a few iterations and this process does not produce any visual anomalies.
+It is only when the region itself makes sharp turns that the worst case
+may happen.
+
+14-30: The second case is that the path has more than one segment. If
+the spline does not fit, refine_spline perturbs the control points of
+the spline in an attempt to make the spline fit.
+
+____
+The approach is similar to the straightening approach in lines 14-16. We
+try to decrease the curvature of the spline. If this does not seem to
+improve the fit, we try to increase the curvature. Since this process
+may never terminate, max_iterations controls how many times to try. mode
+returns a flag to indicate if the curvature is to be increased or
+decreased.
+____
+
+If the spline still does not fit even after the refinement, we subdivide
+the problem.
+
+____
+compute_splinesplit finds the endpoint of a segment on the path that is
+the furthest from the spline and subdivides the box and path arrays
+along that point. The two recursive calls to
+
+compute_s_array compute two piecewise Bezier splines, each fitting
+inside its corresponding part of the region. To force the two curves to
+join smoothly at the subdivision point, we also force the two splines to
+have the same unit tangent vector at that point. This guaranties
+__C__1continuity at the subdivision point. Forcing __C__2continuity does
+not seem to produce better results and is also much more expensive to
+compute. The straightening and refining heuristics, which save a lot of
+time, are based on the assumption that the tangent vectors at the
+endpoints of a spline can be scaled independently of the tangent vectors
+of the two adjacent splines. To maintain __C__2continuity, whenever a
+tangent vector is scaled, the tangent vector of the adjacent spline must
+also be scaled so that the two vectors will continue to
+____
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image12.png[image,width=569,height=165]
+
+- 30 -
+
+____
+have the same length. The scaling can propagate all the way to the end
+of the region. In addition, some of these splines may not fit even after
+scaling, and this would require more subdivisions, including
+subdivisions inside a single box. This is more trouble than it is worth.
+____
+
+32: Finally, addto_s_array adds the spline to the piecewise Bezier
+spline.
+
+____
+q = p0 = L0 +
+L2
+____
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+|B5 |B6 |BB5 a|
+____
+L7
+____
+
+| | |p1 |
+|===
+
+B7
+
+q = p2 = L13
+
+*Figure 5-4.* The three stages
+
+*5.3 Edge Labels*
+
+In _dag_, edge labels are placed next to the midpoint of the spline.
+This is an oversimplification since the placement does not avoid or even
+detect overlapping with other splines, labels, or nodes. Yet, graphs
+with edge labels are often small and sparse, so this technique is
+sometimes adequate.
+
+In _dot_, edge labels on inter-rank edges are represented as off-center
+virtual nodes. This guarantees that labels never overlap other nodes,
+edges or labels. Certain adjustments are needed to make sure that adding
+labels does not affect the length of edges. Setting the minimum edge
+length to 2 (effectively doubling the ranks when virtual nodes are
+created) and halving the separation between ranks compensates for the
+label nodes. This makes it at least twice as expensive to draw a graph
+with labels, but the labels are readable. Figure 5-5 shows a drawing of
+a graph with edge labels.
+
+Edge labels on self edges are easy to handle, but flat edges are more
+complicated. Here we must choose the left-to-right order for the virtual
+node of the label so that its _X_ coordinate lies between the endpoint
+
+image:vertopal_5fa3fa03a88949ffb21641301aaaed8b/media/image13.png[image,width=576,height=257]
+
+- 31 -
+
+coordinates, not to the right or the left. At present we are still
+working on this problem.
+
+More sophisticated placement of labels in diagrams (such as geographic
+maps) is a difficult research problem deserving further study. However,
+it is worth remarking that the label placing program as described by
+Freeman and Ahn [FA] is larger than our whole graph drawing program.
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+|SS(S) |LR_1 |S($end) a|
+____
+LR_3
+____
+
+|===
+
+____
+LR_0
+____
+
+[width="99%",cols="10%,10%,10%,10%,10%,10%,10%,10%,10%,10%",options="header",]
+|===
+|SS(B) |LR_2 |S(A) |LR_4 |S(a) |S(a) |S(b) |LR_7 |S(b) a|
+____
+LR_8
+____
+
+| | |SS(b) |S(b) | | | | | |
+| | | |LR_6 | | | | | |
+| | | |SS(a) | |LR_5 |S(a) | | |
+| | | | | | |S(b) | | |
+|===
+
+S(a)
+
+____
+*Figure 5-5.* A finite state machine with labeled transitions
+____
+
+(0.15 sec. user time on a Sun-4/280)
+
+*6. Conclusions*
+
+We have described a method for drawing digraphs. Our contributions are
+the application of network simplex for assigning ranks and final node
+coordinates, an improved heuristic for reducing edge crossing, and a
+method for making edge splines. The method of finding node coordinates
+allows edges with _X_ coordinate endpoint displacements. These
+techniques are straightforward to program, run fast enough for
+interactive use, and make drawings that compare well with previous work
+as to being readable and visually pleasing.
+
+Further work might address the following:
+
+• Understand how to modify the graph or its layout to enhance
+readability.
+
+- 32 -
+
+• Improve the edge crossing and spline drawing heuristics.
+
+• Allow more interaction between the layout passes. Different solutions
+having the same cost in one phase may affect results a great deal in a
+following phase. For instance, two layouts can have the same number of
+crossings but much different final coordinates.
+
+• Support incremental (on-line) graph drawing for animation. Stability
+from one drawing to the next is essential.
+
+*7. Acknowledgments*
+
+The referees made detailed comments that helped us to clarify the
+presentation, particularly in section 2. We also wish to thank Guy
+Jacobson and Steve Lally for their criticisms on content and style.
+
+- 33 -
+
+*REFERENCES*
+
+[AHU] Aho, A., J. Hopcroft, and J. Ullman, *The Design and Analysis of
+Computer Algorithms*, Addison-Wesley, Reading, Massachusetts, 1974.
+
+[Ca] Carpano, M., ‘‘Automatic display of hierarchized graphs for
+computer aided decision analysis,’’ _IEEE Transactions on Software
+Engineering_ SE-12(4), 1980, pp. 538-546.
+
+[Ch] Chvatal, V., *Linear Programming*, W. H. Freeman, New York, 1983.
+
+Cunningham, W. H., ‘‘A network simplex method,’’ _Mathematical
+Programming_ 11, 1976, pp. [Cu] +
+105-116.
+
+[DT] Di Battista, G., and R. Tamassia, ‘‘Algorithms for Plane
+Representations of Acyclic Digraphs,’’ _Theoretical Computer Science_
+61, 1988, pp. 175--198.
+
+[EMW] Eades, P., B. McKay and N. Wormald, ‘‘On an Edge Crossing
+Problem,’’ _Proc. 9th Australian_ _Computer Science Conf._, 1986, pp.
+327-334.
+
+[ET] Eades, P. and Roberto Tamassia, ‘‘Algorithms for Automatic Graph
+Drawing: An Annotated Bibliography,’’ Technical Report CS-89-09 (Revised
+Version), Brown University, Department of Computer Science, Providence
+RI, October 1989.
+
+[EW] Eades, P. and N. Wormald, ‘‘The Median Heuristic for Drawing
+2-Layers Networks,’’ Technical Report 69, Dept. of Computer Science,
+Univ. of Queensland, 1986.
+
+[FA] Freeman, Herbert and John Ahn, ‘‘On The Problem of Placing Names in
+a Geographic Map,’’ _International Journal of Pattern Recognition and
+Artificial Intelligence_, 1(1), 1987, pp. 121-140. [GJ] Garey, Michael
+R. and David S. Johnson, *Computers and Intractability*, W. H. Freeman,
+San Francisco, 1979.
+
+[Gl] Glassner, Andrew S., *Graphics Gems* (editor), Academic Press, San
+Diego, 1990.
+
+[GNV1] Gansner, E. R., S. C. North and K.-P. Vo, ‘‘DAG - A Program that
+Draws Directed Graphs,’’ _Software - Practice and Experience_ 17(1),
+1988, pp. 1047-1062.
+
+[GNV2] Gansner, E. R., S. C. North and K.-P. Vo, ‘‘On the Rank
+Assignment Problem,’’ to be submitted.
+
+[GT] Goldberg, A. V. and R. E. Tarjan, ‘‘Finding minimum-cost
+circulations by successive approximation,’’ _Mathematics of Operations
+Research_, 15(3), 1990, pp. 430-466.
+
+[Ka] Karmarkar, N., ‘‘A new polynomial-time algorithm for linear
+programming,’’ _Proc. 16th ACM_ _STOC_, Washington, 1984, pp. 302-311.
+
+[Kh] Khachiyan, L. G., ‘‘A polynomial algorithm in linear programming,’’
+_Sov. Math. Doklady_ 20, 1979, pp 191-194.
+
+[KN] Koutsofios, E., and S. North, ‘‘Drawing graphs with dot,’’
+technical report (available from the authors), AT&T Bell Laboratories,
+Murray Hill NJ, 1992.
+
+[Ro] Robbins, G., ‘‘The ISI grapher, a portable tool for diplaying
+graphs pictorially,’’ Symboliikka ’87, Helsinki, Finland, also Technical
+Report IST/RS-87-196, Information Sciences Institute, Marina Del Rey,
+CA.
+
+[RDM] Rowe, L. A., M. Davis, E. Messinger, C. Meyer, C. Spirakis, and A.
+Tuan, ‘‘A Browser for Directed Graphs,’’ _Software - Practice and
+Experience_ 17(1), January, 1987, pp. 61-76.
+
+[STT] Sugiyama, K., S. Tagawa and M. Toda, ‘‘Methods for Visual
+Understanding of Hierarchical System Structures,’’ _IEEE Transactions on
+Systems, Man, and Cybernetics_ SMC-11(2), February, 1981, pp. 109-125.
+
+[Su] Suri, Subhash. ‘‘A linear time algorithm for minimum link paths
+inside a simple polygon,’’ _Computer Vision, Graphics, and Image
+Processing_ 35, 1986, pp. 99-110.
+
+[Ta] Tarjan, R. E. ‘‘Depth first search and linear graph algorithms,’’
+_SIAM Journal of Computing_ 1(2), 1972, pp. 146-160.
+
+[Wa] Warfield, John, ‘‘Crossing Theory and Hierarchy Mapping,’’ _IEEE
+Transactions on Systems,_ _Man, and Cybernetics_ SMC-7(7), July, 1977,
+pp. 505-523.
