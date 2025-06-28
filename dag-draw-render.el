@@ -452,8 +452,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   ;; Create node occupancy map to avoid drawing through nodes
   (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
     (dolist (edge (dag-draw-graph-edges graph))
-      ;; Use boundary-aware routing for clean connections
-      (dag-draw--ascii-draw-boundary-aware-edge graph edge grid min-x min-y scale occupancy-map))))
+      ;; Use enhanced port-based routing for clean connections
+      (dag-draw--ascii-draw-port-based-edge graph edge grid min-x min-y scale))))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using boundary-aware routing that avoids node interiors."
@@ -532,8 +532,58 @@ Returns a 2D array where t = occupied by node, nil = empty space."
              (from-y (round (dag-draw-point-y from-grid)))
              (to-x (round (dag-draw-point-x to-grid)))
              (to-y (round (dag-draw-point-y to-grid))))
-        ;; Draw simple orthogonal path between ports
-        (dag-draw--ascii-draw-orthogonal-path grid from-x from-y to-x to-y)))))
+        ;; Draw clean orthogonal path between ports
+        (dag-draw--ascii-draw-clean-path grid from-x from-y to-x to-y)))))
+
+(defun dag-draw--ascii-draw-clean-path (grid x1 y1 x2 y2)
+  "Draw clean orthogonal path between port coordinates."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    ;; For vertically aligned nodes (same x), draw straight vertical line
+    (if (= x1 x2)
+        ;; Pure vertical line
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                ;; Only draw in empty space
+                (when (= (aref (aref grid y) x1) ?\s)
+                  (aset (aref grid y) x1 ?│))))))
+
+      ;; For horizontally aligned nodes (same y), draw straight horizontal line
+      (if (= y1 y2)
+          ;; Pure horizontal line
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                  ;; Only draw in empty space
+                  (when (= (aref (aref grid y1) x) ?\s)
+                    (aset (aref grid y1) x ?─))))))
+
+        ;; For diagonal connections, use L-shaped routing
+        ;; Default: horizontal first, then vertical
+        (progn
+          ;; Horizontal segment: x1 to x2 at y1
+          (let ((start-x (min x1 x2))
+                (end-x (max x1 x2)))
+            (dotimes (i (1+ (- end-x start-x)))
+              (let ((x (+ start-x i)))
+                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                  (when (= (aref (aref grid y1) x) ?\s)
+                    (aset (aref grid y1) x ?─))))))
+
+          ;; Vertical segment: y1 to y2 at x2
+          (let ((start-y (min y1 y2))
+                (end-y (max y1 y2)))
+            (dotimes (i (1+ (- end-y start-y)))
+              (let ((y (+ start-y i)))
+                (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+                  (when (= (aref (aref grid y) x2) ?\s)
+                    (aset (aref grid y) x2 ?│)))))))))))
 
 (defun dag-draw--ascii-draw-orthogonal-path (grid x1 y1 x2 y2)
   "Draw clean orthogonal path avoiding node overlaps."
