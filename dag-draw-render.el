@@ -59,6 +59,40 @@ Corresponds to the coordinate system transformation described in the paper."
   :type 'float
   :group 'dag-draw-render)
 
+;;; Text Formatting Functions
+
+(defun dag-draw--format-node-text (text)
+  "Format TEXT for fixed node size (max 2 rows, 20 chars each).
+Returns a list of strings representing the formatted rows."
+  (if (<= (length text) 20)
+      (list text)
+    ;; Word wrapping for text longer than 20 chars
+    (let ((words (split-string text " "))
+          (line1 "")
+          (line2 ""))
+      ;; Fill first line up to 20 chars
+      (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
+        (setq line1 (if (string-empty-p line1)
+                        (car words)
+                      (concat line1 " " (car words))))
+        (setq words (cdr words)))
+      ;; Fill second line up to 20 chars  
+      (when words
+        (let ((remaining-text (mapconcat 'identity words " ")))
+          (if (<= (length remaining-text) 20)
+              ;; All remaining text fits in second line
+              (setq line2 remaining-text)
+            ;; Need to truncate with ellipsis
+            (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
+              (setq line2 (if (string-empty-p line2)
+                              (car words)
+                            (concat line2 " " (car words))))
+              (setq words (cdr words)))
+            (setq line2 (concat line2 "...")))))
+      (if (string-empty-p line2)
+          (list line1)
+        (list line1 line2)))))
+
 ;;; ASCII Scaling Helper Functions
 
 (defun dag-draw--world-to-grid-coord (coord min-coord scale)
