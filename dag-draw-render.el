@@ -632,17 +632,15 @@ Returns a 2D array where t = occupied by node, nil = empty space."
           (grid-width (length (aref grid 0))))
     ;; For paths, detect the type and add appropriate arrow
     (cond
-     ;; Same point - create an L-shaped connection manually
+     ;; Same point - create a clean connected path with arrow
      ((and (= x1 x2) (= y1 y2))
-      ;; Create L-shape: horizontal line then vertical with arrow
-      (when (and (>= (- x2 1) 0) (< (+ x2 2) grid-width)
-                 (>= (+ y2 1) 0) (< (+ y2 3) grid-height))
-        ;; Draw L corner
+      ;; Create a connected path that doesn't float inside nodes
+      (when (and (>= (- x2 1) 0) (< (+ x2 1) grid-width)
+                 (>= (+ y2 1) 0) (< (+ y2 2) grid-height))
+        ;; Draw corner connector outside the node
         (aset (aref grid (+ y2 1)) (- x2 1) ?└)
-        ;; Draw horizontal line
-        (aset (aref grid (+ y2 1)) x2 ?─)
-        ;; Draw arrow at end
-        (aset (aref grid (+ y2 2)) x2 ?v)))
+        ;; Draw arrow directly connected to corner (no floating)
+        (aset (aref grid (+ y2 1)) x2 ?v)))
      
      ;; Horizontal then vertical (corner at x2, y1)
      ((and (/= x1 x2) (/= y1 y2))

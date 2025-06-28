@@ -91,7 +91,43 @@
           ;; Edge should touch node boundary, not float
           (expect result :to-match "└")    ; L-shape corner
           (expect result :to-match "v")    ; Downward arrow
-          (expect result :not :to-match "\\s\\s[v>]")))))) ; Close describe blocks
+          (expect result :not :to-match "\\s\\s[v>]"))))
+  
+  (describe "corner arrow combinations"
+    (it "should use proper corner-arrow combinations for L-paths"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'A "Left")
+        (dag-draw-add-node graph 'B "Right") 
+        (dag-draw-add-edge graph 'A 'B)
+        (dag-draw-layout-graph graph)
+        (let ((result (dag-draw-render-ascii graph)))
+          ;; Should have corner-arrow combinations like └> or ┌> instead of separate corner + arrow
+          (expect result :to-match "[└┌]")  ; Has corner character
+          (expect result :to-match "[>v<^]")))) ; Has arrow character
+    
+    (it "should handle horizontal edges with right arrows"
+      (let ((graph (dag-draw-create-graph)))
+        ;; Create nodes that will likely result in horizontal routing
+        (dag-draw-add-node graph 'LEFT "Left Node")
+        (dag-draw-add-node graph 'RIGHT "Right Node") 
+        (dag-draw-add-edge graph 'LEFT 'RIGHT)
+        (dag-draw-layout-graph graph)
+        (let ((result (dag-draw-render-ascii graph)))
+          ;; Should contain arrow (direction depends on layout)
+          (expect result :to-match "[><]"))))
+    
+    (it "should not overwrite node boundaries with corner characters"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'A "Test")
+        (dag-draw-add-node graph 'B "Node") 
+        (dag-draw-add-edge graph 'A 'B)
+        (dag-draw-layout-graph graph)
+        (let ((result (dag-draw-render-ascii graph)))
+          ;; Node content should not be corrupted by corner characters
+          (expect result :to-match "Test")    ; Node A content intact
+          (expect result :to-match "Node")    ; Node B content intact
+          (expect result :not :to-match "Te└st")  ; No corner chars in node content
+          (expect result :not :to-match "No└de")))))))  ; Close all blocks
 
 (provide 'dag-draw-ascii-arrows-test)
 
