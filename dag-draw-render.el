@@ -540,50 +540,57 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
-    ;; For vertically aligned nodes (same x), draw straight vertical line
-    (if (= x1 x2)
-        ;; Pure vertical line
-        (let ((start-y (min y1 y2))
-              (end-y (max y1 y2)))
-          (dotimes (i (1+ (- end-y start-y)))
-            (let ((y (+ start-y i)))
-              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
-                ;; Only draw in empty space
-                (when (= (aref (aref grid y) x1) ?\s)
-                  (aset (aref grid y) x1 ?│))))))
+    ;; Handle special case: both points are the same (adjacent nodes touching)
+    (if (and (= x1 x2) (= y1 y2))
+        ;; Draw a connection point to show the edge exists
+        (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height))
+          (when (= (aref (aref grid y1) x1) ?\s)
+            (aset (aref grid y1) x1 ?●)))  ; Connection point character
 
-      ;; For horizontally aligned nodes (same y), draw straight horizontal line
-      (if (= y1 y2)
-          ;; Pure horizontal line
-          (let ((start-x (min x1 x2))
-                (end-x (max x1 x2)))
-            (dotimes (i (1+ (- end-x start-x)))
-              (let ((x (+ start-x i)))
-                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
-                  ;; Only draw in empty space
-                  (when (= (aref (aref grid y1) x) ?\s)
-                    (aset (aref grid y1) x ?─))))))
-
-        ;; For diagonal connections, use L-shaped routing
-        ;; Default: horizontal first, then vertical
-        (progn
-          ;; Horizontal segment: x1 to x2 at y1
-          (let ((start-x (min x1 x2))
-                (end-x (max x1 x2)))
-            (dotimes (i (1+ (- end-x start-x)))
-              (let ((x (+ start-x i)))
-                (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
-                  (when (= (aref (aref grid y1) x) ?\s)
-                    (aset (aref grid y1) x ?─))))))
-
-          ;; Vertical segment: y1 to y2 at x2
+      ;; For vertically aligned nodes (same x), draw straight vertical line
+      (if (= x1 x2)
+          ;; Pure vertical line
           (let ((start-y (min y1 y2))
                 (end-y (max y1 y2)))
             (dotimes (i (1+ (- end-y start-y)))
               (let ((y (+ start-y i)))
-                (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
-                  (when (= (aref (aref grid y) x2) ?\s)
-                    (aset (aref grid y) x2 ?│)))))))))))
+                (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                  ;; Only draw in empty space
+                  (when (= (aref (aref grid y) x1) ?\s)
+                    (aset (aref grid y) x1 ?│))))))
+
+        ;; For horizontally aligned nodes (same y), draw straight horizontal line
+        (if (= y1 y2)
+            ;; Pure horizontal line
+            (let ((start-x (min x1 x2))
+                  (end-x (max x1 x2)))
+              (dotimes (i (1+ (- end-x start-x)))
+                (let ((x (+ start-x i)))
+                  (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                    ;; Only draw in empty space
+                    (when (= (aref (aref grid y1) x) ?\s)
+                      (aset (aref grid y1) x ?─))))))
+
+          ;; For diagonal connections, use L-shaped routing
+          ;; Default: horizontal first, then vertical
+          (progn
+            ;; Horizontal segment: x1 to x2 at y1
+            (let ((start-x (min x1 x2))
+                  (end-x (max x1 x2)))
+              (dotimes (i (1+ (- end-x start-x)))
+                (let ((x (+ start-x i)))
+                  (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height))
+                    (when (= (aref (aref grid y1) x) ?\s)
+                      (aset (aref grid y1) x ?─))))))
+
+            ;; Vertical segment: y1 to y2 at x2
+            (let ((start-y (min y1 y2))
+                  (end-y (max y1 y2)))
+              (dotimes (i (1+ (- end-y start-y)))
+                (let ((y (+ start-y i)))
+                  (when (and (>= x2 0) (< x2 grid-width) (>= y 0) (< y grid-height))
+                    (when (= (aref (aref grid y) x2) ?\s)
+                      (aset (aref grid y) x2 ?│))))))))))))
 
 (defun dag-draw--ascii-draw-orthogonal-path (grid x1 y1 x2 y2)
   "Draw clean orthogonal path avoiding node overlaps."

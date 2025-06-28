@@ -87,7 +87,7 @@
 
           (expect x-a :to-be-less-than x-b)
           (expect x-b :to-be-less-than x-c)
-          (expect x-a :to-equal 0))))  ; Should start from 0
+          (expect x-a :to-equal 0.0))))  ; Should start from 0
 
   (it "should handle minimum separation constraints"
       (let ((graph (dag-draw-create-graph)))
