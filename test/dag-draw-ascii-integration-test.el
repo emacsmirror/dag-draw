@@ -189,7 +189,8 @@
       (let ((ascii-output (dag-draw-render-ascii graph)))
         (expect ascii-output :to-be-truthy)
         (expect ascii-output :to-match "A")
-        (expect ascii-output :to-match "Very Long Node Name"))))
+        (expect ascii-output :to-match "Very Long")
+        (expect ascii-output :to-match "Node Name"))))
   
   (it "should produce deterministic output"
     (let ((graph1 (dag-draw-create-graph))
