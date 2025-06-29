@@ -119,10 +119,10 @@ Auto-sizes the node based on label length using 2 rows × 20 characters constrai
   (let* ((node-label (or label (symbol-name node-id)))
          ;; Use the constrained text formatting (2 rows × 20 chars max)
          (text-lines (dag-draw--format-node-text-with-constraints node-label))
-         ;; Use fixed node size for consistent layout (as per tests)
-         (size-info (dag-draw--get-fixed-node-dimensions node-label))
+         ;; Calculate variable node size based on actual formatted text
+         (size-info (dag-draw--calculate-constrained-node-size text-lines))
          (node-width (car size-info))
-         (node-height (cadr size-info))
+         (node-height (cdr size-info))
          ;; Create the node with formatted text as label (joined by newlines)
          (formatted-label (mapconcat #'identity text-lines "\n"))
          (node (dag-draw-node-create

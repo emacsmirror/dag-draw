@@ -61,50 +61,6 @@ Corresponds to the coordinate system transformation described in the paper."
 
 ;;; Text Formatting Functions
 
-(defun dag-draw--format-node-text (text)
-  "Format TEXT for fixed node size (max 2 rows, 20 chars each).
-Returns a list of strings representing the formatted rows."
-  (if (<= (length text) 20)
-      (list text)
-    ;; Check if text has no spaces (single long word)
-    (if (not (string-match " " text))
-        ;; Handle single long word - truncate with ellipsis
-        (list (concat (substring text 0 17) "..."))
-      ;; Word wrapping for text longer than 20 chars
-      (let ((words (split-string text " "))
-            (line1 "")
-            (line2 ""))
-        ;; Fill first line up to 20 chars
-        (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
-          (setq line1 (if (string-empty-p line1)
-                          (car words)
-                        (concat line1 " " (car words))))
-          (setq words (cdr words)))
-        ;; Fill second line up to 20 chars
-        (when words
-          (let ((remaining-text (mapconcat 'identity words " ")))
-            (if (<= (length remaining-text) 20)
-                ;; All remaining text fits in second line
-                (setq line2 remaining-text)
-              ;; Need to truncate with ellipsis
-              (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
-                (setq line2 (if (string-empty-p line2)
-                                (car words)
-                              (concat line2 " " (car words))))
-                (setq words (cdr words)))
-              (setq line2 (concat line2 "...")))))
-        (if (string-empty-p line2)
-            (list line1)
-          (list line1 line2))))))
-
-(defun dag-draw--get-fixed-node-dimensions (text)
-  "Return fixed dimensions for any node text.
-Returns (width height) where width accounts for 20-char text + borders,
-height accounts for 2 text rows + borders."
-  ;; For ASCII rendering compatibility, use world coordinates that scale to desired grid size
-  ;; Target: 22 grid chars width, 4 grid chars height  
-  ;; Empirically determined scaling to achieve 20-dash borders
-  '(150 27))
 
 ;;; ASCII Scaling Helper Functions
 
