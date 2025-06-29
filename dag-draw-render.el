@@ -289,22 +289,26 @@ Returns nil if either node lacks coordinates."
                    (setq max-node-y-extent (max max-node-y-extent y-extent))))
                (dag-draw-graph-nodes graph))
 
-      (let* (;; Add node extents to ensure complete boxes fit in grid
-             (total-width (+ width-diff (* 2 max-node-x-extent)))
-             (total-height (+ height-diff (* 2 max-node-y-extent)))
-             ;; Handle empty graphs and ensure minimum grid size
+      (let* (;; Adjust bounds to prevent grid coordinate clipping  
+             (adjusted-min-x (- min-x max-node-x-extent))
+             (adjusted-min-y (- min-y max-node-y-extent))
+             (adjusted-max-x (+ max-x max-node-x-extent))
+             (adjusted-max-y (+ max-y max-node-y-extent))
+             (total-width (- adjusted-max-x adjusted-min-x))
+             (total-height (- adjusted-max-y adjusted-min-y))
+             ;; Handle empty graphs and ensure minimum grid size  
              (grid-width (max 1 (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale))))
              (grid-height (max 1 (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale))))
              (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-        ;; Draw nodes
-        (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
+        ;; Draw nodes using adjusted bounds
+        (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
 
         ;; Generate splines for smoother edge routing (GKNV algorithm Pass 4)
         (dag-draw-generate-splines graph)
 
         ;; Draw edges using spline data when available
-        (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
+        (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
 
         ;; Convert grid to string
         (dag-draw--ascii-grid-to-string grid)))))

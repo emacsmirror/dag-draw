@@ -52,7 +52,7 @@
   :type 'integer
   :group 'dag-draw)
 
-(defcustom dag-draw-default-rank-separation 60
+(defcustom dag-draw-default-rank-separation 30
   "Default minimum vertical separation between ranks."
   :type 'integer
   :group 'dag-draw)
@@ -245,9 +245,9 @@ This enables GKNV variable node sizing while respecting user constraints."
          (calculated-width (ceiling (/ required-grid-chars
                                       (* grid-scale ascii-box-scale))))
          (node-width (max min-width calculated-width))
-         ;; Calculate height based on actual number of lines (optimized sizing)
-         (base-height-per-line 15)
-         (border-height 15)
+         ;; Calculate height based on actual number of lines (minimal sizing)
+         (base-height-per-line 6)
+         (border-height 8)
          (calculated-height (+ (* num-lines base-height-per-line) border-height))
          (node-height calculated-height))
     
@@ -299,7 +299,7 @@ GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
          (node-width (max min-width calculated-width))
          ;; GKNV-compatible: Use fixed height to maintain algorithm assumptions
          ;; The original GKNV algorithm expects consistent node dimensions
-         (base-height 35)  ; Optimized fixed height for better visual balance
+         (base-height 14)  ; Minimal fixed height for optimal visual density
          (node-height base-height))  ; Always use base height for layout consistency
     
     (cons node-width node-height)))
