@@ -149,6 +149,141 @@
                      (dag-draw-point-x to-port) (dag-draw-point-y to-port))
             (message "===================================="))))))
 
+  (describe "multi-edge port distribution"
+    (it "should distribute multiple edges from same node across different sides"
+      ;; This test addresses the ugly corner crowding in Research Phase -> multiple targets
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'source "Source Node")
+        (dag-draw-add-node graph 'target1 "Target One") 
+        (dag-draw-add-node graph 'target2 "Target Two")
+        (dag-draw-add-node graph 'target3 "Target Three")
+        
+        ;; Create multiple edges from same source (like Research Phase scenario)
+        (dag-draw-add-edge graph 'source 'target1)
+        (dag-draw-add-edge graph 'source 'target2)
+        (dag-draw-add-edge graph 'source 'target3)
+        
+        (dag-draw-layout-graph graph)
+        
+        ;; Position nodes to create multi-target scenario
+        (let* ((source-node (dag-draw-get-node graph 'source))
+               (target1-node (dag-draw-get-node graph 'target1))
+               (target2-node (dag-draw-get-node graph 'target2))
+               (target3-node (dag-draw-get-node graph 'target3)))
+          
+          ;; Source at top-center, targets spread below
+          (setf (dag-draw-node-x-coord source-node) 100.0)
+          (setf (dag-draw-node-y-coord source-node) 50.0)
+          (setf (dag-draw-node-x-coord target1-node) 50.0)   ; Left
+          (setf (dag-draw-node-y-coord target1-node) 150.0)
+          (setf (dag-draw-node-x-coord target2-node) 100.0)  ; Center
+          (setf (dag-draw-node-y-coord target2-node) 150.0)
+          (setf (dag-draw-node-x-coord target3-node) 150.0)  ; Right
+          (setf (dag-draw-node-y-coord target3-node) 150.0)
+          
+          ;; Get all connection points with grid parameters to trigger distribution logic
+          (let* ((edges (dag-draw-graph-edges graph))
+                 (edge1 (nth 0 edges))
+                 (edge2 (nth 1 edges))
+                 (edge3 (nth 2 edges))
+                 ;; Use ASCII rendering parameters to trigger distributed port calculation
+                 (bounds (dag-draw-get-graph-bounds graph))
+                 (min-x (nth 0 bounds))
+                 (min-y (nth 1 bounds))
+                 (scale dag-draw-render-ascii-grid-scale)
+                 (conn1 (dag-draw--get-edge-connection-points graph edge1 min-x min-y scale))
+                 (conn2 (dag-draw--get-edge-connection-points graph edge2 min-x min-y scale))
+                 (conn3 (dag-draw--get-edge-connection-points graph edge3 min-x min-y scale))
+                 (from-port1 (car conn1))
+                 (from-port2 (car conn2))
+                 (from-port3 (car conn3)))
+            
+            (message "=== MULTI-EDGE PORT DISTRIBUTION TEST ===")
+            (message "Source node: center=(%.1f, %.1f)" 
+                     (dag-draw-node-x-coord source-node) (dag-draw-node-y-coord source-node))
+            (message "Edge 1 from-port: (%.1f, %.1f)" 
+                     (dag-draw-point-x from-port1) (dag-draw-point-y from-port1))
+            (message "Edge 2 from-port: (%.1f, %.1f)" 
+                     (dag-draw-point-x from-port2) (dag-draw-point-y from-port2))
+            (message "Edge 3 from-port: (%.1f, %.1f)" 
+                     (dag-draw-point-x from-port3) (dag-draw-point-y from-port3))
+            
+            ;; EXPECTATION: Multiple edges should use different ports, not all the same
+            ;; This prevents ugly corner crowding like: ┼──┼──┼
+            ;; Instead we want distributed connections across node boundary
+            
+            ;; Check that not all edges use exactly the same port position
+            (let ((all-ports-same (and (= (dag-draw-point-x from-port1) (dag-draw-point-x from-port2))
+                                       (= (dag-draw-point-x from-port2) (dag-draw-point-x from-port3))
+                                       (= (dag-draw-point-y from-port1) (dag-draw-point-y from-port2))
+                                       (= (dag-draw-point-y from-port2) (dag-draw-point-y from-port3)))))
+              
+              ;; This test should FAIL initially, showing that all edges use the same port
+              ;; Then we'll implement port distribution to make it pass
+              (expect all-ports-same :to-be nil) ; Expect ports to be different (this will fail initially)
+              
+              (message "All ports same position? %s (should be nil for good distribution)" 
+                       (if all-ports-same "YES - NEEDS IMPROVEMENT" "NO - GOOD DISTRIBUTION")))
+            
+            (message "==============================================="))))
+  
+  (describe "corner fallback behavior"
+    (it "should only use corner connections when side-centers are not feasible"
+      ;; This test ensures we don't unnecessarily fall back to corner connections
+      ;; when clean side-centered connections are geometrically viable
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'node-a "Node A")
+        (dag-draw-add-node graph 'node-b "Node B")
+        (dag-draw-add-edge graph 'node-a 'node-b)
+        (dag-draw-layout-graph graph)
+        
+        ;; Position nodes in a scenario where side-centers should be preferred
+        (let* ((node-a (dag-draw-get-node graph 'node-a))
+               (node-b (dag-draw-get-node graph 'node-b)))
+          (setf (dag-draw-node-x-coord node-a) 50.0)
+          (setf (dag-draw-node-y-coord node-a) 50.0)
+          (setf (dag-draw-node-x-coord node-b) 150.0)  ; Clear horizontal separation
+          (setf (dag-draw-node-y-coord node-b) 50.0)   ; Same Y level
+          
+          ;; Get connection points with grid parameters
+          (let* ((edge (car (dag-draw-graph-edges graph)))
+                 (bounds (dag-draw-get-graph-bounds graph))
+                 (min-x (nth 0 bounds))
+                 (min-y (nth 1 bounds))
+                 (scale dag-draw-render-ascii-grid-scale)
+                 (connection-points (dag-draw--get-edge-connection-points graph edge min-x min-y scale))
+                 (from-port (car connection-points))
+                 (to-port (cadr connection-points)))
+            
+            (message "=== CORNER FALLBACK TEST ===")
+            (message "Node A: center=(%.1f, %.1f)" 
+                     (dag-draw-node-x-coord node-a) (dag-draw-node-y-coord node-a))
+            (message "Node B: center=(%.1f, %.1f)" 
+                     (dag-draw-node-x-coord node-b) (dag-draw-node-y-coord node-b))
+            (message "From port: (%.1f, %.1f)" 
+                     (dag-draw-point-x from-port) (dag-draw-point-y from-port))
+            (message "To port: (%.1f, %.1f)" 
+                     (dag-draw-point-x to-port) (dag-draw-point-y to-port))
+            
+            ;; EXPECTATION: For clear horizontal layout, should use side-centers (right->left)
+            ;; Y coordinates should be at node centers (side-center connections)
+            (expect (dag-draw-point-y from-port) :to-equal (dag-draw-point-y to-port))  ; Same Y level
+            
+            ;; The Y coordinate should be close to the node center Y (50.0) - indicates side-center
+            (let ((expected-y 50.0)
+                  (tolerance 5.0)) ; Allow some grid conversion tolerance
+              (expect (dag-draw-point-y from-port) :to-be-close-to expected-y tolerance))
+            
+            ;; X coordinates should be at node boundaries (not node centers)
+            (expect (dag-draw-point-x from-port) :not :to-equal 50.0)   ; Not node A center
+            (expect (dag-draw-point-x to-port) :not :to-equal 150.0)    ; Not node B center
+            
+            ;; Should use right side of left node and left side of right node
+            (expect (dag-draw-point-x from-port) :to-be-greater-than 50.0)   ; Right of node A center
+            (expect (dag-draw-point-x to-port) :to-be-less-than 150.0)       ; Left of node B center
+            
+            (message "=============================="))))))))
+
 (provide 'dag-draw-side-centered-ports-test)
 
 ;;; dag-draw-side-centered-ports-test.el ends here
