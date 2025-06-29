@@ -298,56 +298,157 @@ DIRECTION is 'down or 'up indicating sweep direction."
 
 (defun dag-draw-order-vertices (graph)
   "Order vertices within ranks to minimize edge crossings.
-This is the second pass of the GKNV algorithm."
+This is the second pass of the GKNV algorithm with enhanced convergence detection."
   (let* ((graph-with-virtuals (dag-draw--create-virtual-nodes graph))
          (ranks (dag-draw--organize-by-ranks graph-with-virtuals))
-         (max-iterations 8)
-         (best-ranks (copy-sequence ranks))
-         (best-crossings most-positive-fixnum))
-
-    ;; Initial ordering by DFS or similar
-    (dag-draw--initialize-ordering graph-with-virtuals ranks)
-
-    ;; Iterative improvement
-    (dotimes (iteration max-iterations)
-      (let ((forward (= (mod iteration 2) 0)))
-
-        ;; Sweep through ranks
-        (if forward
-            ;; Forward pass (top to bottom)
-            (dotimes (r (1- (length ranks)))
-              (when (> (length (aref ranks (1+ r))) 1)
-                (setf (aref ranks (1+ r))
-                      (dag-draw--order-rank-by-median
-                       graph-with-virtuals
-                       (aref ranks (1+ r))
-                       (aref ranks r)
-                       'down))))
-
-          ;; Backward pass (bottom to top)
-          (loop for r from (- (length ranks) 2) downto 0 do
-                (when (> (length (aref ranks r)) 1)
-                  (setf (aref ranks r)
-                        (dag-draw--order-rank-by-median
-                         graph-with-virtuals
-                         (aref ranks r)
-                         (aref ranks (1+ r))
-                         'up)))))
-
-        ;; Apply local transposition
-        (dotimes (r (length ranks))
-          (dag-draw--transpose-adjacent graph-with-virtuals ranks r))
-
-        ;; Check if this is the best solution so far
-        (let ((total-crossings (dag-draw--count-total-crossings graph-with-virtuals ranks)))
-          (when (< total-crossings best-crossings)
-            (setq best-crossings total-crossings)
-            (setq best-ranks (copy-sequence ranks))))))
+         (convergence-result (dag-draw--crossing-reduction-with-convergence 
+                             graph-with-virtuals ranks)))
 
     ;; Apply best ordering back to original graph
-    (dag-draw--apply-ordering-to-graph graph best-ranks)
+    (dag-draw--apply-ordering-to-graph graph (ht-get convergence-result 'best-ranks))
+    
+    ;; Log convergence information
+    (message "Crossing reduction completed: iterations=%s crossings=%s converged=%s"
+             (ht-get convergence-result 'iterations)
+             (ht-get convergence-result 'final-crossings)
+             (ht-get convergence-result 'converged))
 
     graph))
+
+(defun dag-draw--crossing-reduction-with-convergence (graph ranks)
+  "Enhanced crossing reduction with sophisticated convergence detection.
+Returns hash table with convergence information."
+  (let* ((max-iterations 20)                    ; Increased from 8
+         (convergence-threshold 3)              ; Iterations without improvement
+         (oscillation-window 6)                 ; Window for oscillation detection
+         (best-ranks (copy-sequence ranks))
+         (best-crossings most-positive-fixnum)
+         (iterations-without-improvement 0)
+         (crossings-history '())
+         (ranks-history '())
+         (result (ht-create)))
+
+    ;; Initial ordering
+    (dag-draw--initialize-ordering graph ranks)
+    (let ((initial-crossings (dag-draw--count-total-crossings graph ranks)))
+      (setq best-crossings initial-crossings)
+      (push initial-crossings crossings-history))
+
+    ;; Iterative improvement with convergence detection
+    (let ((iteration 0)
+          (converged nil))
+      
+      (while (and (< iteration max-iterations) 
+                  (not converged))
+        
+        (let ((forward (= (mod iteration 2) 0))
+              (prev-crossings best-crossings))
+
+          ;; Sweep through ranks
+          (if forward
+              ;; Forward pass (top to bottom)
+              (dotimes (r (1- (length ranks)))
+                (when (> (length (aref ranks (1+ r))) 1)
+                  (setf (aref ranks (1+ r))
+                        (dag-draw--order-rank-by-median
+                         graph
+                         (aref ranks (1+ r))
+                         (aref ranks r)
+                         'down))))
+
+            ;; Backward pass (bottom to top)
+            (loop for r from (- (length ranks) 2) downto 0 do
+                  (when (> (length (aref ranks r)) 1)
+                    (setf (aref ranks r)
+                          (dag-draw--order-rank-by-median
+                           graph
+                           (aref ranks r)
+                           (aref ranks (1+ r))
+                           'up)))))
+
+          ;; Apply local transposition
+          (dotimes (r (length ranks))
+            (dag-draw--transpose-adjacent graph ranks r))
+
+          ;; Check current solution quality
+          (let ((current-crossings (dag-draw--count-total-crossings graph ranks)))
+            (push current-crossings crossings-history)
+            (push (copy-sequence ranks) ranks-history)
+            
+            ;; Update best solution
+            (if (< current-crossings best-crossings)
+                (progn
+                  (setq best-crossings current-crossings)
+                  (setq best-ranks (copy-sequence ranks))
+                  (setq iterations-without-improvement 0))
+              (setq iterations-without-improvement (1+ iterations-without-improvement)))
+            
+            ;; Check convergence conditions
+            (setq converged (dag-draw--check-convergence 
+                           crossings-history 
+                           ranks-history
+                           iterations-without-improvement 
+                           convergence-threshold 
+                           oscillation-window))
+            
+            (setq iteration (1+ iteration))))
+      
+      ;; Store results
+      (ht-set! result 'best-ranks best-ranks)
+      (ht-set! result 'final-crossings best-crossings)
+      (ht-set! result 'iterations iteration)
+      (ht-set! result 'converged converged)
+      (ht-set! result 'crossings-history (reverse crossings-history)))
+    
+    result))
+
+(defun dag-draw--check-convergence (crossings-history ranks-history 
+                                   iterations-without-improvement 
+                                   convergence-threshold oscillation-window)
+  "Advanced convergence detection for crossing reduction algorithm.
+Returns t if algorithm has converged."
+  (cond
+   ;; 1. No improvement for several iterations
+   ((>= iterations-without-improvement convergence-threshold)
+    t)
+   
+   ;; 2. Optimal solution found (zero crossings)
+   ((and crossings-history (= (car crossings-history) 0))
+    t)
+   
+   ;; 3. Oscillation detection - check if we're cycling between solutions
+   ((and (>= (length crossings-history) oscillation-window)
+         (dag-draw--detect-oscillation crossings-history oscillation-window))
+    t)
+   
+   ;; 4. Diminishing returns - improvement rate is too slow
+   ((and (>= (length crossings-history) 6)
+         (dag-draw--detect-diminishing-returns crossings-history))
+    t)
+   
+   ;; Continue optimization
+   (t nil)))
+
+(defun dag-draw--detect-oscillation (crossings-history window-size)
+  "Detect if crossing counts are oscillating between the same values."
+  (when (>= (length crossings-history) window-size)
+    (let ((recent-values (seq-take crossings-history window-size))
+          (unique-values (seq-uniq recent-values)))
+      ;; If we only have 2-3 unique values in recent history, likely oscillating
+      (and (<= (length unique-values) 3)
+           (> (length recent-values) (length unique-values))))))
+
+(defun dag-draw--detect-diminishing-returns (crossings-history)
+  "Detect if the rate of improvement has slowed significantly."
+  (when (>= (length crossings-history) 6)
+    (let* ((recent-6 (seq-take crossings-history 6))
+           (recent-3 (seq-take recent-6 3))
+           (previous-3 (seq-drop recent-6 3))
+           (recent-improvement (- (apply #'max recent-3) (apply #'min recent-3)))
+           (previous-improvement (- (apply #'max previous-3) (apply #'min previous-3))))
+      ;; If recent improvement is less than 10% of previous improvement
+      (and (> previous-improvement 0)
+           (< recent-improvement (* 0.1 previous-improvement))))))
 
 (defun dag-draw--initialize-ordering (graph ranks)
   "Initialize node ordering within ranks."

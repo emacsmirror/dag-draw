@@ -21,34 +21,121 @@
 (require 'dag-draw-core)
 
 (defun dag-draw-order-vertices (graph)
-  "Order vertices within ranks using a simplified approach.
+  "Order vertices within ranks with enhanced convergence detection.
 This is the second pass of the GKNV algorithm."
   
-  ;; Simple approach: assign order based on alphabetical/id ordering for now
-  ;; This can be enhanced later with the full weighted median heuristic
-  (let ((rank-to-nodes (ht-create)))
+  ;; Enhanced approach with convergence detection
+  (let ((convergence-result (dag-draw--simple-crossing-reduction-with-convergence graph)))
     
+    ;; Log convergence information
+    (message "Crossing reduction completed: iterations=%s converged=%s"
+             (ht-get convergence-result 'iterations)
+             (ht-get convergence-result 'converged))
+    
+    graph))
+
+(defun dag-draw--simple-crossing-reduction-with-convergence (graph)
+  "Simple crossing reduction with convergence detection."
+  (let ((max-iterations 12)
+        (convergence-threshold 3)
+        (iterations-without-improvement 0)
+        (best-ordering-cost most-positive-fixnum)
+        (result (ht-create)))
+    
+    ;; Iterative crossing reduction with convergence detection
+    (let ((iteration 0)
+          (converged nil))
+      
+      ;; Initial ordering - group nodes by rank
+      (let ((rank-to-nodes (ht-create)))
+        (ht-each (lambda (node-id node)
+                   (let ((rank (or (dag-draw-node-rank node) 0)))
+                     (ht-set! rank-to-nodes rank
+                              (cons node-id (ht-get rank-to-nodes rank '())))))
+                 (dag-draw-graph-nodes graph))
+        
+        ;; Assign initial alphabetical order within each rank
+        (ht-each (lambda (rank node-list)
+                   (let ((sorted-nodes (sort node-list (lambda (a b) 
+                                                         (string< (symbol-name a) 
+                                                                 (symbol-name b)))))
+                         (order 0))
+                     (dolist (node-id sorted-nodes)
+                       (let ((node (dag-draw-get-node graph node-id)))
+                         (when node
+                           (setf (dag-draw-node-order node) order)
+                           (setq order (1+ order)))))))
+                 rank-to-nodes))
+      
+      ;; Iterative improvement loop
+      (while (and (< iteration max-iterations) (not converged))
+        (let ((current-cost (dag-draw--simple-calculate-ordering-cost graph)))
+          
+          ;; Try some simple improvements (placeholder for more sophisticated algorithms)
+          (dag-draw--simple-try-swaps graph)
+          
+          ;; Check for improvement
+          (let ((new-cost (dag-draw--simple-calculate-ordering-cost graph)))
+            (if (< new-cost best-ordering-cost)
+                (progn
+                  (setq best-ordering-cost new-cost)
+                  (setq iterations-without-improvement 0))
+              (setq iterations-without-improvement (1+ iterations-without-improvement))))
+          
+          ;; Check convergence
+          (when (>= iterations-without-improvement convergence-threshold)
+            (setq converged t))
+          
+          (setq iteration (1+ iteration))))
+      
+      ;; Store results
+      (ht-set! result 'iterations iteration)
+      (ht-set! result 'converged converged)
+      (ht-set! result 'final-cost best-ordering-cost)
+      
+      result)))
+
+(defun dag-draw--simple-calculate-ordering-cost (graph)
+  "Calculate a simple cost metric for the current node ordering."
+  ;; Simple cost: sum of differences in order between connected nodes
+  (let ((total-cost 0))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (from-order (or (dag-draw-node-order from-node) 0))
+             (to-order (or (dag-draw-node-order to-node) 0)))
+        (setq total-cost (+ total-cost (abs (- from-order to-order))))))
+    total-cost))
+
+(defun dag-draw--simple-try-swaps (graph)
+  "Try simple adjacent swaps to improve ordering."
+  ;; Very simple: try swapping adjacent nodes in same rank
+  ;; This is a placeholder for more sophisticated optimization
+  (let ((nodes-by-rank (ht-create)))
     ;; Group nodes by rank
     (ht-each (lambda (node-id node)
                (let ((rank (or (dag-draw-node-rank node) 0)))
-                 (ht-set! rank-to-nodes rank
-                          (cons node-id (ht-get rank-to-nodes rank '())))))
+                 (ht-set! nodes-by-rank rank
+                          (cons node-id (ht-get nodes-by-rank rank '())))))
              (dag-draw-graph-nodes graph))
     
-    ;; Assign order within each rank
+    ;; For each rank, try swapping adjacent pairs
     (ht-each (lambda (rank node-list)
-               (let ((sorted-nodes (sort node-list (lambda (a b) 
-                                                     (string< (symbol-name a) 
-                                                             (symbol-name b)))))
-                     (order 0))
-                 (dolist (node-id sorted-nodes)
-                   (let ((node (dag-draw-get-node graph node-id)))
-                     (when node
-                       (setf (dag-draw-node-order node) order)
-                       (setq order (1+ order)))))))
-             rank-to-nodes))
-  
-  graph)
+               (when (> (length node-list) 1)
+                 (let ((sorted-nodes (sort node-list 
+                                          (lambda (a b)
+                                            (< (or (dag-draw-node-order (dag-draw-get-node graph a)) 0)
+                                               (or (dag-draw-node-order (dag-draw-get-node graph b)) 0))))))
+                   ;; Try one swap per rank per iteration (very conservative)
+                   (when (>= (length sorted-nodes) 2)
+                     (let* ((node1 (dag-draw-get-node graph (car sorted-nodes)))
+                            (node2 (dag-draw-get-node graph (cadr sorted-nodes)))
+                            (order1 (dag-draw-node-order node1))
+                            (order2 (dag-draw-node-order node2)))
+                       ;; Swap orders
+                       (setf (dag-draw-node-order node1) order2)
+                       (setf (dag-draw-node-order node2) order1))))))
+             nodes-by-rank)))
 
 ;;; GKNV Crossing Reduction Implementation
 
