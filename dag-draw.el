@@ -47,13 +47,15 @@
   :group 'graphics
   :prefix "dag-draw-")
 
-(defcustom dag-draw-default-node-separation 25
-  "Default minimum horizontal separation between nodes."
+(defcustom dag-draw-default-node-separation 20
+  "Default minimum horizontal separation between nodes.
+Optimized for compact, readable layouts following GKNV algorithm principles."
   :type 'integer
   :group 'dag-draw)
 
-(defcustom dag-draw-default-rank-separation 30
-  "Default minimum vertical separation between ranks."
+(defcustom dag-draw-default-rank-separation 25
+  "Default minimum vertical separation between ranks.
+Optimized for compact, readable layouts following GKNV algorithm principles."
   :type 'integer
   :group 'dag-draw)
 
