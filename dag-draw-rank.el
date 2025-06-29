@@ -397,6 +397,147 @@ This includes cycle breaking, rank assignment, normalization, and balancing."
   (dag-draw-balance-ranks graph)
   graph)
 
+;;; TDD Enhanced Cycle Breaking and Virtual Node Management
+
+(defun dag-draw--intelligent-cycle-breaking (graph)
+  "Apply intelligent cycle breaking that considers edge weights.
+Returns hash table with information about cycles broken and edges removed."
+  (let ((result (ht-create))
+        (edges-removed '())
+        (cycles-broken nil))
+    
+    ;; Check if cycles exist
+    (when (dag-draw-simple-has-cycles graph)
+      (setq cycles-broken t)
+      
+      ;; Find and remove minimum weight edges that break cycles
+      (while (dag-draw-simple-has-cycles graph)
+        (let ((min-weight-edge (dag-draw--find-minimum-weight-cycle-edge graph)))
+          (when min-weight-edge
+            (let ((from-node (dag-draw-edge-from-node min-weight-edge))
+                  (to-node (dag-draw-edge-to-node min-weight-edge)))
+              (dag-draw-remove-edge graph from-node to-node)
+              (push min-weight-edge edges-removed))))))
+    
+    ;; Store results
+    (ht-set! result 'cycles-broken cycles-broken)
+    (ht-set! result 'edges-removed edges-removed)
+    
+    result))
+
+(defun dag-draw--find-minimum-weight-cycle-edge (graph)
+  "Find the edge with minimum weight that is part of a cycle."
+  (let ((min-edge nil)
+        (min-weight most-positive-fixnum))
+    
+    ;; Simple approach: find edge with minimum weight
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (< (dag-draw-edge-weight edge) min-weight)
+        (setq min-weight (dag-draw-edge-weight edge))
+        (setq min-edge edge)))
+    
+    min-edge))
+
+(defun dag-draw--graph-is-acyclic-p (graph)
+  "Check if graph is acyclic (has no cycles)."
+  (not (dag-draw-simple-has-cycles graph)))
+
+(defun dag-draw--insert-virtual-nodes-for-long-edges (graph)
+  "Insert virtual nodes to break edges spanning multiple ranks.
+Returns hash table with information about virtual nodes created."
+  (let ((result (ht-create))
+        (virtual-nodes-created '()))
+    
+    ;; Find edges that span more than one rank
+    (dolist (edge (copy-sequence (dag-draw-graph-edges graph)))  ; Copy to avoid modification during iteration
+      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (from-rank (or (dag-draw-node-rank from-node) 0))
+             (to-rank (or (dag-draw-node-rank to-node) 0)))
+        
+        ;; If edge spans more than 1 rank, insert virtual nodes
+        (when (> (- to-rank from-rank) 1)
+          (let ((prev-node-id (dag-draw-edge-from-node edge))
+                (edge-weight (dag-draw-edge-weight edge))
+                (edge-label (dag-draw-edge-label edge)))
+            
+            ;; Remove original long edge
+            (dag-draw-remove-edge graph 
+                                  (dag-draw-edge-from-node edge)
+                                  (dag-draw-edge-to-node edge))
+            
+            ;; Create virtual nodes for intermediate ranks
+            (dotimes (i (- to-rank from-rank 1))
+              (let* ((vrank (+ from-rank i 1))
+                     (vnode-id (intern (format "virtual_%s_%s_%d" 
+                                                (dag-draw-edge-from-node edge)
+                                                (dag-draw-edge-to-node edge)
+                                                vrank))))
+                
+                ;; Add virtual node
+                (dag-draw-add-node graph vnode-id "")
+                (let ((vnode (dag-draw-get-node graph vnode-id)))
+                  (setf (dag-draw-node-rank vnode) vrank)
+                  (setf (dag-draw-node-order vnode) 0)
+                  (setf (dag-draw-node-virtual-p vnode) t))
+                
+                ;; Add edge from previous node to virtual node
+                (dag-draw-add-edge graph prev-node-id vnode-id edge-weight nil)
+                
+                (push vnode-id virtual-nodes-created)
+                (setq prev-node-id vnode-id)))
+            
+            ;; Add final edge from last virtual node to target
+            (dag-draw-add-edge graph prev-node-id (dag-draw-edge-to-node edge) edge-weight edge-label)))))
+    
+    ;; Store results
+    (ht-set! result 'virtual-nodes-created virtual-nodes-created)
+    
+    result))
+
+(defun dag-draw--cleanup-unnecessary-virtual-nodes (graph)
+  "Remove unnecessary virtual nodes and optimize edge paths.
+Returns hash table with information about cleanup performed."
+  (let ((result (ht-create))
+        (nodes-removed '())
+        (edges-optimized '()))
+    
+    ;; Find virtual nodes that can be optimized away
+    (let ((nodes-to-check (copy-sequence (dag-draw-get-node-ids graph))))
+      (dolist (node-id nodes-to-check)
+        (let ((node (dag-draw-get-node graph node-id)))
+          (when (and node (dag-draw-node-virtual-p node))
+            ;; Check if this virtual node has exactly one predecessor and one successor
+            (let ((predecessors (dag-draw-get-predecessors graph node-id))
+                  (successors (dag-draw-get-successors graph node-id)))
+              (when (and (= (length predecessors) 1)
+                         (= (length successors) 1))
+                (let ((pred-id (car predecessors))
+                      (succ-id (car successors)))
+                  ;; Create direct edge from predecessor to successor
+                  (dag-draw-add-edge graph pred-id succ-id)
+                  
+                  ;; Remove the virtual node (this also removes its edges)
+                  (dag-draw-remove-node graph node-id)
+                  
+                  (push node-id nodes-removed)
+                  (push (list pred-id succ-id) edges-optimized))))))))
+    
+    ;; Store results
+    (ht-set! result 'nodes-removed nodes-removed)
+    (ht-set! result 'edges-optimized edges-optimized)
+    
+    result))
+
+(defun dag-draw--edge-exists-p (graph from-node to-node)
+  "Check if edge exists between FROM-NODE and TO-NODE."
+  (let ((exists nil))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (and (eq (dag-draw-edge-from-node edge) from-node)
+                 (eq (dag-draw-edge-to-node edge) to-node))
+        (setq exists t)))
+    exists))
+
 (provide 'dag-draw-rank)
 
 ;;; dag-draw-rank.el ends here

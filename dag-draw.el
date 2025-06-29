@@ -78,6 +78,7 @@
   (y-coord nil)        ; Y coordinate (set during layout)
   (rank nil)           ; Assigned rank (set during rank assignment)
   (order nil)          ; Order within rank (set during ordering)
+  (virtual-p nil)      ; Whether this is a virtual node (for long edge breaking)
   attributes)          ; Additional attributes hash table
 
 (cl-defstruct (dag-draw-edge
