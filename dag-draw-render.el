@@ -740,10 +740,11 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         ;; Relaxed safety check for arrows - they can overwrite edge characters
         (let ((current-char (aref (aref grid y) x)))
           (when (and
-                 ;; Check occupancy map
-                 (not (aref (aref occupancy-map y) x))
-                 ;; Arrows can overwrite spaces and edge characters
-                 (memq current-char '(?\s ?─ ?│)))
+                 ;; Arrows can overwrite spaces and edge characters, ignore occupancy for these
+                 (memq current-char '(?\s ?─ ?│))
+                 ;; Only check occupancy for non-edge characters
+                 (or (memq current-char '(?─ ?│))
+                     (not (aref (aref occupancy-map y) x))))
 
             ;; Always draw the arrow
             (aset (aref grid y) x arrow-char)))))))

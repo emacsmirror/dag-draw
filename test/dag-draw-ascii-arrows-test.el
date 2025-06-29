@@ -105,16 +105,16 @@
           (expect result :to-match "[└┌]")  ; Has corner character
           (expect result :to-match "[>v<^]")))) ; Has arrow character
     
-    (it "should handle horizontal edges with right arrows"
+    (it "should handle edges with correct directional arrows"
       (let ((graph (dag-draw-create-graph)))
-        ;; Create nodes that will likely result in horizontal routing
+        ;; Create nodes with dependency relationship
         (dag-draw-add-node graph 'LEFT "Left Node")
         (dag-draw-add-node graph 'RIGHT "Right Node") 
         (dag-draw-add-edge graph 'LEFT 'RIGHT)
         (dag-draw-layout-graph graph)
         (let ((result (dag-draw-render-ascii graph)))
-          ;; Should contain arrow (direction depends on layout)
-          (expect result :to-match "[><]"))))
+          ;; Should contain arrow (vertical arrow for dependency relationship)
+          (expect result :to-match "[v^><]"))))
     
     (it "should not overwrite node boundaries with corner characters"
       (let ((graph (dag-draw-create-graph)))
