@@ -47,12 +47,12 @@
   :group 'graphics
   :prefix "dag-draw-")
 
-(defcustom dag-draw-default-node-separation 20
+(defcustom dag-draw-default-node-separation 25
   "Default minimum horizontal separation between nodes."
   :type 'integer
   :group 'dag-draw)
 
-(defcustom dag-draw-default-rank-separation 40
+(defcustom dag-draw-default-rank-separation 60
   "Default minimum vertical separation between ranks."
   :type 'integer
   :group 'dag-draw)
@@ -236,18 +236,18 @@ Returns (width . height) where dimensions fit the actual text content.
 This enables GKNV variable node sizing while respecting user constraints."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
-         ;; Base calculations for ASCII rendering scale factors
+         ;; Use improved ASCII rendering scale factors
          (grid-scale 2)
-         (ascii-box-scale 0.071)
+         (ascii-box-scale 0.08)
          (min-width 80)
          ;; Calculate width to fit the longest line (variable sizing)
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
          (calculated-width (ceiling (/ required-grid-chars
                                       (* grid-scale ascii-box-scale))))
          (node-width (max min-width calculated-width))
-         ;; Calculate height based on actual number of lines (variable sizing)
-         (base-height-per-line 20)
-         (border-height 20)
+         ;; Calculate height based on actual number of lines (optimized sizing)
+         (base-height-per-line 15)
+         (border-height 15)
          (calculated-height (+ (* num-lines base-height-per-line) border-height))
          (node-height calculated-height))
     
@@ -288,9 +288,9 @@ and height accommodates all lines with padding.
 GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
-         ;; Base calculations for ASCII rendering
+         ;; Use improved ASCII rendering scale factors
          (grid-scale 2)
-         (ascii-box-scale 0.071)
+         (ascii-box-scale 0.08)
          (min-width 80)
          ;; Calculate width to fit the longest line
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
@@ -299,7 +299,7 @@ GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
          (node-width (max min-width calculated-width))
          ;; GKNV-compatible: Use fixed height to maintain algorithm assumptions
          ;; The original GKNV algorithm expects consistent node dimensions
-         (base-height 40)  ; Fixed height per GKNV paper
+         (base-height 35)  ; Optimized fixed height for better visual balance
          (node-height base-height))  ; Always use base height for layout consistency
     
     (cons node-width node-height)))

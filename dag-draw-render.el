@@ -48,14 +48,15 @@
   :type 'integer
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-coordinate-scale 0.1
+(defcustom dag-draw-ascii-coordinate-scale 0.08
   "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
-Corresponds to the coordinate system transformation described in the paper."
+Optimized for compact yet readable visual output."
   :type 'float
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-box-scale 0.071
-  "Scale factor for converting node bounding boxes to ASCII character grid sizes."
+(defcustom dag-draw-ascii-box-scale 0.08
+  "Scale factor for converting node bounding boxes to ASCII character grid sizes.
+Optimized for better text fitting and visual proportions."
   :type 'float
   :group 'dag-draw-render)
 
