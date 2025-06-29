@@ -135,6 +135,123 @@ Returns number of edge crossings between adjacent ranks."
           (nth (/ (length sorted-positions) 2) sorted-positions))
       0)))
 
+;;; TDD Advanced Crossing Reduction Implementation
+
+(defun dag-draw--calculate-weighted-median (graph node-id)
+  "Calculate weighted median position for NODE-ID based on edge weights.
+Returns the weighted median position considering connected node positions and edge weights."
+  (let ((weighted-positions '())
+        (total-weight 0))
+    
+    ;; Collect weighted positions from connected nodes
+    (dolist (pred (dag-draw-get-predecessors graph node-id))
+      (let* ((pred-node (dag-draw-get-node graph pred))
+             (pred-order (or (dag-draw-node-order pred-node) 0))
+             (edge-weight (dag-draw--get-edge-weight graph pred node-id)))
+        (push (cons pred-order edge-weight) weighted-positions)
+        (setq total-weight (+ total-weight edge-weight))))
+    
+    (dolist (succ (dag-draw-get-successors graph node-id))
+      (let* ((succ-node (dag-draw-get-node graph succ))
+             (succ-order (or (dag-draw-node-order succ-node) 0))
+             (edge-weight (dag-draw--get-edge-weight graph node-id succ)))
+        (push (cons succ-order edge-weight) weighted-positions)
+        (setq total-weight (+ total-weight edge-weight))))
+    
+    ;; Calculate weighted median
+    (if weighted-positions
+        (let ((sorted-positions (sort weighted-positions (lambda (a b) (< (car a) (car b)))))
+              (target-weight (/ total-weight 2.0))
+              (cumulative-weight 0))
+          (catch 'found
+            (dolist (pos-weight sorted-positions)
+              (setq cumulative-weight (+ cumulative-weight (cdr pos-weight)))
+              (when (>= cumulative-weight target-weight)
+                (throw 'found (car pos-weight))))
+            0))  ; fallback
+      0)))  ; no connections
+
+(defun dag-draw--get-edge-weight (graph from-node to-node)
+  "Get weight of edge between FROM-NODE and TO-NODE."
+  (let ((edge (dag-draw--find-edge graph from-node to-node)))
+    (if edge
+        (dag-draw-edge-weight edge)
+      1)))  ; default weight
+
+(defun dag-draw--find-edge (graph from-node to-node)
+  "Find edge between FROM-NODE and TO-NODE."
+  (catch 'found
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (and (eq (dag-draw-edge-from-node edge) from-node)
+                 (eq (dag-draw-edge-to-node edge) to-node))
+        (throw 'found edge)))
+    nil))
+
+(defun dag-draw--iterative-crossing-reduction (graph)
+  "Apply iterative crossing reduction until convergence.
+Returns hash table with convergence information and final crossing count."
+  (let ((result (ht-create))
+        (max-iterations 10)
+        (iterations 0)
+        (converged nil)
+        (prev-crossings most-positive-fixnum))
+    
+    ;; Main iteration loop
+    (while (and (< iterations max-iterations) (not converged))
+      (setq iterations (1+ iterations))
+      
+      ;; Apply crossing reduction to all rank pairs
+      (let ((max-rank (or (dag-draw-graph-max-rank graph) 0)))
+        (dotimes (rank max-rank)
+          (dag-draw--median-order graph (1+ rank))))
+      
+      ;; Calculate total crossings
+      (let ((total-crossings (dag-draw--calculate-total-crossings graph)))
+        (if (>= total-crossings prev-crossings)
+            (setq converged t)  ; No improvement - converged
+          (setq prev-crossings total-crossings))))
+    
+    ;; Store results
+    (ht-set! result 'converged converged)
+    (ht-set! result 'iterations iterations)
+    (ht-set! result 'final-crossings prev-crossings)
+    
+    result))
+
+(defun dag-draw--calculate-total-crossings (graph)
+  "Calculate total number of crossings in the graph."
+  (let ((total-crossings 0)
+        (max-rank (or (dag-draw-graph-max-rank graph) 0)))
+    
+    ;; Sum crossings between all adjacent rank pairs
+    (dotimes (rank max-rank)
+      (setq total-crossings (+ total-crossings 
+                               (dag-draw--count-crossings graph rank (1+ rank)))))
+    
+    total-crossings))
+
+(defun dag-draw--optimize-two-layer-crossings (graph rank1 rank2)
+  "Optimize crossings between two specific layers.
+Returns hash table with optimization results."
+  (let ((result (ht-create)))
+    
+    ;; Count initial crossings
+    (let ((initial-crossings (dag-draw--count-crossings graph rank1 rank2)))
+      
+      ;; Apply weighted median heuristic to the second layer
+      (let ((rank2-nodes (dag-draw--get-nodes-in-rank graph rank2)))
+        (dolist (node-id rank2-nodes)
+          (let ((weighted-median (dag-draw--calculate-weighted-median graph node-id)))
+            (setf (dag-draw-node-order (dag-draw-get-node graph node-id)) weighted-median))))
+      
+      ;; Count final crossings
+      (let ((final-crossings (dag-draw--count-crossings graph rank1 rank2)))
+        (ht-set! result 'optimization-applied t)
+        (ht-set! result 'initial-crossings initial-crossings)
+        (ht-set! result 'final-crossings final-crossings)))
+    
+    result))
+
 (provide 'dag-draw-order-simple)
 
 ;;; dag-draw-order-simple.el ends here

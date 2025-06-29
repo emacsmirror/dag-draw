@@ -372,6 +372,113 @@
           :x (- back-x (* arrow-size 0.3 perp-x))
           :y (- back-y (* arrow-size 0.3 perp-y))))))))
 
+;;; TDD Region-based Spline Routing Implementation
+
+(defun dag-draw--detect-obstacles-for-edge (graph from-node to-node)
+  "Detect node obstacles that might interfere with direct edge FROM-NODE to TO-NODE.
+Returns list of node IDs that are potential obstacles."
+  (let ((obstacles '())
+        (from-pos (dag-draw-get-node graph from-node))
+        (to-pos (dag-draw-get-node graph to-node)))
+    
+    ;; Check all other nodes to see if they lie in the path
+    (ht-each (lambda (node-id node)
+               (when (and (not (eq node-id from-node))
+                          (not (eq node-id to-node))
+                          (dag-draw--node-intersects-path-p from-pos to-pos node))
+                 (push node-id obstacles)))
+             (dag-draw-graph-nodes graph))
+    
+    obstacles))
+
+(defun dag-draw--node-intersects-path-p (from-node to-node test-node)
+  "Check if TEST-NODE intersects the direct path from FROM-NODE to TO-NODE."
+  (let ((from-x (or (dag-draw-node-x-coord from-node) 0))
+        (from-y (or (dag-draw-node-y-coord from-node) 0))
+        (to-x (or (dag-draw-node-x-coord to-node) 0))
+        (to-y (or (dag-draw-node-y-coord to-node) 0))
+        (test-x (or (dag-draw-node-x-coord test-node) 0))
+        (test-y (or (dag-draw-node-y-coord test-node) 0))
+        (test-width (dag-draw-node-x-size test-node))
+        (test-height (dag-draw-node-y-size test-node)))
+    
+    ;; Simple bounding box intersection with path
+    ;; Check if test node bounding box intersects line segment
+    (let ((line-min-x (min from-x to-x))
+          (line-max-x (max from-x to-x))
+          (line-min-y (min from-y to-y))
+          (line-max-y (max from-y to-y))
+          (node-min-x (- test-x (/ test-width 2)))
+          (node-max-x (+ test-x (/ test-width 2)))
+          (node-min-y (- test-y (/ test-height 2)))
+          (node-max-y (+ test-y (/ test-height 2))))
+      
+      ;; Check for overlap
+      (and (< node-min-x line-max-x)
+           (> node-max-x line-min-x)
+           (< node-min-y line-max-y)
+           (> node-max-y line-min-y)))))
+
+(defun dag-draw--plan-obstacle-avoiding-path (graph from-node to-node)
+  "Plan a path from FROM-NODE to TO-NODE that avoids obstacles.
+Returns list of points defining the avoidance path."
+  (let* ((from-pos (dag-draw-get-node graph from-node))
+         (to-pos (dag-draw-get-node graph to-node))
+         (obstacles (dag-draw--detect-obstacles-for-edge graph from-node to-node))
+         (from-x (or (dag-draw-node-x-coord from-pos) 0))
+         (from-y (or (dag-draw-node-y-coord from-pos) 0))
+         (to-x (or (dag-draw-node-x-coord to-pos) 0))
+         (to-y (or (dag-draw-node-y-coord to-pos) 0)))
+    
+    (if obstacles
+        ;; Create path with waypoints to avoid obstacles
+        (let* ((mid-x (/ (+ from-x to-x) 2))
+               (mid-y (/ (+ from-y to-y) 2))
+               ;; Offset waypoints to avoid obstacles
+               (offset-x (if (> to-x from-x) 20 -20))
+               (offset-y (if (> to-y from-y) 20 -20)))
+          (list
+           (dag-draw-point-create :x from-x :y from-y)
+           (dag-draw-point-create :x (+ mid-x offset-x) :y mid-y)
+           (dag-draw-point-create :x mid-x :y (+ mid-y offset-y))
+           (dag-draw-point-create :x to-x :y to-y)))
+      ;; Direct path if no obstacles
+      (list
+       (dag-draw-point-create :x from-x :y from-y)
+       (dag-draw-point-create :x to-x :y to-y)))))
+
+(defun dag-draw--create-region-aware-spline (graph from-node to-node)
+  "Create a region-aware spline that avoids obstacles.
+Returns a Bézier spline that smoothly connects nodes while avoiding obstacles."
+  (let* ((path-points (dag-draw--plan-obstacle-avoiding-path graph from-node to-node))
+         (start-point (car path-points))
+         (end-point (car (last path-points))))
+    
+    ;; Create smooth Bézier curve from path points
+    (if (> (length path-points) 2)
+        ;; Multi-segment path - create smooth curve through waypoints
+        (let* ((control1 (nth 1 path-points))
+               (control2 (nth 2 path-points)))
+          (dag-draw-bezier-curve-create
+           :p0 start-point
+           :p1 control1
+           :p2 control2
+           :p3 end-point))
+      ;; Direct path - simple curve
+      (let* ((dx (- (dag-draw-point-x end-point) (dag-draw-point-x start-point)))
+             (dy (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))
+             (control1 (dag-draw-point-create
+                       :x (+ (dag-draw-point-x start-point) (* dx 0.3))
+                       :y (+ (dag-draw-point-y start-point) (* dy 0.3))))
+             (control2 (dag-draw-point-create
+                       :x (+ (dag-draw-point-x start-point) (* dx 0.7))
+                       :y (+ (dag-draw-point-y start-point) (* dy 0.7)))))
+        (dag-draw-bezier-curve-create
+         :p0 start-point
+         :p1 control1
+         :p2 control2
+         :p3 end-point)))))
+
 (provide 'dag-draw-splines)
 
 ;;; dag-draw-splines.el ends here
