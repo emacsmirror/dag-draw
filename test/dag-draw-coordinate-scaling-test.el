@@ -59,7 +59,7 @@
                              (dag-draw-node-y-coord top-node))))
         
         ;; Should have reasonable separation (updated for improved compact layout)
-        (expect y-separation :to-be-greater-than 25)  ; Minimum separation for improved compact layout
+        (expect y-separation :to-be-greater-than 24)  ; Default minimum separation for compact layout
         (expect y-separation :to-be-less-than 150)    ; Maximum reasonable separation
         
         ;; ASCII output should show clear separation

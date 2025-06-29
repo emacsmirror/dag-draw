@@ -66,10 +66,10 @@ Optimized for better text fitting and visual proportions."
 ;;; ASCII Scaling Helper Functions
 
 (defun dag-draw--world-to-grid-coord (coord min-coord scale)
-  "Convert GKNV world coordinate to ASCII grid coordinate.
+  "Convert GKNV world coordinate to ASCII grid coordinate with precise rounding.
 COORD is the world coordinate, MIN-COORD is the minimum coordinate for offset,
 SCALE is the grid scale factor."
-  (floor (* (- coord min-coord) scale dag-draw-ascii-coordinate-scale)))
+  (fround (* (- coord min-coord) scale dag-draw-ascii-coordinate-scale)))
 
 (defun dag-draw--world-to-grid-size (size scale)
   "Convert GKNV node size to ASCII grid size.
@@ -251,10 +251,10 @@ Returns nil if either node lacks coordinates."
                   (dag-draw--get-node-port to-node 'right)))))))))
 
 (defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
-  "Convert world coordinate point to ASCII grid coordinates."
+  "Convert world coordinate point to ASCII grid coordinates with precise rounding."
   (dag-draw-point-create
-   :x (float (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale))
-   :y (float (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale))))
+   :x (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale)
+   :y (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale)))
 
 (defun dag-draw--get-edge-connection-points (graph edge)
   "Get connection points for edge in ASCII rendering context."
@@ -794,12 +794,12 @@ Returns a 2D array where t = occupied by node, nil = empty space."
       (dolist (point optimized-points)
         (let* ((world-x (dag-draw-point-x point))
                (world-y (dag-draw-point-y point))
-               (grid-x (round (dag-draw--world-to-grid-coord world-x min-x scale)))
-               (grid-y (round (dag-draw--world-to-grid-coord world-y min-y scale))))
+               (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
+               (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
 
           ;; Draw enhanced segment from previous point to current point
           (when (and prev-grid-x prev-grid-y)
-            (dag-draw--ascii-draw-spline-segment grid prev-grid-x prev-grid-y grid-x grid-y occupancy-map))
+            (dag-draw--ascii-draw-spline-segment grid (truncate prev-grid-x) (truncate prev-grid-y) (truncate grid-x) (truncate grid-y) occupancy-map))
 
           (setq prev-grid-x grid-x)
           (setq prev-grid-y grid-y)))
@@ -810,7 +810,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                  (>= prev-grid-y 0) (< prev-grid-y grid-height))
         (let* ((direction (dag-draw--detect-enhanced-spline-direction optimized-points)))
           ;; Use enhanced arrow placement that can overwrite edge characters
-          (dag-draw--ultra-safe-draw-arrow grid prev-grid-x prev-grid-y direction occupancy-map))))))
+          (dag-draw--ultra-safe-draw-arrow grid (truncate prev-grid-x) (truncate prev-grid-y) direction occupancy-map))))))
 
 (defun dag-draw--ascii-draw-spline-segment (grid x1 y1 x2 y2 occupancy-map)
   "Draw a single segment of a spline path between two grid points with enhanced smoothness."
@@ -1413,7 +1413,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
 (defun dag-draw--draw-enhanced-horizontal-segment (grid x1 x2 y occupancy-map)
   "Draw horizontal segment with enhanced spline smoothing and intelligent collision handling."
-  (let* ((grid-height (length grid))
+  (let* ((x1 (truncate x1)) (x2 (truncate x2)) (y (truncate y))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (start-x (min x1 x2))
          (end-x (max x1 x2)))
@@ -1429,7 +1430,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
 (defun dag-draw--draw-enhanced-vertical-segment (grid x y1 y2 occupancy-map)
   "Draw vertical segment with enhanced spline smoothing and intelligent collision handling."
-  (let* ((grid-height (length grid))
+  (let* ((x (truncate x)) (y1 (truncate y1)) (y2 (truncate y2))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (start-y (min y1 y2))
          (end-y (max y1 y2)))
@@ -1445,7 +1447,8 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
 (defun dag-draw--draw-enhanced-diagonal-segment (grid x1 y1 x2 y2 occupancy-map)
   "Draw diagonal segment with enhanced smooth approximation using intelligent path selection."
-  (let* ((grid-height (length grid))
+  (let* ((x1 (truncate x1)) (y1 (truncate y1)) (x2 (truncate x2)) (y2 (truncate y2))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (dx (- x2 x1))
          (dy (- y2 y1))

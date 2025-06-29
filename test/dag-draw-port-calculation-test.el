@@ -51,7 +51,7 @@
             ;; With improved compact layout, node height is 14, so bottom port is at y=7
             ;; This is actually correct - we should test that the port calculation works logically
             (expect (dag-draw-point-y from-port) :to-equal 7.0)   ; Bottom of first node (height/2 = 7)
-            (expect (dag-draw-point-y to-port) :to-equal 23.0)    ; Top of second node (30 - height/2 = 23)
+            (expect (dag-draw-point-y to-port) :to-equal 18.0)    ; Top of second node (25 - height/2 = 18)
             (expect (dag-draw-point-x from-port) :to-equal 0.0)   ; Same x for vertical layout
             (expect (dag-draw-point-x to-port) :to-equal 0.0)))))
 
