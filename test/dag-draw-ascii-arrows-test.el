@@ -31,29 +31,29 @@
 
 (describe "dag-draw ASCII arrows"
   (describe "arrow character selection"
-    (it "should return > for rightward direction"
-      (expect (dag-draw--get-arrow-char 'right) :to-equal ?>))
+    (it "should return ▶ for rightward direction"
+      (expect (dag-draw--get-arrow-char 'right) :to-equal ?▶))
     
-    (it "should return < for leftward direction"
-      (expect (dag-draw--get-arrow-char 'left) :to-equal ?<))
+    (it "should return ◀ for leftward direction"
+      (expect (dag-draw--get-arrow-char 'left) :to-equal ?◀))
     
-    (it "should return v for downward direction"
-      (expect (dag-draw--get-arrow-char 'down) :to-equal ?v))
+    (it "should return ▼ for downward direction"
+      (expect (dag-draw--get-arrow-char 'down) :to-equal ?▼))
     
-    (it "should return ^ for upward direction"
-      (expect (dag-draw--get-arrow-char 'up) :to-equal ?^)))
+    (it "should return ▲ for upward direction"
+      (expect (dag-draw--get-arrow-char 'up) :to-equal ?▲)))
   
   (describe "drawing lines with arrows"
     (it "should draw horizontal line with arrow at end"
       (let ((grid (create-test-grid 1 5)))
         (dag-draw--draw-horizontal-with-arrow grid 0 0 4 0)
-        (expect (grid-char-at grid 4 0) :to-equal ?>)
+        (expect (grid-char-at grid 4 0) :to-equal ?▶)
         (expect (grid-char-at grid 1 0) :to-equal ?─)))
     
     (it "should draw leftward horizontal line with left arrow"
       (let ((grid (create-test-grid 1 5)))
         (dag-draw--draw-horizontal-with-arrow grid 4 0 0 0)
-        (expect (grid-char-at grid 0 0) :to-equal ?<)
+        (expect (grid-char-at grid 0 0) :to-equal ?◀)
         (expect (grid-char-at grid 3 0) :to-equal ?─))))
   
   (describe "direction detection from coordinates"
@@ -78,7 +78,7 @@
         (dag-draw-layout-graph graph)
         (let ((result (dag-draw-render-ascii graph)))
           ;; Should contain arrow showing A -> B direction
-          (expect result :to-match "[v>]"))))
+          (expect result :to-match "[▼▶]"))))
   
   (describe "edge attachment to node boundaries"
     (it "should attach edge directly to node boundary"
@@ -90,8 +90,8 @@
         (let ((result (dag-draw-render-ascii graph)))
           ;; Edge should touch node boundary, not float
           (expect result :to-match "└")    ; L-shape corner
-          (expect result :to-match "v")    ; Downward arrow
-          (expect result :not :to-match "\\s\\s[v>]"))))
+          (expect result :to-match "▼")    ; Downward arrow
+          (expect result :not :to-match "\\s\\s[▼▶]"))))
   
   (describe "corner arrow combinations"
     (it "should use proper corner-arrow combinations for L-paths"
@@ -103,7 +103,7 @@
         (let ((result (dag-draw-render-ascii graph)))
           ;; Should have corner-arrow combinations like └> or ┌> instead of separate corner + arrow
           (expect result :to-match "[└┌]")  ; Has corner character
-          (expect result :to-match "[>v<^]")))) ; Has arrow character
+          (expect result :to-match "[▶▼◀▲]")))) ; Has arrow character
     
     (it "should handle edges with correct directional arrows"
       (let ((graph (dag-draw-create-graph)))
@@ -114,7 +114,7 @@
         (dag-draw-layout-graph graph)
         (let ((result (dag-draw-render-ascii graph)))
           ;; Should contain arrow (vertical arrow for dependency relationship)
-          (expect result :to-match "[v^><]"))))
+          (expect result :to-match "[▼▲▶◀]"))))
     
     (it "should not overwrite node boundaries with corner characters"
       (let ((graph (dag-draw-create-graph)))

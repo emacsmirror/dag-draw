@@ -23,9 +23,9 @@
         
         (let ((result (dag-draw-render-ascii graph)))
           ;; Should have visible edge indicators
-          (expect result :to-match "[v^><]")  ; Some directional arrow
+          (expect result :to-match "[▼▲▶◀]")  ; Some directional arrow
           ;; Should not have multiple spaces around arrows (disconnected appearance)  
-          (expect result :not :to-match "   [v^><]   "))))))
+          (expect result :not :to-match "   [▼▲▶◀]   "))))))
 
 (provide 'dag-draw-coincident-ports-test)
 

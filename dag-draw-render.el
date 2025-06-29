@@ -97,25 +97,59 @@ conversion and rounding, ensuring precise alignment with rendered boxes."
          ;; Calculate actual center after rounding
          (actual-center-x (+ grid-x (/ grid-width 2.0)))
          (actual-center-y (+ grid-y (/ grid-height 2.0))))
-    
+
     ;; Convert grid coordinates back to world coordinates for system compatibility
     (let ((world-scale (/ 1.0 (* scale dag-draw-ascii-coordinate-scale))))
       (cond
        ((eq side 'top)
-        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale)) 
-                              :y (+ min-y (* grid-y world-scale))))
+        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale))
+                               :y (+ min-y (* grid-y world-scale))))
        ((eq side 'bottom)
-        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale)) 
-                              :y (+ min-y (* grid-y-end world-scale))))
+        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale))
+                               :y (+ min-y (* grid-y-end world-scale))))
        ((eq side 'left)
-        (dag-draw-point-create :x (+ min-x (* grid-x world-scale)) 
-                              :y (+ min-y (* actual-center-y world-scale))))
+        (dag-draw-point-create :x (+ min-x (* grid-x world-scale))
+                               :y (+ min-y (* actual-center-y world-scale))))
        ((eq side 'right)
-        (dag-draw-point-create :x (+ min-x (* grid-x-end world-scale)) 
-                              :y (+ min-y (* actual-center-y world-scale))))
+        (dag-draw-point-create :x (+ min-x (* grid-x-end world-scale))
+                               :y (+ min-y (* actual-center-y world-scale))))
        (t
-        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale)) 
-                              :y (+ min-y (* actual-center-y world-scale))))))))
+        (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale))
+                               :y (+ min-y (* actual-center-y world-scale))))))))
+
+(defun dag-draw--determine-port-side (node port min-x min-y scale)
+  "Determine which side of NODE the PORT is on (top, bottom, left, right)."
+  (let* ((node-x (float (or (dag-draw-node-x-coord node) 0)))
+         (node-y (float (or (dag-draw-node-y-coord node) 0)))
+         (width (float (dag-draw-node-x-size node)))
+         (height (float (dag-draw-node-y-size node)))
+         (port-x (dag-draw-point-x port))
+         (port-y (dag-draw-point-y port))
+         ;; Convert to grid coordinates for comparison
+         (grid-center-x (dag-draw--world-to-grid-coord node-x min-x scale))
+         (grid-center-y (dag-draw--world-to-grid-coord node-y min-y scale))
+         (grid-width (dag-draw--world-to-grid-size width scale))
+         (grid-height (dag-draw--world-to-grid-size height scale))
+         (grid-x (round (- grid-center-x (/ grid-width 2))))
+         (grid-y (round (- grid-center-y (/ grid-height 2))))
+         (grid-x-end (+ grid-x grid-width -1))
+         (grid-y-end (+ grid-y grid-height -1))
+         ;; Convert port to grid coordinates for comparison
+         (port-grid-x (dag-draw--world-to-grid-coord port-x min-x scale))
+         (port-grid-y (dag-draw--world-to-grid-coord port-y min-y scale)))
+
+    ;; Determine side based on port position relative to node boundaries
+    (cond
+     ;; Top side: port Y is at top edge
+     ((<= (abs (- port-grid-y grid-y)) 0.5) 'top)
+     ;; Bottom side: port Y is at bottom edge
+     ((<= (abs (- port-grid-y grid-y-end)) 0.5) 'bottom)
+     ;; Left side: port X is at left edge
+     ((<= (abs (- port-grid-x grid-x)) 0.5) 'left)
+     ;; Right side: port X is at right edge
+     ((<= (abs (- port-grid-x grid-x-end)) 0.5) 'right)
+     ;; Default fallback
+     (t 'bottom))))
 
 ;;; SVG Rendering
 
@@ -382,14 +416,14 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
                    (setq max-node-y-extent (max max-node-y-extent y-extent))))
                (dag-draw-graph-nodes graph))
 
-      (let* (;; Adjust bounds to prevent grid coordinate clipping  
+      (let* (;; Adjust bounds to prevent grid coordinate clipping
              (adjusted-min-x (- min-x max-node-x-extent))
              (adjusted-min-y (- min-y max-node-y-extent))
              (adjusted-max-x (+ max-x max-node-x-extent))
              (adjusted-max-y (+ max-y max-node-y-extent))
              (total-width (- adjusted-max-x adjusted-min-x))
              (total-height (- adjusted-max-y adjusted-min-y))
-             ;; Handle empty graphs and ensure minimum grid size  
+             ;; Handle empty graphs and ensure minimum grid size
              (grid-width (max 1 (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale))))
              (grid-height (max 1 (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale))))
              (grid (dag-draw--create-ascii-grid grid-width grid-height)))
@@ -435,6 +469,32 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
            (dag-draw-graph-nodes graph)))
 
 
+(defun dag-draw--safe-draw-box-char (grid x y char)
+  "Draw box character safely, preventing overwrites that create malformed sequences."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+      (let ((current-char (aref (aref grid y) x)))
+
+        (cond
+         ;; Space - always safe to draw any box character
+         ((eq current-char ?\s)
+          (aset (aref grid y) x char))
+
+         ;; Same character - no change needed (prevents double-writes)
+         ((eq current-char char) nil)
+
+         ;; Already has a box character - avoid creating malformed sequences
+         ;; Only overwrite if we're drawing a more specific character
+         ((memq current-char '(?┌ ?┐ ?└ ?┘ ?─ ?│ ?┼))
+          ;; Conservative approach: don't overwrite existing box characters
+          ;; This prevents the malformed sequences like └┐ or ┌┐
+          nil)
+
+         ;; Default - draw the character
+         (t (aset (aref grid y) x char)))))))
+
 (defun dag-draw--ascii-draw-box (grid x y width height label)
   "Draw a box with LABEL on ASCII grid at position (X,Y) with given WIDTH and HEIGHT."
   (let* ((grid-height (length grid))
@@ -457,45 +517,47 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
             (when (<= start-x end-x)
               ;; Draw top-left corner if it's the actual start
               (when (= start-x x)
-                (aset (aref grid y-clip) start-x ?┌))
-              ;; Draw top edge
+                (dag-draw--safe-draw-box-char grid start-x y-clip ?┌))
+              ;; Draw top edge (excluding actual corners to prevent overwrite conflicts)
               (dotimes (i (- end-x start-x))
                 (let ((pos-x (+ start-x i 1)))
-                  (when (and (<= pos-x end-x) (< pos-x grid-width))
-                    (aset (aref grid y-clip) pos-x ?─))))
-              ;; Draw top-right corner if it's the actual end
+                  (when (and (<= pos-x end-x) (< pos-x grid-width)    ; Include clipped edges
+                             (not (and (= pos-x x-end)               ; But exclude actual corner position
+                                       (= end-x x-end))))            ; when it's not clipped
+                    (dag-draw--safe-draw-box-char grid pos-x y-clip ?─))))
+              ;; Draw top-right corner only if it's the actual end (not clipped)
               (when (= end-x x-end)
-                (aset (aref grid y-clip) end-x ?┐)))))
+                (dag-draw--safe-draw-box-char grid end-x y-clip ?┐)))))
 
         ;; Draw sides and fill
         (dotimes (i (- height 2))
           (let ((pos-y (+ y i 1)))
             (when (and (>= pos-y 0) (< pos-y grid-height))
               (when (and (>= x 0) (< x grid-width))
-                (aset (aref grid pos-y) x ?│))
+                (dag-draw--safe-draw-box-char grid x pos-y ?│))
               (let ((pos-x (+ x width -1)))
                 (when (and (>= pos-x 0) (< pos-x grid-width))
-                  (aset (aref grid pos-y) pos-x ?│))))))
+                  (dag-draw--safe-draw-box-char grid pos-x pos-y ?│))))))
 
         ;; Draw bottom edge
         (let ((pos-y (+ y height -1)))
           (when (and (>= pos-y 0) (< pos-y grid-height))
             (when (and (>= x 0) (< x grid-width))
-              (aset (aref grid pos-y) x ?└))
+              (dag-draw--safe-draw-box-char grid x pos-y ?└))
             (dotimes (i (- width 2))
               (let ((pos-x (+ x i 1)))
-                (when (and (>= pos-x 0) (< pos-x grid-width))
-                  (aset (aref grid pos-y) pos-x ?─))))
+                (when (and (>= pos-x 0) (< pos-x grid-width) (< pos-x (+ x width -1)))  ; Exclude bottom-right corner
+                  (dag-draw--safe-draw-box-char grid pos-x pos-y ?─))))
             (let ((pos-x (+ x width -1)))
               (when (and (>= pos-x 0) (< pos-x grid-width))
-                (aset (aref grid pos-y) pos-x ?┘)))))
+                (dag-draw--safe-draw-box-char grid pos-x pos-y ?┘)))))
 
         ;; Special handling for negative coordinates:
         ;; When box starts at negative coords, draw bottom-right corner at (0,0)
         ;; This matches the expected behavior in the test case
         (when (and (< x 0) (< y 0))
           ;; For the test case: box at (-1, -1) should put ┘ at (0, 0)
-          (aset (aref grid 0) 0 ?┘))
+          (dag-draw--safe-draw-box-char grid 0 0 ?┘))
 
         ;; Draw label(s) in center - support multi-line text
         (when (and label (>= width 4) (>= height 3))
@@ -589,9 +651,13 @@ Returns a 2D array where t = occupied by node, nil = empty space."
              (from-x (round (dag-draw-point-x from-grid)))
              (from-y (round (dag-draw-point-y from-grid)))
              (to-x (round (dag-draw-point-x to-grid)))
-             (to-y (round (dag-draw-point-y to-grid))))
+             (to-y (round (dag-draw-point-y to-grid)))
+             ;; Calculate port-based arrow direction
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale)))
         ;; Use safe path drawing that absolutely will not overwrite node content
-        (dag-draw--ascii-draw-ultra-safe-path grid from-x from-y to-x to-y occupancy-map)))))
+        (dag-draw--ascii-draw-ultra-safe-path-with-port-arrow
+         grid from-x from-y to-x to-y occupancy-map target-port-side)))))
 
 (defun dag-draw--ascii-draw-safe-spline-edge (edge grid min-x min-y scale occupancy-map spline-points)
   "Draw spline edge with enhanced safety checks."
@@ -617,17 +683,39 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
 
       ;; Choose routing direction based on edge orientation
-      (let ((routing-direction (if (= x1 x2) 
+      (let ((routing-direction (if (= x1 x2)
                                    'vertical-only    ; Pure vertical edge
-                                 (if (= y1 y2) 
+                                 (if (= y1 y2)
                                      'horizontal-only  ; Pure horizontal edge
                                    'horizontal-first)))) ; L-shaped edge
-        
+
         ;; Draw the path with appropriate direction
         (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map routing-direction))
 
       ;; Add directional arrow at the endpoint (or appropriate position for touching nodes)
       (dag-draw--add-directional-arrow grid x1 y1 x2 y2 occupancy-map))))
+
+(defun dag-draw--ascii-draw-ultra-safe-path-with-port-arrow (grid x1 y1 x2 y2 occupancy-map port-side)
+  "Draw path with absolute safety and port-based arrow direction."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    ;; Only draw if we can do so safely
+    (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
+               (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
+
+      ;; Choose routing direction based on edge orientation
+      (let ((routing-direction (if (= x1 x2)
+                                   'vertical-only    ; Pure vertical edge
+                                 (if (= y1 y2)
+                                     'horizontal-only  ; Pure horizontal edge
+                                   'horizontal-first)))) ; L-shaped edge
+
+        ;; Draw the path with appropriate direction
+        (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map routing-direction))
+
+      ;; Add port-based directional arrow at the endpoint
+      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 occupancy-map port-side))))
 
 (defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 occupancy-map direction)
   "Draw L-shaped path with ultra-conservative safety checks."
@@ -642,7 +730,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map)))))
-     
+
      ;; Pure horizontal line
      ((eq direction 'horizontal-only)
       (let ((start-x (min x1 x2))
@@ -650,7 +738,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
             (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
-     
+
      ;; L-shaped path: horizontal first
      ((eq direction 'horizontal-first)
       ;; Horizontal segment first: x1 to x2 at y1
@@ -673,7 +761,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                           ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
                           (t ?┼))))                         ; Fallback intersection
         (dag-draw--ultra-safe-draw-char grid x2 y1 corner-char occupancy-map)))
-     
+
      ;; L-shaped path: vertical first (default fallback)
      (t
       ;; Vertical segment first: y1 to y2 at x1
@@ -698,64 +786,97 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dag-draw--ultra-safe-draw-char grid x1 y2 corner-char occupancy-map))))))
 
 (defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
-  "Draw character with intelligent safety - protects node content while enabling proper edge connections."
+  "Draw character with strict safety - prevents malformed character combinations."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-      ;; Intelligent safety check: protect node content but allow boundary connections
       (let ((current-char (aref (aref grid y) x))
             (occupancy-blocked (aref (aref occupancy-map y) x))
             (is-edge-char (memq char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?┼)))
-            (is-arrow-char (memq char '(?v ?^ ?> ?<))))
-        
-        (when (and
-               ;; SMART OCCUPANCY CHECK: Respect occupancy map for node protection
-               (or (not occupancy-blocked)                    ; Only draw in unoccupied areas
-                   (and is-arrow-char (memq current-char '(?─ ?│)))) ; Arrows can replace edges only
-               
-               ;; CHARACTER COMPATIBILITY: What can we overwrite?
-               (or (eq current-char ?\s)                     ; Spaces are always safe
-                   (and is-arrow-char (memq current-char '(?─ ?│))) ; Arrows replace edges
-                   (and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│))) ; Corners replace edges
-                   (and (eq char ?┼) (memq current-char '(?─ ?│)))) ; Intersections replace edges
-               
-               ;; BOUNDARY PROTECTION: Never overwrite node borders or content
-               (not (dag-draw--is-node-boundary-char current-char)))
+            (is-arrow-char (memq char '(?▼ ?▲ ?▶ ?◀))))
 
-          ;; DRAW CHARACTER with proper conflict resolution
+        ;; STRICT NODE PROTECTION: Absolutely protect all node content
+        (when (and
+               ;; MANDATORY: Never draw in occupied areas (protect ALL node content)
+               (not occupancy-blocked)
+               
+               ;; NEVER overwrite node box characters - absolute priority  
+               (not (memq current-char '(?┌ ?┐ ?└ ?┘)))
+               
+               ;; SAFE CHARACTER COMPATIBILITY: Only in unoccupied areas
+               (or (eq current-char ?\s)                     ; Spaces are always safe
+                   
+                   ;; LINE CONTINUITY: Only for existing edge characters
+                   (and (or (and (eq current-char ?─) (eq char ?─))    ; Horizontal extension
+                            (and (eq current-char ?│) (eq char ?│))    ; Vertical extension  
+                            (and (eq current-char ?─) (eq char ?│))    ; Create intersection
+                            (and (eq current-char ?│) (eq char ?─))))  ; Create intersection
+                   
+                   ;; Arrow placement on edge characters only
+                   (and is-arrow-char 
+                        (memq current-char '(?─ ?│)))
+                   
+                   ;; Corner placement for junctions only
+                   (and (memq char '(?┌ ?┐ ?└ ?┘)) 
+                        (memq current-char '(?─ ?│)))))
+
+          ;; SAFE DRAWING with strict character compatibility
           (cond
-           ;; Space - always safe to draw any character
+           ;; Space - always safe
            ((eq current-char ?\s)
             (aset (aref grid y) x char))
-           
-           ;; Arrow characters can replace edge characters for clean endpoints
-           ((and is-arrow-char (memq current-char '(?─ ?│)))
-            (aset (aref grid y) x char))
-           
-           ;; Corner characters can replace edge characters at junctions
-           ((and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│)))
-            (aset (aref grid y) x char))
-           
-           ;; Edge intersections - create proper junction character
+
+           ;; Same character - safe extension
+           ((eq current-char char) nil)
+
+           ;; Create intersections from perpendicular lines
            ((and (eq current-char ?─) (eq char ?│))
             (aset (aref grid y) x ?┼))
            ((and (eq current-char ?│) (eq char ?─))
             (aset (aref grid y) x ?┼))
-           
-           ;; Same character - no change needed
-           ((eq current-char char) nil)
-           
-           ;; Already has intersection - preserve it
+
+           ;; Arrows replacing plain edges only
+           ((and is-arrow-char (memq current-char '(?─ ?│)))
+            (aset (aref grid y) x char))
+
+           ;; Corner characters replacing plain edges only
+           ((and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│)))
+            (aset (aref grid y) x char))
+
+           ;; Already intersection - preserve
            ((eq current-char ?┼) nil)
-           
-           ;; Conservative fallback - only draw if explicitly safe
-           (t nil))))))
+
+           ;; Conservative fallback - don't draw
+           (t nil)))))))
 
 (defun dag-draw--is-node-boundary-char (char)
   "Check if character is part of a node boundary that should never be overwritten."
   ;; Only protect actual node box corners - edges can be overwritten by arrows/corners
-  (memq char '(?┌ ?┐ ?└ ?┘))))
+  (memq char '(?┌ ?┐ ?└ ?┘)))
+
+(defun dag-draw--is-box-boundary-char (char)
+  "Check if character is part of a box boundary that edges can connect to."
+  ;; Box edges that edges can connect to (not corners)
+  (memq char '(?─ ?│)))
+
+(defun dag-draw--create-box-edge-junction (grid x y edge-char box-char)
+  "Create proper junction when edge connects to box boundary."
+  (cond
+   ;; Vertical edge connecting to horizontal box boundary - create T-junction
+   ((and (eq edge-char ?│) (eq box-char ?─))
+    (aset (aref grid y) x ?┼))  ; Cross junction
+
+   ;; Horizontal edge connecting to vertical box boundary - create T-junction
+   ((and (eq edge-char ?─) (eq box-char ?│))
+    (aset (aref grid y) x ?┼))  ; Cross junction
+
+   ;; Same direction - just continue the line
+   ((eq edge-char box-char)
+    nil)  ; No change needed
+
+   ;; Default - create intersection
+   (t (aset (aref grid y) x ?┼))))
 
 (defun dag-draw--is-safe-to-draw-at (grid x y)
   "Check if it's safe to draw at position (x,y) by examining neighboring cells."
@@ -782,7 +903,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Add directional arrow, handling touching nodes case."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1)))
-    
+
     (cond
      ;; Same grid coordinates (touching nodes) - replace part of connecting line with arrow
      ((and (= dx 0) (= dy 0))
@@ -798,9 +919,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                          (>= search-y 0) (< search-y grid-height))
                 (when (eq (aref (aref grid search-y) x2) ?│)
                   ;; Found vertical line, replace with arrow
-                  (aset (aref grid search-y) x2 ?v)
+                  (aset (aref grid search-y) x2 ?▼)
                   (throw 'arrow-placed t))))))))
-     
+
      ;; Different coordinates - use original logic
      (t
       (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2 occupancy-map)))))
@@ -813,41 +934,133 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                       ;; Same grid coordinates - don't draw arrow on same position
                       ((and (= dx 0) (= dy 0)) nil)
                       ;; Vertical arrows
-                      ((and (= dx 0) (> dy 0)) ?v)  ; downward
-                      ((and (= dx 0) (< dy 0)) ?^)  ; upward
+                      ((and (= dx 0) (> dy 0)) ?▼)  ; downward
+                      ((and (= dx 0) (< dy 0)) ?▲)  ; upward
                       ;; Horizontal arrows
-                      ((and (= dy 0) (> dx 0)) ?>)  ; rightward
-                      ((and (= dy 0) (< dx 0)) ?<)  ; leftward
+                      ((and (= dy 0) (> dx 0)) ?▶)  ; rightward
+                      ((and (= dy 0) (< dx 0)) ?◀)  ; leftward
                       ;; L-shaped paths - determine arrow based on final direction
-                      ((> dy 0) ?v)  ; if final segment goes down
-                      ((< dy 0) ?^)  ; if final segment goes up
-                      ((> dx 0) ?>)  ; if final segment goes right
-                      ((< dx 0) ?<)  ; if final segment goes left
-                      (t ?>))))      ; default rightward arrow
+                      ((> dy 0) ?▼)  ; if final segment goes down
+                      ((< dy 0) ?▲)  ; if final segment goes up
+                      ((> dx 0) ?▶)  ; if final segment goes right
+                      ((< dx 0) ?◀)  ; if final segment goes left
+                      (t ?▶))))      ; default rightward arrow
 
     ;; Draw arrow at endpoint with ultra-safe collision detection
     ;; Arrows are more permissive since they're endpoints and shouldn't interfere with content
     (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map)))
 
+(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 occupancy-map port-side)
+  "Add directional arrow based on target port side, ensuring correct direction."
+  (let* ((arrow-char (cond
+                      ;; Use proper Unicode arrows that match box-drawing style
+                      ((eq port-side 'top) ?▼)     ; Flow going down into top port
+                      ((eq port-side 'bottom) ?▲)  ; Flow going up into bottom port
+                      ((eq port-side 'left) ?▶)    ; Flow going right into left port
+                      ((eq port-side 'right) ?◀)   ; Flow going left into right port
+                      ;; Fallback to coordinate-based direction if port side unknown
+                      (t (let ((dx (- x2 x1))
+                               (dy (- y2 y1)))
+                           (cond
+                            ((> (abs dy) (abs dx))
+                             (if (> dy 0) ?▼ ?▲))    ; Primarily vertical
+                            ((> (abs dx) (abs dy))
+                             (if (> dx 0) ?▶ ?◀))    ; Primarily horizontal
+                            (t ?▶)))))))             ; Default right
+
+    ;; Draw arrow at endpoint with ultra-safe collision detection
+    (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map)))
+
 (defun dag-draw--ultra-safe-draw-arrow (grid x y arrow-char occupancy-map)
-  "Draw arrow character with relaxed safety for endpoint drawing."
-  ;; Don't draw anything if arrow-char is nil (same coordinates case)
+  "Draw arrow character with box-boundary aware placement."
   (when arrow-char
     (let* ((grid-height (length grid))
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
       (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-        ;; Relaxed safety check for arrows - they can overwrite edge characters
         (let ((current-char (aref (aref grid y) x)))
-          (when (and
-                 ;; Arrows can overwrite spaces and edge characters, ignore occupancy for these
-                 (memq current-char '(?\s ?─ ?│))
-                 ;; Only check occupancy for non-edge characters
-                 (or (memq current-char '(?─ ?│))
-                     (not (aref (aref occupancy-map y) x))))
+          
+          ;; SMART ARROW PLACEMENT: Avoid creating malformed sequences
+          (cond
+           ;; Case 1: Empty space - always safe to place arrow
+           ((eq current-char ?\s)
+            (aset (aref grid y) x arrow-char))
+           
+           ;; Case 2: Plain edge characters - safe to replace with arrow
+           ((and (memq current-char '(?─ ?│))
+                 (not (dag-draw--would-create-malformed-sequence grid x y arrow-char)))
+            (aset (aref grid y) x arrow-char))
+           
+           ;; Case 3: Box border adjacent - offset arrow to prevent malformed sequence
+           ((dag-draw--is-adjacent-to-box-border grid x y)
+            (dag-draw--place-offset-arrow grid x y arrow-char occupancy-map))
+           
+           ;; Case 4: Conservative fallback - don't place arrow if unsafe
+           (t nil)))))))
 
-            ;; Always draw the arrow
-            (aset (aref grid y) x arrow-char)))))))
+(defun dag-draw--would-create-malformed-sequence (grid x y arrow-char)
+  "Check if placing ARROW-CHAR at (x,y) would create a malformed sequence."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; Check adjacent positions for box border characters
+    (catch 'malformed
+      (dotimes (dy 3)
+        (dotimes (dx 3)
+          (let ((check-x (+ x dx -1))
+                (check-y (+ y dy -1)))
+            (when (and (>= check-x 0) (< check-x grid-width)
+                       (>= check-y 0) (< check-y grid-height)
+                       (not (and (= check-x x) (= check-y y))))  ; Don't check current position
+              (let ((neighbor-char (aref (aref grid check-y) check-x)))
+                ;; If arrow would be directly adjacent to box border, it's malformed
+                (when (and (memq neighbor-char '(?┌ ?┐ ?└ ?┘))
+                           (or (= check-x x) (= check-y y)))  ; Adjacent (not diagonal)
+                  (throw 'malformed t)))))))
+      nil)))  ; Not malformed
+
+(defun dag-draw--is-adjacent-to-box-border (grid x y)
+  "Check if position (x,y) is adjacent to any box border characters."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (catch 'adjacent
+      ;; Check the 4 cardinal directions
+      (dolist (offset '((-1 0) (1 0) (0 -1) (0 1)))
+        (let ((check-x (+ x (car offset)))
+              (check-y (+ y (cadr offset))))
+          (when (and (>= check-x 0) (< check-x grid-width)
+                     (>= check-y 0) (< check-y grid-height))
+            (let ((neighbor-char (aref (aref grid check-y) check-x)))
+              (when (memq neighbor-char '(?┌ ?┐ ?└ ?┘ ?─ ?│))
+                (throw 'adjacent t))))))
+      nil)))
+
+(defun dag-draw--place-offset-arrow (grid x y arrow-char occupancy-map)
+  "Place arrow with offset to avoid malformed sequences with box borders."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    ;; Try placing arrow one position away in the direction it points
+    (let ((offset-positions (cond
+                             ((eq arrow-char ?▼) (list (list x (+ y 1))))       ; Down arrow: place below
+                             ((eq arrow-char ?▲) (list (list x (- y 1))))       ; Up arrow: place above
+                             ((eq arrow-char ?▶) (list (list (+ x 1) y)))       ; Right arrow: place to right
+                             ((eq arrow-char ?◀) (list (list (- x 1) y)))       ; Left arrow: place to left
+                             (t '()))))  ; No offset for unknown arrows
+      
+      ;; Try offset positions first, then fallback to original
+      (catch 'placed
+        (dolist (pos (append offset-positions (list (list x y))))
+          (let ((try-x (car pos))
+                (try-y (cadr pos)))
+            (when (and (>= try-x 0) (< try-x grid-width)
+                       (>= try-y 0) (< try-y grid-height)
+                       (not (aref (aref occupancy-map try-y) try-x)))
+              (let ((char-at-pos (aref (aref grid try-y) try-x)))
+                (when (memq char-at-pos '(?\s ?─ ?│))
+                  (aset (aref grid try-y) try-x arrow-char)
+                  (throw 'placed t))))))))))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using spline data when available, otherwise boundary-aware routing."
@@ -920,7 +1133,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
        ((= y1 y2)
         (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y1 occupancy-map))
 
-       ;; Vertical line - enhanced with spline smoothing  
+       ;; Vertical line - enhanced with spline smoothing
        ((= x1 x2)
         (dag-draw--draw-enhanced-vertical-segment grid x1 y1 y2 occupancy-map))
 
@@ -1361,11 +1574,11 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 (defun dag-draw--get-arrow-char (direction)
   "Get arrow character for given DIRECTION."
   (pcase direction
-    ('left ?<)
-    ('right ?>)
-    ('down ?v)
-    ('up ?^)
-    (_ ?>)))
+    ('left ?◀)
+    ('right ?▶)
+    ('down ?▼)
+    ('up ?▲)
+    (_ ?▶)))
 
 (defun dag-draw--draw-horizontal-with-arrow (grid x1 y1 x2 y2)
   "Draw horizontal line from (X1,Y1) to (X2,Y2) with arrow at end."
@@ -1446,10 +1659,10 @@ Returns a 2D array where t = occupied by node, nil = empty space."
            (optimal-density (max 0.5 (min 2.0 (/ total-length (max grid-width grid-height)))))
            (target-points (max 3 (round (* total-length optimal-density))))
            (sampled-points nil))
-      
+
       ;; Ensure we include start and end points
       (push (car spline-points) sampled-points)
-      
+
       ;; Sample intermediate points based on path curvature
       (when (> target-points 2)
         (let ((step-size (/ (float (1- (length spline-points))) (float (1- target-points)))))
@@ -1462,14 +1675,14 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                        (p2 (nth (1+ index) spline-points))
                        ;; Linear interpolation between points
                        (interp-x (+ (* (1- fraction) (dag-draw-point-x p1))
-                                   (* fraction (dag-draw-point-x p2))))
+                                    (* fraction (dag-draw-point-x p2))))
                        (interp-y (+ (* (1- fraction) (dag-draw-point-y p1))
-                                   (* fraction (dag-draw-point-y p2)))))
+                                    (* fraction (dag-draw-point-y p2)))))
                   (push (dag-draw-point-create :x interp-x :y interp-y) sampled-points)))))))
-      
+
       ;; Add end point
       (push (car (last spline-points)) sampled-points)
-      
+
       ;; Return in correct order
       (nreverse sampled-points))))
 
@@ -1492,16 +1705,16 @@ Returns a 2D array where t = occupied by node, nil = empty space."
            (second-last-point (car (last optimized-points 2)))
            ;; For better direction detection, look at more points if available
            (direction-points (if (>= (length optimized-points) 3)
-                                (last optimized-points 3)
-                              optimized-points)))
-      
+                                 (last optimized-points 3)
+                               optimized-points)))
+
       (if (>= (length direction-points) 2)
           (let* ((p1 (car (last direction-points 2)))
                  (p2 (car (last direction-points)))
                  (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
                  (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
             (dag-draw--detect-direction (dag-draw-point-x p1) (dag-draw-point-y p1)
-                                       (dag-draw-point-x p2) (dag-draw-point-y p2)))
+                                        (dag-draw-point-x p2) (dag-draw-point-y p2)))
         'right))))
 
 (defun dag-draw--draw-enhanced-horizontal-segment (grid x1 x2 y occupancy-map)
@@ -1511,7 +1724,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (start-x (min x1 x2))
          (end-x (max x1 x2)))
-    
+
     (dotimes (i (1+ (- end-x start-x)))
       (let ((x (+ start-x i)))
         (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
@@ -1528,7 +1741,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (start-y (min y1 y2))
          (end-y (max y1 y2)))
-    
+
     (dotimes (i (1+ (- end-y start-y)))
       (let ((y (+ start-y i)))
         (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
@@ -1547,17 +1760,17 @@ Returns a 2D array where t = occupied by node, nil = empty space."
          (dy (- y2 y1))
          (abs-dx (abs dx))
          (abs-dy (abs dy)))
-    
+
     ;; Choose best routing strategy based on diagonal characteristics
     (cond
      ;; Nearly horizontal diagonal - use horizontal-first L-shape with corner
      ((> abs-dx (* 2 abs-dy))
       (dag-draw--draw-horizontal-first-l-path grid x1 y1 x2 y2 occupancy-map))
-     
+
      ;; Nearly vertical diagonal - use vertical-first L-shape with corner
      ((> abs-dy (* 2 abs-dx))
       (dag-draw--draw-vertical-first-l-path grid x1 y1 x2 y2 occupancy-map))
-     
+
      ;; Balanced diagonal - use adaptive smooth approximation
      (t
       (dag-draw--draw-adaptive-smooth-diagonal grid x1 y1 x2 y2 occupancy-map)))))
@@ -1566,7 +1779,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Draw L-shaped path: horizontal first, then vertical, with proper corner character."
   ;; Draw horizontal segment
   (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y1 occupancy-map)
-  ;; Draw vertical segment  
+  ;; Draw vertical segment
   (dag-draw--draw-enhanced-vertical-segment grid x2 y1 y2 occupancy-map)
   ;; Add corner character at junction
   (dag-draw--add-enhanced-corner-char grid x2 y1 x1 y1 x2 y2 occupancy-map))
@@ -1587,20 +1800,20 @@ Returns a 2D array where t = occupied by node, nil = empty space."
          (steps (max (abs dx) (abs dy)))
          (x-step (if (> steps 0) (/ (float dx) steps) 0))
          (y-step (if (> steps 0) (/ (float dy) steps) 0)))
-    
+
     (dotimes (i (1+ steps))
       (let* ((curr-x (round (+ x1 (* i x-step))))
              (curr-y (round (+ y1 (* i y-step))))
              (grid-height (length grid))
              (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-        
-        (when (and (>= curr-x 0) (< curr-x grid-width) 
+
+        (when (and (>= curr-x 0) (< curr-x grid-width)
                    (>= curr-y 0) (< curr-y grid-height))
           (let ((current-char (aref (aref grid curr-y) curr-x)))
             (when (and (not (aref (aref occupancy-map curr-y) curr-x))
                        (memq current-char '(?\s)))
               ;; Use appropriate line character based on local direction
-              (let ((char (if (= i 0) ?│   ; Start with vertical  
+              (let ((char (if (= i 0) ?│   ; Start with vertical
                             (if (= i steps) ?│  ; End with vertical
                               (dag-draw--choose-diagonal-char dx dy)))))
                 (aset (aref grid curr-y) curr-x char)))))))))
@@ -1609,7 +1822,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Choose appropriate character for diagonal direction."
   (cond
    ((and (> dx 0) (> dy 0)) ?│)  ; Down-right: prefer vertical
-   ((and (> dx 0) (< dy 0)) ?│)  ; Up-right: prefer vertical  
+   ((and (> dx 0) (< dy 0)) ?│)  ; Up-right: prefer vertical
    ((and (< dx 0) (> dy 0)) ?│)  ; Down-left: prefer vertical
    ((and (< dx 0) (< dy 0)) ?│)  ; Up-left: prefer vertical
    (t ?─)))                      ; Default to horizontal
@@ -1618,18 +1831,18 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Add appropriate corner character at path junction with enhanced detection."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
+
     (when (and (>= corner-x 0) (< corner-x grid-width)
                (>= corner-y 0) (< corner-y grid-height)
                (not (aref (aref occupancy-map corner-y) corner-x)))
-      
+
       ;; Determine corner character based on incoming and outgoing directions
       (let* ((from-dx (- corner-x from-x))
-             (from-dy (- corner-y from-y))  
+             (from-dy (- corner-y from-y))
              (to-dx (- to-x corner-x))
              (to-dy (- to-y corner-y))
              (corner-char (dag-draw--select-corner-character from-dx from-dy to-dx to-dy)))
-        
+
         (when corner-char
           (aset (aref grid corner-y) corner-x corner-char))))))
 
@@ -1642,14 +1855,14 @@ Returns a 2D array where t = occupied by node, nil = empty space."
       (if (and (> from-dx 0) (< to-dy 0)) ?┘  ; Right in, up out
         (if (and (< from-dx 0) (> to-dy 0)) ?┌ ; Left in, down out
           ?└))))                             ; Left in, up out
-   
-   ;; Vertical in, horizontal out  
+
+   ;; Vertical in, horizontal out
    ((and (= from-dx 0) (not (= from-dy 0)) (not (= to-dx 0)) (= to-dy 0))
     (if (and (> from-dy 0) (> to-dx 0)) ?└    ; Down in, right out
       (if (and (> from-dy 0) (< to-dx 0)) ?┘  ; Down in, left out
         (if (and (< from-dy 0) (> to-dx 0)) ?┌ ; Up in, right out
           ?┐))))                             ; Up in, left out
-   
+
    ;; Default: no corner needed
    (t nil)))
 

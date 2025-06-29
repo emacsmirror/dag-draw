@@ -129,15 +129,83 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
             (< order-a order-b)))))
 
 (defun dag-draw--calculate-separation (graph left-node right-node)
-  "Calculate minimum separation between two adjacent nodes."
+  "Calculate minimum separation between two adjacent nodes with enhanced parallel path detection."
   (let* ((left (dag-draw-get-node graph left-node))
          (right (dag-draw-get-node graph right-node))
          (left-width (dag-draw-node-x-size left))
          (right-width (dag-draw-node-x-size right))
-         (node-sep (dag-draw-graph-node-separation graph)))
+         (base-node-sep (dag-draw-graph-node-separation graph))
+         ;; Enhanced separation based on parallel path complexity
+         (parallel-path-bonus (dag-draw--calculate-parallel-path-bonus graph left-node right-node))
+         (edge-density-bonus (dag-draw--calculate-edge-density-bonus graph left-node right-node)))
     
-    ;; Minimum separation = (left_width + right_width)/2 + node_separation
-    (+ (/ (+ left-width right-width) 2.0) node-sep)))
+    ;; Enhanced separation = base + parallel path bonus + edge density bonus
+    (+ (/ (+ left-width right-width) 2.0) 
+       base-node-sep 
+       parallel-path-bonus 
+       edge-density-bonus)))
+
+(defun dag-draw--calculate-parallel-path-bonus (graph left-node right-node)
+  "Calculate bonus separation for nodes with parallel dependency paths.
+This prevents visual confusion when nodes share common sources but connect to different targets."
+  (let* ((left-targets (dag-draw--get-node-targets graph left-node))
+         (right-targets (dag-draw--get-node-targets graph right-node))
+         (left-sources (dag-draw--get-node-sources graph left-node))
+         (right-sources (dag-draw--get-node-sources graph right-node))
+         (shared-sources (cl-intersection left-sources right-sources))
+         (overlapping-targets (cl-intersection left-targets right-targets))
+         (base-separation (dag-draw-graph-node-separation graph)))
+    
+    (cond
+     ;; High bonus: Same sources, different targets (classic parallel path issue)
+     ((and shared-sources 
+           (not overlapping-targets)
+           (> (length left-targets) 0)
+           (> (length right-targets) 0))
+      (* base-separation 0.8))  ; 80% bonus for parallel paths
+     
+     ;; Medium bonus: Same sources, some overlapping targets  
+     ((and shared-sources overlapping-targets)
+      (* base-separation 0.4))  ; 40% bonus for partially parallel paths
+     
+     ;; Small bonus: Different sources but many outgoing connections
+     ((and (> (length left-targets) 1) (> (length right-targets) 1))
+      (* base-separation 0.2))  ; 20% bonus for complex nodes
+     
+     ;; No bonus
+     (t 0))))
+
+(defun dag-draw--calculate-edge-density-bonus (graph left-node right-node)
+  "Calculate bonus separation based on edge density to prevent visual crowding."
+  (let* ((left-out-degree (length (dag-draw--get-node-targets graph left-node)))
+         (right-out-degree (length (dag-draw--get-node-targets graph right-node)))
+         (left-in-degree (length (dag-draw--get-node-sources graph left-node)))
+         (right-in-degree (length (dag-draw--get-node-sources graph right-node)))
+         (total-degree (+ left-out-degree right-out-degree left-in-degree right-in-degree))
+         (base-separation (dag-draw-graph-node-separation graph)))
+    
+    ;; Bonus increases with total edge density
+    (cond
+     ((>= total-degree 8) (* base-separation 0.6))  ; Very high density
+     ((>= total-degree 6) (* base-separation 0.4))  ; High density  
+     ((>= total-degree 4) (* base-separation 0.2))  ; Medium density
+     (t 0))))                                       ; Low density
+
+(defun dag-draw--get-node-targets (graph node-id)
+  "Get list of nodes that NODE-ID connects to (outgoing edges)."
+  (let ((targets '()))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (eq (dag-draw-edge-from-node edge) node-id)
+        (push (dag-draw-edge-to-node edge) targets)))
+    targets))
+
+(defun dag-draw--get-node-sources (graph node-id)
+  "Get list of nodes that connect to NODE-ID (incoming edges)."
+  (let ((sources '()))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (eq (dag-draw-edge-to-node edge) node-id)
+        (push (dag-draw-edge-from-node edge) sources)))
+    sources))
 
 ;;; Simple heuristic approach (fallback)
 

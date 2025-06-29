@@ -123,8 +123,8 @@
           ;; Should have both nodes
           (expect ascii-output :to-match "Node A")
           (expect ascii-output :to-match "Node B")
-          ;; For vertical layout, should have downward arrow 'v'
-          (expect ascii-output :to-match "v"))))
+          ;; For vertical layout, should have downward arrow
+          (expect ascii-output :to-match "▼"))))
     
     (it "should preserve box drawing characters in node borders"
       (let ((graph (dag-draw-create-graph)))

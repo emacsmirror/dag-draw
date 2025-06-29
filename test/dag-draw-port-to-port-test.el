@@ -38,7 +38,7 @@
         
         ;; Should have clean vertical connections
         (expect (string-match-p "│" output) :to-be-truthy)
-        (expect (string-match-p "v" output) :to-be-truthy)
+        (expect (string-match-p "▼" output) :to-be-truthy)
         
         ;; Debug output to verify visual quality
         (message "\n=== PORT-TO-PORT ROUTING OUTPUT ===")

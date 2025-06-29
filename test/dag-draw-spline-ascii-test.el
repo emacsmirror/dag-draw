@@ -37,7 +37,7 @@
           ;; ASCII rendering should use this spline data for smoother paths
           (let ((result (dag-draw-render-ascii graph)))
             ;; Should still have directional arrows
-            (expect result :to-match "[>v<^]")
+            (expect result :to-match "[▶▼◀▲]")
             ;; Should have connected paths
             (expect result :to-match "[─│]"))))))
 

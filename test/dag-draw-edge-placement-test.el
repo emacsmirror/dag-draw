@@ -53,7 +53,7 @@
           
           ;; Should still have proper edge routing with corners outside nodes
           (expect result :to-match "[└┌┐┘]")  ; Has corner characters
-          (expect result :to-match "[>v<^]"))))) ; Has arrow characters
+          (expect result :to-match "[▶▼◀▲]"))))) ; Has arrow characters
 
   (describe "node boundary protection"
     (it "should maintain clear separation between node content and edge characters"
