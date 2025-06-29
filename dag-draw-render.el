@@ -481,12 +481,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
 (defun dag-draw--ascii-draw-safe-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge with enhanced collision detection that prevents any overwrites of node content."
-  (let ((spline-points (dag-draw-get-edge-spline-points edge)))
-    (if (and spline-points (> (length spline-points) 2))
-        ;; Use spline-guided routing with enhanced safety
-        (dag-draw--ascii-draw-safe-spline-edge edge grid min-x min-y scale occupancy-map spline-points)
-      ;; Fall back to safe orthogonal routing
-      (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))))
+  ;; Use consistent orthogonal routing for all edges to avoid floating segments
+  ;; This ensures reliable, clean connections while we perfect the spline system
+  (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))
 
 (defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw orthogonal edge with comprehensive collision avoidance."
@@ -608,54 +605,64 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dag-draw--ultra-safe-draw-char grid x1 y2 corner-char occupancy-map))))))
 
 (defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
-  "Draw character only if absolutely safe - never overwrites anything but spaces."
+  "Draw character with intelligent safety - protects node content while enabling proper edge connections."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-      ;; Triple safety check:
-      ;; 1. Check occupancy map
-      ;; 2. Check current character is space
-      ;; 3. Never overwrite box drawing characters (node borders)
+      ;; Intelligent safety check: protect node content but allow boundary connections
       (let ((current-char (aref (aref grid y) x))
             (occupancy-blocked (aref (aref occupancy-map y) x))
-            (safe-to-draw (or (memq char '(?v ?^ ?> ?<))
-                              (dag-draw--is-safe-to-draw-at grid x y))))
-        
+            (is-edge-char (memq char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?┼)))
+            (is-arrow-char (memq char '(?v ?^ ?> ?<))))
         
         (when (and
-               ;; Occupancy map says it's safe
-               (not occupancy-blocked)
-               ;; Current position has space character OR we're drawing an arrow OR corner over edge
-               (or (eq current-char ?\s)
-                   (and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
-                   (and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│))))
-               ;; Not near any box drawing characters (extra safety), unless drawing arrow or corner
-               (or (memq char '(?v ?^ ?> ?< ?┌ ?┐ ?└ ?┘))
-                   safe-to-draw))
+               ;; SMART OCCUPANCY CHECK: Respect occupancy map for node protection
+               (or (not occupancy-blocked)                    ; Only draw in unoccupied areas
+                   (and is-arrow-char (memq current-char '(?─ ?│)))) ; Arrows can replace edges only
+               
+               ;; CHARACTER COMPATIBILITY: What can we overwrite?
+               (or (eq current-char ?\s)                     ; Spaces are always safe
+                   (and is-arrow-char (memq current-char '(?─ ?│))) ; Arrows replace edges
+                   (and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│))) ; Corners replace edges
+                   (and (eq char ?┼) (memq current-char '(?─ ?│)))) ; Intersections replace edges
+               
+               ;; BOUNDARY PROTECTION: Never overwrite node borders or content
+               (not (dag-draw--is-node-boundary-char current-char)))
 
-          ;; Handle intersections and arrows properly without overwriting content
+          ;; DRAW CHARACTER with proper conflict resolution
           (cond
-           ;; Space - safe to draw
+           ;; Space - always safe to draw any character
            ((eq current-char ?\s)
             (aset (aref grid y) x char))
-           ;; Arrow characters can replace edge characters for endpoints
-           ((and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
+           
+           ;; Arrow characters can replace edge characters for clean endpoints
+           ((and is-arrow-char (memq current-char '(?─ ?│)))
             (aset (aref grid y) x char))
-           ;; Corner characters can overwrite edge characters at junctions
+           
+           ;; Corner characters can replace edge characters at junctions
            ((and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│)))
             (aset (aref grid y) x char))
-           ;; Intersection with existing edge - create proper junction
+           
+           ;; Edge intersections - create proper junction character
            ((and (eq current-char ?─) (eq char ?│))
             (aset (aref grid y) x ?┼))
            ((and (eq current-char ?│) (eq char ?─))
             (aset (aref grid y) x ?┼))
-           ;; Already has the same character - no change needed
+           
+           ;; Same character - no change needed
            ((eq current-char char) nil)
-           ;; Already has intersection - no change needed
+           
+           ;; Already has intersection - preserve it
            ((eq current-char ?┼) nil)
-           ;; Any other case - DO NOT DRAW (ultra-conservative)
-           (t nil)))))))
+           
+           ;; Conservative fallback - only draw if explicitly safe
+           (t nil))))))
+
+(defun dag-draw--is-node-boundary-char (char)
+  "Check if character is part of a node boundary that should never be overwritten."
+  ;; Only protect actual node box corners - edges can be overwritten by arrows/corners
+  (memq char '(?┌ ?┐ ?└ ?┘))))
 
 (defun dag-draw--is-safe-to-draw-at (grid x y)
   "Check if it's safe to draw at position (x,y) by examining neighboring cells."
