@@ -58,8 +58,8 @@
 
 (defun dag-draw--get-node-port (node side)
   "Get port coordinates for a node on given side (top, bottom, left, right)."
-  (let ((x (float (dag-draw-node-x-coord node)))
-        (y (float (dag-draw-node-y-coord node)))
+  (let ((x (float (or (dag-draw-node-x-coord node) 0)))
+        (y (float (or (dag-draw-node-y-coord node) 0)))
         (width (float (dag-draw-node-x-size node)))
         (height (float (dag-draw-node-y-size node))))
     

@@ -32,12 +32,12 @@
   (describe "fixed node dimensions"
     (it "should return consistent dimensions for any text"
       ;; RED phase: This test will fail because dag-draw--get-fixed-node-dimensions doesn't exist yet
-      (expect (dag-draw--get-fixed-node-dimensions "Short") :to-equal '(22 4)))
+      (expect (dag-draw--get-fixed-node-dimensions "Short") :to-equal '(150 27)))
     
     (it "should return same dimensions regardless of text length"
       ;; All nodes should have identical dimensions for uniform layout
       (expect (dag-draw--get-fixed-node-dimensions "Very long text that wraps") 
-              :to-equal '(22 4))))
+              :to-equal '(150 27))))
 
   (describe "ASCII rendering integration"
     (it "should render nodes with fixed dimensions and formatted text"

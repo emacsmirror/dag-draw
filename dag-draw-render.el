@@ -101,7 +101,10 @@ Returns a list of strings representing the formatted rows."
   "Return fixed dimensions for any node text.
 Returns (width height) where width accounts for 20-char text + borders,
 height accounts for 2 text rows + borders."
-  '(22 4))
+  ;; For ASCII rendering compatibility, use world coordinates that scale to desired grid size
+  ;; Target: 22 grid chars width, 4 grid chars height  
+  ;; Empirically determined scaling to achieve 20-dash borders
+  '(150 27))
 
 ;;; ASCII Scaling Helper Functions
 
@@ -557,66 +560,87 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   "Draw path with absolute safety - never overwrites any non-space character."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
+
     ;; Only draw if we can do so safely
     (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
                (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
-      
-      ;; Draw the L-path
-      (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map 'horizontal-first)
-      
-      ;; Add directional arrow at the endpoint
-      (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2 occupancy-map))))
+
+      ;; Choose routing direction based on edge orientation
+      (let ((routing-direction (if (= x1 x2) 
+                                   'vertical-only    ; Pure vertical edge
+                                 (if (= y1 y2) 
+                                     'horizontal-only  ; Pure horizontal edge
+                                   'horizontal-first)))) ; L-shaped edge
+        ;; Draw the path with appropriate direction
+        (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map routing-direction))
+
+      ;; Add directional arrow at the endpoint (or appropriate position for touching nodes)
+      (dag-draw--add-directional-arrow grid x1 y1 x2 y2 occupancy-map))))
 
 (defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 occupancy-map direction)
   "Draw L-shaped path with ultra-conservative safety checks."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
-    (if (eq direction 'horizontal-first)
-        ;; Horizontal segment first: x1 to x2 at y1
-        (progn
-          (let ((start-x (min x1 x2))
-                (end-x (max x1 x2)))
-            (dotimes (i (1+ (- end-x start-x)))
-              (let ((x (+ start-x i)))
-                (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map))))
-          
-          ;; Vertical segment: y1 to y2 at x2  
-          (let ((start-y (min y1 y2))
-                (end-y (max y1 y2)))
-            (dotimes (i (1+ (- end-y start-y)))
-              (let ((y (+ start-y i)))
-                (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map)))))
-      
-      ;; Vertical-first path as alternative
-      (progn
-        ;; Vertical segment first: y1 to y2 at x1
-        (let ((start-y (min y1 y2))
-              (end-y (max y1 y2)))
-          (dotimes (i (1+ (- end-y start-y)))
-            (let ((y (+ start-y i)))
-              (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map))))
-        
-        ;; Horizontal segment: x1 to x2 at y2
-        (let ((start-x (min x1 x2))
-              (end-x (max x1 x2)))
-          (dotimes (i (1+ (- end-x start-x)))
-            (let ((x (+ start-x i)))
-              (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))))))
+
+    (cond
+     ;; Pure vertical line
+     ((eq direction 'vertical-only)
+      (let ((start-y (min y1 y2))
+            (end-y (max y1 y2)))
+        (dotimes (i (1+ (- end-y start-y)))
+          (let ((y (+ start-y i)))
+            (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map)))))
+     
+     ;; Pure horizontal line
+     ((eq direction 'horizontal-only)
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
+     
+     ;; L-shaped path: horizontal first
+     ((eq direction 'horizontal-first)
+      ;; Horizontal segment first: x1 to x2 at y1
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map))))
+      ;; Vertical segment: y1 to y2 at x2
+      (let ((start-y (min y1 y2))
+            (end-y (max y1 y2)))
+        (dotimes (i (1+ (- end-y start-y)))
+          (let ((y (+ start-y i)))
+            (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map)))))
+     
+     ;; L-shaped path: vertical first (default fallback)
+     (t
+      ;; Vertical segment first: y1 to y2 at x1
+      (let ((start-y (min y1 y2))
+            (end-y (max y1 y2)))
+        (dotimes (i (1+ (- end-y start-y)))
+          (let ((y (+ start-y i)))
+            (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map))))
+      ;; Horizontal segment: x1 to x2 at y2
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))))))
 
 (defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
   "Draw character only if absolutely safe - never overwrites anything but spaces."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-    
+
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
       ;; Triple safety check:
       ;; 1. Check occupancy map
       ;; 2. Check current character is space
       ;; 3. Never overwrite box drawing characters (node borders)
       (let ((current-char (aref (aref grid y) x)))
-        (when (and 
+        (when (and
                ;; Occupancy map says it's safe
                (not (aref (aref occupancy-map y) x))
                ;; Current position has space character OR we're drawing an arrow
@@ -625,11 +649,11 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                ;; Not near any box drawing characters (extra safety), unless drawing arrow
                (or (memq char '(?v ?^ ?> ?<))
                    (dag-draw--is-safe-to-draw-at grid x y)))
-          
+
           ;; Handle intersections and arrows properly without overwriting content
           (cond
            ;; Space - safe to draw
-           ((eq current-char ?\s) 
+           ((eq current-char ?\s)
             (aset (aref grid y) x char))
            ;; Arrow characters can replace edge characters for endpoints
            ((and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
@@ -651,7 +675,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (unsafe-chars '(?┌ ?┐ ?└ ?┘ ?│ ?─)))  ; Box drawing characters
-    
+
     ;; Check the position itself and immediate neighbors for box drawing characters
     (catch 'unsafe
       (dotimes (dy 3)
@@ -667,15 +691,44 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                   (throw 'unsafe nil)))))))
       t)))  ; Safe if we get here
 
+(defun dag-draw--add-directional-arrow (grid x1 y1 x2 y2 occupancy-map)
+  "Add directional arrow, handling touching nodes case."
+  (let* ((dx (- x2 x1))
+         (dy (- y2 y1)))
+    
+    (cond
+     ;; Same grid coordinates (touching nodes) - replace part of connecting line with arrow
+     ((and (= dx 0) (= dy 0))
+      ;; For touching nodes, replace the center of the connecting line with an arrow
+      ;; Look for vertical line characters near the connection point and replace one with arrow
+      (let* ((grid-height (length grid))
+             (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+        ;; Search around the connection point for vertical line characters
+        (catch 'arrow-placed
+          (dotimes (offset 3)  ; Search 3 positions below connection point
+            (let ((search-y (+ y2 offset)))
+              (when (and (>= x2 0) (< x2 grid-width)
+                         (>= search-y 0) (< search-y grid-height))
+                (when (eq (aref (aref grid search-y) x2) ?│)
+                  ;; Found vertical line, replace with arrow
+                  (aset (aref grid search-y) x2 ?v)
+                  (throw 'arrow-placed t))))))))
+     
+     ;; Different coordinates - use original logic
+     (t
+      (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2 occupancy-map)))))
+
 (defun dag-draw--add-ultra-safe-arrow (grid x1 y1 x2 y2 occupancy-map)
   "Add directional arrow at the endpoint of a path with ultra-safe collision detection."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1))
          (arrow-char (cond
+                      ;; Same grid coordinates - don't draw arrow on same position
+                      ((and (= dx 0) (= dy 0)) nil)
                       ;; Vertical arrows
                       ((and (= dx 0) (> dy 0)) ?v)  ; downward
                       ((and (= dx 0) (< dy 0)) ?^)  ; upward
-                      ;; Horizontal arrows  
+                      ;; Horizontal arrows
                       ((and (= dy 0) (> dx 0)) ?>)  ; rightward
                       ((and (= dy 0) (< dx 0)) ?<)  ; leftward
                       ;; L-shaped paths - determine arrow based on final direction
@@ -684,9 +737,29 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                       ((> dx 0) ?>)  ; if final segment goes right
                       ((< dx 0) ?<)  ; if final segment goes left
                       (t ?>))))      ; default rightward arrow
-    
+
     ;; Draw arrow at endpoint with ultra-safe collision detection
-    (dag-draw--ultra-safe-draw-char grid x2 y2 arrow-char occupancy-map)))
+    ;; Arrows are more permissive since they're endpoints and shouldn't interfere with content
+    (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map)))
+
+(defun dag-draw--ultra-safe-draw-arrow (grid x y arrow-char occupancy-map)
+  "Draw arrow character with relaxed safety for endpoint drawing."
+  ;; Don't draw anything if arrow-char is nil (same coordinates case)
+  (when arrow-char
+    (let* ((grid-height (length grid))
+           (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+      (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+        ;; Relaxed safety check for arrows - they can overwrite edge characters
+        (let ((current-char (aref (aref grid y) x)))
+          (when (and
+                 ;; Check occupancy map
+                 (not (aref (aref occupancy-map y) x))
+                 ;; Arrows can overwrite spaces and edge characters
+                 (memq current-char '(?\s ?─ ?│)))
+
+            ;; Always draw the arrow
+            (aset (aref grid y) x arrow-char)))))))
 
 (defun dag-draw--ascii-draw-boundary-aware-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw edge using spline data when available, otherwise boundary-aware routing."
@@ -850,7 +923,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                      ;; CRITICAL: Never overwrite any other characters (node content, borders, etc.)
                      (t nil)))))))))
 
-      ;; If horizontal-first is blocked, try vertical-first as alternative
+       ;; If horizontal-first is blocked, try vertical-first as alternative
        (t
         (dag-draw--try-vertical-first-path grid x1 y1 x2 y2 occupancy-map))))))
 

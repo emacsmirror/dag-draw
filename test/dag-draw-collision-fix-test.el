@@ -101,6 +101,31 @@
           ;; Should have vertical connection
           (expect ascii-output :to-match "│"))))
     
+    (it "should produce correct arrow character based on layout direction"
+      ;; This replicates the failing arrow direction test
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'node-a "Node A")
+        (dag-draw-add-node graph 'node-b "Node B")
+        (dag-draw-add-edge graph 'node-a 'node-b)
+        
+        ;; Set coordinates for vertical layout (should produce 'v' arrow)
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'node-a)) 100)
+        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'node-a)) 50)
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'node-b)) 100)
+        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'node-b)) 150)
+        
+        (let ((ascii-output (dag-draw-render-ascii graph)))
+          ;; Debug: print the output  
+          (message "=== ARROW DIRECTION TEST OUTPUT ===")
+          (message "%s" ascii-output)
+          (message "=== END ARROW OUTPUT ===")
+          
+          ;; Should have both nodes
+          (expect ascii-output :to-match "Node A")
+          (expect ascii-output :to-match "Node B")
+          ;; For vertical layout, should have downward arrow 'v'
+          (expect ascii-output :to-match "v"))))
+    
     (it "should preserve box drawing characters in node borders"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'test "Test")
