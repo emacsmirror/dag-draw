@@ -131,18 +131,18 @@
             (min-x 0) (min-y 0) (scale 2))
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; Using coordinate scale of 0.1: 100 * 2 * 0.1 = 20
-          (expect (dag-draw-point-x grid-point) :to-equal 20.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 10.0))))
+          ;; Using improved coordinate scale of 0.08: 100 * 2 * 0.08 = 16
+          (expect (dag-draw-point-x grid-point) :to-equal 16.0)
+          (expect (dag-draw-point-y grid-point) :to-equal 8.0))))
     
     (it "should handle coordinate offsets correctly"
       (let ((world-point (dag-draw-point-create :x 150 :y 100))
             (min-x 50) (min-y 25) (scale 2))
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; (150-50) * 2 * 0.1 = 20, (100-25) * 2 * 0.1 = 15  
-          (expect (dag-draw-point-x grid-point) :to-equal 20.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 15.0)))))
+          ;; (150-50) * 2 * 0.08 = 16, (100-25) * 2 * 0.08 = 12  
+          (expect (dag-draw-point-x grid-point) :to-equal 16.0)
+          (expect (dag-draw-point-y grid-point) :to-equal 12.0)))))
 
   (describe "Integration with edge routing"
     

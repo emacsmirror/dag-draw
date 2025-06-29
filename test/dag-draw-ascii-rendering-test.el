@@ -128,8 +128,8 @@
            (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
            (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
-      (expect grid-x :to-equal 20)  ; 100 * 2 * 0.1 = 20
-      (expect grid-y :to-equal 40)  ; 200 * 2 * 0.1 = 40
+      (expect grid-x :to-equal 16)  ; 100 * 2 * 0.08 = 16  
+      (expect grid-y :to-equal 32)  ; 200 * 2 * 0.08 = 32
       ))
   
   (it "should handle negative coordinates"
@@ -141,8 +141,8 @@
            (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
            (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
-      (expect grid-x :to-equal 10)  ; (0 - (-50)) * 2 * 0.1 = 10
-      (expect grid-y :to-equal 5)   ; (0 - (-25)) * 2 * 0.1 = 5
+      (expect grid-x :to-equal 8)  ; (0 - (-50)) * 2 * 0.08 = 8
+      (expect grid-y :to-equal 4)   ; (0 - (-25)) * 2 * 0.08 = 4
       ))
   
   (it "should scale node sizes appropriately"

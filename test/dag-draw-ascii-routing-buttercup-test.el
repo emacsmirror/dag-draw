@@ -61,9 +61,9 @@
             (min-coord 100)
             (scale 2))
 
-        ;; Test world-to-grid coordinate conversion
+        ;; Test world-to-grid coordinate conversion (updated for 0.08 scale factor)
         (let ((grid-coord (dag-draw--world-to-grid-coord world-coord min-coord scale)))
-          (expect grid-coord :to-be-close-to 10.0 1.0))
+          (expect grid-coord :to-be-close-to 8.0 1.0))  ; (150-100) * 2 * 0.08 = 8
 
         ;; Test world-to-grid size conversion
         (let ((world-size 80))
