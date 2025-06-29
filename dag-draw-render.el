@@ -527,6 +527,7 @@ Returns a 2D array where t = occupied by node, nil = empty space."
                                  (if (= y1 y2) 
                                      'horizontal-only  ; Pure horizontal edge
                                    'horizontal-first)))) ; L-shaped edge
+        
         ;; Draw the path with appropriate direction
         (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map routing-direction))
 
@@ -568,7 +569,15 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map)))))
+            (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map))))
+      ;; Add corner character at junction point (x2, y1)
+      (let ((corner-char (cond
+                          ((and (< x1 x2) (< y1 y2)) ?┐)  ; Right then down
+                          ((and (< x1 x2) (> y1 y2)) ?┘)  ; Right then up
+                          ((and (> x1 x2) (< y1 y2)) ?┌)  ; Left then down
+                          ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
+                          (t ?┼))))                         ; Fallback intersection
+        (dag-draw--ultra-safe-draw-char grid x2 y1 corner-char occupancy-map)))
      
      ;; L-shaped path: vertical first (default fallback)
      (t
@@ -583,7 +592,15 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))))))
+            (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))
+      ;; Add corner character at junction point (x1, y2)
+      (let ((corner-char (cond
+                          ((and (< x1 x2) (< y1 y2)) ?└)  ; Down then right
+                          ((and (< x1 x2) (> y1 y2)) ?┌)  ; Up then right
+                          ((and (> x1 x2) (< y1 y2)) ?┘)  ; Down then left
+                          ((and (> x1 x2) (> y1 y2)) ?┐)  ; Up then left
+                          (t ?┼))))                         ; Fallback intersection
+        (dag-draw--ultra-safe-draw-char grid x1 y2 corner-char occupancy-map))))))
 
 (defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
   "Draw character only if absolutely safe - never overwrites anything but spaces."
@@ -595,16 +612,22 @@ Returns a 2D array where t = occupied by node, nil = empty space."
       ;; 1. Check occupancy map
       ;; 2. Check current character is space
       ;; 3. Never overwrite box drawing characters (node borders)
-      (let ((current-char (aref (aref grid y) x)))
+      (let ((current-char (aref (aref grid y) x))
+            (occupancy-blocked (aref (aref occupancy-map y) x))
+            (safe-to-draw (or (memq char '(?v ?^ ?> ?<))
+                              (dag-draw--is-safe-to-draw-at grid x y))))
+        
+        
         (when (and
                ;; Occupancy map says it's safe
-               (not (aref (aref occupancy-map y) x))
-               ;; Current position has space character OR we're drawing an arrow
+               (not occupancy-blocked)
+               ;; Current position has space character OR we're drawing an arrow OR corner over edge
                (or (eq current-char ?\s)
-                   (and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│))))
-               ;; Not near any box drawing characters (extra safety), unless drawing arrow
-               (or (memq char '(?v ?^ ?> ?<))
-                   (dag-draw--is-safe-to-draw-at grid x y)))
+                   (and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
+                   (and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│))))
+               ;; Not near any box drawing characters (extra safety), unless drawing arrow or corner
+               (or (memq char '(?v ?^ ?> ?< ?┌ ?┐ ?└ ?┘))
+                   safe-to-draw))
 
           ;; Handle intersections and arrows properly without overwriting content
           (cond
@@ -613,6 +636,9 @@ Returns a 2D array where t = occupied by node, nil = empty space."
             (aset (aref grid y) x char))
            ;; Arrow characters can replace edge characters for endpoints
            ((and (memq char '(?v ?^ ?> ?<)) (memq current-char '(?─ ?│)))
+            (aset (aref grid y) x char))
+           ;; Corner characters can overwrite edge characters at junctions
+           ((and (memq char '(?┌ ?┐ ?└ ?┘)) (memq current-char '(?─ ?│)))
             (aset (aref grid y) x char))
            ;; Intersection with existing edge - create proper junction
            ((and (eq current-char ?─) (eq char ?│))

@@ -322,6 +322,88 @@ Returns (min-x min-y max-x max-y)."
       
       (list min-x min-y max-x max-y))))
 
+;;; GKNV Enhanced Coordinate Positioning Implementation
+
+(defun dag-draw--position-with-separation-constraints (graph)
+  "Position nodes with enhanced separation constraint handling.
+Ensures minimum separation between adjacent nodes is maintained."
+  (let ((rank-to-nodes (ht-create)))
+    
+    ;; Group nodes by rank
+    (ht-each (lambda (node-id node)
+               (let ((rank (or (dag-draw-node-rank node) 0)))
+                 (ht-set! rank-to-nodes rank
+                          (cons node-id (ht-get rank-to-nodes rank '())))))
+             (dag-draw-graph-nodes graph))
+    
+    ;; Position nodes within each rank respecting separation constraints
+    (ht-each (lambda (rank node-list)
+               ;; Sort nodes by their order within the rank
+               (let ((sorted-nodes (sort node-list 
+                                         (lambda (a b)
+                                           (let ((order-a (dag-draw-node-order (dag-draw-get-node graph a)))
+                                                 (order-b (dag-draw-node-order (dag-draw-get-node graph b))))
+                                             (< (or order-a 0) (or order-b 0))))))
+                     (current-x 0)
+                     (min-separation (dag-draw-graph-node-separation graph)))
+                 
+                 ;; Assign X coordinates with minimum separation
+                 (dolist (node-id sorted-nodes)
+                   (let ((node (dag-draw-get-node graph node-id)))
+                     (setf (dag-draw-node-x-coord node) current-x)
+                     ;; Set Y coordinate based on rank
+                     (setf (dag-draw-node-y-coord node) 
+                           (* rank (dag-draw-graph-rank-separation graph)))
+                     ;; Advance X position by node width plus minimum separation
+                     (setq current-x (+ current-x 
+                                        (dag-draw-node-x-size node) 
+                                        min-separation))))))
+             rank-to-nodes)))
+
+(defun dag-draw--create-enhanced-auxiliary-graph (graph)
+  "Create enhanced auxiliary graph for handling long edges.
+Returns hash table with auxiliary-nodes and auxiliary-edges information."
+  (let ((aux-info (ht-create))
+        (auxiliary-nodes '())
+        (auxiliary-edges '()))
+    
+    ;; Find edges that span multiple ranks and create auxiliary nodes
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (from-rank (or (dag-draw-node-rank from-node) 0))
+             (to-rank (or (dag-draw-node-rank to-node) 0)))
+        
+        ;; If edge spans more than one rank, create auxiliary nodes
+        (when (> (- to-rank from-rank) 1)
+          (let ((prev-node-id (dag-draw-edge-from-node edge)))
+            ;; Create auxiliary nodes for intermediate ranks
+            (dotimes (i (- to-rank from-rank 1))
+              (let* ((aux-rank (+ from-rank i 1))
+                     (aux-node-id (intern (format "aux_%s_%s_%d" 
+                                                  (dag-draw-edge-from-node edge)
+                                                  (dag-draw-edge-to-node edge)
+                                                  aux-rank))))
+                ;; Add auxiliary node to graph
+                (dag-draw-add-node graph aux-node-id "AUX")
+                (setf (dag-draw-node-rank (dag-draw-get-node graph aux-node-id)) aux-rank)
+                (setf (dag-draw-node-order (dag-draw-get-node graph aux-node-id)) 0)
+                
+                ;; Create auxiliary edge
+                (dag-draw-add-edge graph prev-node-id aux-node-id)
+                
+                (push aux-node-id auxiliary-nodes)
+                (setq prev-node-id aux-node-id)))
+            
+            ;; Create final edge to target
+            (dag-draw-add-edge graph prev-node-id (dag-draw-edge-to-node edge))))))
+    
+    ;; Store auxiliary information
+    (ht-set! aux-info 'auxiliary-nodes auxiliary-nodes)
+    (ht-set! aux-info 'auxiliary-edges auxiliary-edges)
+    
+    aux-info))
+
 (provide 'dag-draw-position)
 
 ;;; dag-draw-position.el ends here

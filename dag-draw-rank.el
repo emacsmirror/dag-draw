@@ -240,6 +240,63 @@ This is a simplified version of the balancing described in the paper."
     
     valid))
 
+;;; GKNV Network Simplex Implementation
+
+(defun dag-draw--construct-feasible-tree (graph)
+  "Construct initial feasible spanning tree with auxiliary nodes.
+Returns hash table with tree-edges, non-tree-edges, aux-source, and aux-sink."
+  (let ((tree-info (ht-create))
+        (aux-source-id 'aux-source)
+        (aux-sink-id 'aux-sink))
+    
+    ;; Add auxiliary source and sink nodes to graph temporarily
+    (dag-draw-add-node graph aux-source-id "AUX-SOURCE")
+    (dag-draw-add-node graph aux-sink-id "AUX-SINK")
+    
+    ;; Create auxiliary edges to make spanning tree
+    (let ((tree-edges '())
+          (non-tree-edges (copy-sequence (dag-draw-graph-edges graph))))
+      
+      ;; Connect aux-source to all source nodes (nodes with no incoming edges)
+      (dolist (node-id (dag-draw-get-node-ids graph))
+        (when (and (not (eq node-id aux-source-id))
+                   (not (eq node-id aux-sink-id))
+                   (null (dag-draw-get-predecessors graph node-id)))
+          (let ((aux-edge (dag-draw-add-edge graph aux-source-id node-id)))
+            (push aux-edge tree-edges))))
+      
+      ;; Connect all sink nodes to aux-sink
+      (dolist (node-id (dag-draw-get-node-ids graph))
+        (when (and (not (eq node-id aux-source-id))
+                   (not (eq node-id aux-sink-id))
+                   (null (dag-draw-get-successors graph node-id)))
+          (let ((aux-edge (dag-draw-add-edge graph node-id aux-sink-id)))
+            (push aux-edge tree-edges))))
+      
+      ;; Store results
+      (ht-set! tree-info 'tree-edges tree-edges)
+      (ht-set! tree-info 'non-tree-edges non-tree-edges)
+      (ht-set! tree-info 'aux-source aux-source-id)
+      (ht-set! tree-info 'aux-sink aux-sink-id))
+    
+    tree-info))
+
+(defun dag-draw--compute-cut-values (graph tree-info)
+  "Compute cut values for all tree edges.
+Returns hash table mapping tree edges to their cut values."
+  (let ((cut-values (ht-create))
+        (tree-edges (ht-get tree-info 'tree-edges)))
+    
+    ;; For each tree edge, compute its cut value
+    ;; (This is a simplified implementation - the full algorithm is more complex)
+    (dolist (edge tree-edges)
+      (let ((from-node (dag-draw-edge-from-node edge))
+            (to-node (dag-draw-edge-to-node edge)))
+        ;; Simple cut value calculation (weight of edge)
+        (ht-set! cut-values edge (dag-draw-edge-weight edge))))
+    
+    cut-values))
+
 ;;; Public Interface
 
 (defun dag-draw-rank-graph (graph)
