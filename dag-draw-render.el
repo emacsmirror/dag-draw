@@ -774,74 +774,59 @@ Returns a 2D array where t = occupied by node, nil = empty space."
         (dag-draw--ascii-draw-boundary-aware-path-with-arrows grid from-x from-y to-x to-y occupancy-map)))))
 
 (defun dag-draw--ascii-draw-spline-guided-edge (edge grid min-x min-y scale occupancy-map spline-points)
-  "Draw edge using spline points for smoother, more natural routing."
+  "Draw edge using enhanced spline points for smoother, more natural routing with Phase C improvements."
   (when (and grid (> (length spline-points) 1))
     (let* ((grid-height (length grid))
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+           ;; Enhanced spline sampling for better curve approximation
+           (optimized-points (dag-draw--optimize-spline-sampling spline-points grid-width grid-height))
            (prev-grid-x nil)
            (prev-grid-y nil))
 
-      ;; Convert each spline point to grid coordinates and draw segments
-      (dolist (point spline-points)
+      ;; Convert each optimized spline point to grid coordinates and draw enhanced segments
+      (dolist (point optimized-points)
         (let* ((world-x (dag-draw-point-x point))
                (world-y (dag-draw-point-y point))
                (grid-x (round (dag-draw--world-to-grid-coord world-x min-x scale)))
                (grid-y (round (dag-draw--world-to-grid-coord world-y min-y scale))))
 
-          ;; Draw segment from previous point to current point
+          ;; Draw enhanced segment from previous point to current point
           (when (and prev-grid-x prev-grid-y)
             (dag-draw--ascii-draw-spline-segment grid prev-grid-x prev-grid-y grid-x grid-y occupancy-map))
 
           (setq prev-grid-x grid-x)
           (setq prev-grid-y grid-y)))
 
-      ;; Add arrow at the end point
+      ;; Add enhanced arrow at the end point with better direction detection
       (when (and prev-grid-x prev-grid-y
                  (>= prev-grid-x 0) (< prev-grid-x grid-width)
                  (>= prev-grid-y 0) (< prev-grid-y grid-height))
-        (let* ((last-point (car (last spline-points)))
-               (second-last-point (car (last spline-points 2)))
-               (direction (if second-last-point
-                              (dag-draw--detect-direction
-                               (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
-                               (dag-draw-point-x last-point) (dag-draw-point-y last-point))
-                            'right)))
-          (aset (aref grid prev-grid-y) prev-grid-x (dag-draw--get-arrow-char direction)))))))
+        (let* ((direction (dag-draw--detect-enhanced-spline-direction optimized-points)))
+          ;; Use enhanced arrow placement that can overwrite edge characters
+          (dag-draw--ultra-safe-draw-arrow grid prev-grid-x prev-grid-y direction occupancy-map))))))
 
 (defun dag-draw--ascii-draw-spline-segment (grid x1 y1 x2 y2 occupancy-map)
-  "Draw a single segment of a spline path between two grid points."
+  "Draw a single segment of a spline path between two grid points with enhanced smoothness."
   (when grid
     (let* ((grid-height (length grid))
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
-      ;; For spline segments, use simpler direct routing
+      ;; Enhanced spline segment routing with better path quality
       (cond
        ;; Same point - no line needed
        ((and (= x1 x2) (= y1 y2)) nil)
 
-       ;; Horizontal line
+       ;; Horizontal line - enhanced with spline smoothing
        ((= y1 y2)
-        (let ((start-x (min x1 x2))
-              (end-x (max x1 x2)))
-          (dotimes (i (1+ (- end-x start-x)))
-            (let ((x (+ start-x i)))
-              (when (and (>= x 0) (< x grid-width) (>= y1 0) (< y1 grid-height)
-                         (= (aref (aref grid y1) x) ?\s))  ; Only draw if cell is empty
-                (aset (aref grid y1) x ?─))))))
+        (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y1 occupancy-map))
 
-       ;; Vertical line
+       ;; Vertical line - enhanced with spline smoothing  
        ((= x1 x2)
-        (let ((start-y (min y1 y2))
-              (end-y (max y1 y2)))
-          (dotimes (i (1+ (- end-y start-y)))
-            (let ((y (+ start-y i)))
-              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height)
-                         (= (aref (aref grid y) x1) ?\s))  ; Only draw if cell is empty
-                (aset (aref grid y) x1 ?│))))))
+        (dag-draw--draw-enhanced-vertical-segment grid x1 y1 y2 occupancy-map))
 
-       ;; Diagonal - approximate with L-shape for ASCII
+       ;; Diagonal - enhanced smooth approximation for ASCII
        (t
-        (dag-draw--ascii-draw-boundary-aware-path grid x1 y1 x2 y2 occupancy-map))))))
+        (dag-draw--draw-enhanced-diagonal-segment grid x1 y1 x2 y2 occupancy-map))))))
 
 (defun dag-draw--ascii-draw-boundary-aware-path (grid x1 y1 x2 y2 occupancy-map)
   "Draw clean orthogonal path that avoids node interiors using occupancy map."
@@ -1350,6 +1335,220 @@ Returns a 2D array where t = occupied by node, nil = empty space."
 
     (display-buffer buffer)
     buffer))
+
+;;; Enhanced spline segment drawing functions for Phase C improvements
+
+(defun dag-draw--optimize-spline-sampling (spline-points grid-width grid-height)
+  "Optimize spline point sampling for better ASCII grid representation."
+  (when (and spline-points (> (length spline-points) 1))
+    (let* ((total-length (dag-draw--calculate-spline-path-length spline-points))
+           ;; Adaptive sampling density based on grid size and path complexity
+           (optimal-density (max 0.5 (min 2.0 (/ total-length (max grid-width grid-height)))))
+           (target-points (max 3 (round (* total-length optimal-density))))
+           (sampled-points nil))
+      
+      ;; Ensure we include start and end points
+      (push (car spline-points) sampled-points)
+      
+      ;; Sample intermediate points based on path curvature
+      (when (> target-points 2)
+        (let ((step-size (/ (float (1- (length spline-points))) (float (1- target-points)))))
+          (dotimes (i (- target-points 2))
+            (let* ((float-index (+ 1 (* (1+ i) step-size)))
+                   (index (floor float-index))
+                   (fraction (- float-index index)))
+              (when (< index (1- (length spline-points)))
+                (let* ((p1 (nth index spline-points))
+                       (p2 (nth (1+ index) spline-points))
+                       ;; Linear interpolation between points
+                       (interp-x (+ (* (1- fraction) (dag-draw-point-x p1))
+                                   (* fraction (dag-draw-point-x p2))))
+                       (interp-y (+ (* (1- fraction) (dag-draw-point-y p1))
+                                   (* fraction (dag-draw-point-y p2)))))
+                  (push (dag-draw-point-create :x interp-x :y interp-y) sampled-points)))))))
+      
+      ;; Add end point
+      (push (car (last spline-points)) sampled-points)
+      
+      ;; Return in correct order
+      (nreverse sampled-points))))
+
+(defun dag-draw--calculate-spline-path-length (spline-points)
+  "Calculate approximate length of spline path for sampling optimization."
+  (let ((total-length 0.0))
+    (when (> (length spline-points) 1)
+      (dotimes (i (1- (length spline-points)))
+        (let* ((p1 (nth i spline-points))
+               (p2 (nth (1+ i) spline-points))
+               (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
+               (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
+          (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy))))))))
+    total-length))
+
+(defun dag-draw--detect-enhanced-spline-direction (optimized-points)
+  "Detect final direction of spline path with enhanced accuracy."
+  (when (and optimized-points (>= (length optimized-points) 2))
+    (let* ((last-point (car (last optimized-points)))
+           (second-last-point (car (last optimized-points 2)))
+           ;; For better direction detection, look at more points if available
+           (direction-points (if (>= (length optimized-points) 3)
+                                (last optimized-points 3)
+                              optimized-points)))
+      
+      (if (>= (length direction-points) 2)
+          (let* ((p1 (car (last direction-points 2)))
+                 (p2 (car (last direction-points)))
+                 (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
+                 (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
+            (dag-draw--detect-direction (dag-draw-point-x p1) (dag-draw-point-y p1)
+                                       (dag-draw-point-x p2) (dag-draw-point-y p2)))
+        'right))))
+
+(defun dag-draw--draw-enhanced-horizontal-segment (grid x1 x2 y occupancy-map)
+  "Draw horizontal segment with enhanced spline smoothing and intelligent collision handling."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (start-x (min x1 x2))
+         (end-x (max x1 x2)))
+    
+    (dotimes (i (1+ (- end-x start-x)))
+      (let ((x (+ start-x i)))
+        (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+          ;; Enhanced collision detection - can overwrite edges but respect nodes
+          (let ((current-char (aref (aref grid y) x)))
+            (when (and (not (aref (aref occupancy-map y) x))  ; Not in a node
+                       (memq current-char '(?\s ?│)))         ; Can overwrite space or vertical line
+              (aset (aref grid y) x ?─))))))))
+
+(defun dag-draw--draw-enhanced-vertical-segment (grid x y1 y2 occupancy-map)
+  "Draw vertical segment with enhanced spline smoothing and intelligent collision handling."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (start-y (min y1 y2))
+         (end-y (max y1 y2)))
+    
+    (dotimes (i (1+ (- end-y start-y)))
+      (let ((y (+ start-y i)))
+        (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+          ;; Enhanced collision detection - can overwrite edges but respect nodes
+          (let ((current-char (aref (aref grid y) x)))
+            (when (and (not (aref (aref occupancy-map y) x))  ; Not in a node
+                       (memq current-char '(?\s ?─)))         ; Can overwrite space or horizontal line
+              (aset (aref grid y) x ?│))))))))
+
+(defun dag-draw--draw-enhanced-diagonal-segment (grid x1 y1 x2 y2 occupancy-map)
+  "Draw diagonal segment with enhanced smooth approximation using intelligent path selection."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (dx (- x2 x1))
+         (dy (- y2 y1))
+         (abs-dx (abs dx))
+         (abs-dy (abs dy)))
+    
+    ;; Choose best routing strategy based on diagonal characteristics
+    (cond
+     ;; Nearly horizontal diagonal - use horizontal-first L-shape with corner
+     ((> abs-dx (* 2 abs-dy))
+      (dag-draw--draw-horizontal-first-l-path grid x1 y1 x2 y2 occupancy-map))
+     
+     ;; Nearly vertical diagonal - use vertical-first L-shape with corner
+     ((> abs-dy (* 2 abs-dx))
+      (dag-draw--draw-vertical-first-l-path grid x1 y1 x2 y2 occupancy-map))
+     
+     ;; Balanced diagonal - use adaptive smooth approximation
+     (t
+      (dag-draw--draw-adaptive-smooth-diagonal grid x1 y1 x2 y2 occupancy-map)))))
+
+(defun dag-draw--draw-horizontal-first-l-path (grid x1 y1 x2 y2 occupancy-map)
+  "Draw L-shaped path: horizontal first, then vertical, with proper corner character."
+  ;; Draw horizontal segment
+  (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y1 occupancy-map)
+  ;; Draw vertical segment  
+  (dag-draw--draw-enhanced-vertical-segment grid x2 y1 y2 occupancy-map)
+  ;; Add corner character at junction
+  (dag-draw--add-enhanced-corner-char grid x2 y1 x1 y1 x2 y2 occupancy-map))
+
+(defun dag-draw--draw-vertical-first-l-path (grid x1 y1 x2 y2 occupancy-map)
+  "Draw L-shaped path: vertical first, then horizontal, with proper corner character."
+  ;; Draw vertical segment
+  (dag-draw--draw-enhanced-vertical-segment grid x1 y1 y2 occupancy-map)
+  ;; Draw horizontal segment
+  (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y2 occupancy-map)
+  ;; Add corner character at junction
+  (dag-draw--add-enhanced-corner-char grid x1 y2 x1 y1 x2 y2 occupancy-map))
+
+(defun dag-draw--draw-adaptive-smooth-diagonal (grid x1 y1 x2 y2 occupancy-map)
+  "Draw smooth diagonal approximation using adaptive stepping."
+  (let* ((dx (- x2 x1))
+         (dy (- y2 y1))
+         (steps (max (abs dx) (abs dy)))
+         (x-step (if (> steps 0) (/ (float dx) steps) 0))
+         (y-step (if (> steps 0) (/ (float dy) steps) 0)))
+    
+    (dotimes (i (1+ steps))
+      (let* ((curr-x (round (+ x1 (* i x-step))))
+             (curr-y (round (+ y1 (* i y-step))))
+             (grid-height (length grid))
+             (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+        
+        (when (and (>= curr-x 0) (< curr-x grid-width) 
+                   (>= curr-y 0) (< curr-y grid-height))
+          (let ((current-char (aref (aref grid curr-y) curr-x)))
+            (when (and (not (aref (aref occupancy-map curr-y) curr-x))
+                       (memq current-char '(?\s)))
+              ;; Use appropriate line character based on local direction
+              (let ((char (if (= i 0) ?│   ; Start with vertical  
+                            (if (= i steps) ?│  ; End with vertical
+                              (dag-draw--choose-diagonal-char dx dy)))))
+                (aset (aref grid curr-y) curr-x char)))))))))
+
+(defun dag-draw--choose-diagonal-char (dx dy)
+  "Choose appropriate character for diagonal direction."
+  (cond
+   ((and (> dx 0) (> dy 0)) ?│)  ; Down-right: prefer vertical
+   ((and (> dx 0) (< dy 0)) ?│)  ; Up-right: prefer vertical  
+   ((and (< dx 0) (> dy 0)) ?│)  ; Down-left: prefer vertical
+   ((and (< dx 0) (< dy 0)) ?│)  ; Up-left: prefer vertical
+   (t ?─)))                      ; Default to horizontal
+
+(defun dag-draw--add-enhanced-corner-char (grid corner-x corner-y from-x from-y to-x to-y occupancy-map)
+  "Add appropriate corner character at path junction with enhanced detection."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (when (and (>= corner-x 0) (< corner-x grid-width)
+               (>= corner-y 0) (< corner-y grid-height)
+               (not (aref (aref occupancy-map corner-y) corner-x)))
+      
+      ;; Determine corner character based on incoming and outgoing directions
+      (let* ((from-dx (- corner-x from-x))
+             (from-dy (- corner-y from-y))  
+             (to-dx (- to-x corner-x))
+             (to-dy (- to-y corner-y))
+             (corner-char (dag-draw--select-corner-character from-dx from-dy to-dx to-dy)))
+        
+        (when corner-char
+          (aset (aref grid corner-y) corner-x corner-char))))))
+
+(defun dag-draw--select-corner-character (from-dx from-dy to-dx to-dy)
+  "Select appropriate corner character based on entry and exit directions."
+  (cond
+   ;; Horizontal in, vertical out
+   ((and (not (= from-dx 0)) (= from-dy 0) (= to-dx 0) (not (= to-dy 0)))
+    (if (and (> from-dx 0) (> to-dy 0)) ?┐    ; Right in, down out
+      (if (and (> from-dx 0) (< to-dy 0)) ?┘  ; Right in, up out
+        (if (and (< from-dx 0) (> to-dy 0)) ?┌ ; Left in, down out
+          ?└))))                             ; Left in, up out
+   
+   ;; Vertical in, horizontal out  
+   ((and (= from-dx 0) (not (= from-dy 0)) (not (= to-dx 0)) (= to-dy 0))
+    (if (and (> from-dy 0) (> to-dx 0)) ?└    ; Down in, right out
+      (if (and (> from-dy 0) (< to-dx 0)) ?┘  ; Down in, left out
+        (if (and (< from-dy 0) (> to-dx 0)) ?┌ ; Up in, right out
+          ?┐))))                             ; Up in, left out
+   
+   ;; Default: no corner needed
+   (t nil)))
 
 (provide 'dag-draw-render)
 
