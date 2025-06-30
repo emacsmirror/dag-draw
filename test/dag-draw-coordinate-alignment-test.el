@@ -248,10 +248,10 @@
         ;; Position nodes to create a clear directional relationship
         (let* ((source-node (dag-draw-get-node graph 'source))
                (target-node (dag-draw-get-node graph 'target)))
-          (setf (dag-draw-node-x-coord source-node) 50.0)
-          (setf (dag-draw-node-y-coord source-node) 50.0)
-          (setf (dag-draw-node-x-coord target-node) 100.0)  ; Right of source
-          (setf (dag-draw-node-y-coord target-node) 50.0)   ; Same height
+          (setf (dag-draw-node-x-coord source-node) 0.0)    ; Origin
+          (setf (dag-draw-node-y-coord source-node) 0.0)    ; Origin
+          (setf (dag-draw-node-x-coord target-node) 200.0)  ; Far right of source
+          (setf (dag-draw-node-y-coord target-node) 0.0)    ; Same height
 
           (let ((ascii-output (dag-draw-render-ascii graph)))
             (message "=== ARROW DIRECTION ACCURACY TEST ===")

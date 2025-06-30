@@ -154,9 +154,9 @@
            (grid-width (dag-draw--world-to-grid-size node-width scale))
            (grid-height (dag-draw--world-to-grid-size node-height scale)))
       
-      ;; With dag-draw-ascii-box-scale = 0.071: max(3, ceil(50 * 2 * 0.071)) = max(3, 8) = 8
+      ;; With dag-draw-ascii-box-scale = 0.08: max(3, ceil(50 * 2 * 0.08)) = max(3, 8) = 8
       (expect grid-width :to-equal 8)  
-      ;; max(3, ceil(30 * 2 * 0.071)) = max(3, 5) = 5
+      ;; max(3, ceil(30 * 2 * 0.08)) = max(3, 5) = 5
       (expect grid-height :to-equal 5)
       )))
 

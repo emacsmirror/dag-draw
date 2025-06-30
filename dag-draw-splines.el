@@ -383,7 +383,11 @@
                       (dag-draw--create-flat-spline graph edge))
                      ((eq edge-type 'self-edge)
                       (dag-draw--create-self-spline graph edge))
-                     (t '()))))
+                     ;; PHASE 3 FIX: All edges must have splines per GKNV algorithm
+                     (t (progn
+                          (message "WARNING: Unknown edge type %s for edge %s->%s, treating as inter-rank"
+                                   edge-type (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
+                          (dag-draw--create-inter-rank-spline graph edge))))))
 
       ;; Store splines in edge
       (setf (dag-draw-edge-spline-points edge)
