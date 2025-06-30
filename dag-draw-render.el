@@ -76,22 +76,42 @@ SCALE is the grid scale factor."
 SIZE is the node size in world coordinates, SCALE is the grid scale factor."
   (max 3 (ceiling (* size scale dag-draw-ascii-box-scale))))
 
-(defun dag-draw--get-node-port-grid (node side min-x min-y scale)
+(defun dag-draw--get-node-port-grid (node side min-x min-y scale &optional graph)
   "Get port coordinates for a node on given side, accounting for grid rounding.
 This function calculates ports based on actual grid positions after coordinate
-conversion and rounding, ensuring precise alignment with rendered boxes."
-  (let* ((x (float (or (dag-draw-node-x-coord node) 0)))
-         (y (float (or (dag-draw-node-y-coord node) 0)))
-         (width (float (dag-draw-node-x-size node)))
-         (height (float (dag-draw-node-y-size node)))
-         ;; Convert to grid coordinates using same logic as box drawing
-         (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-         (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-         (grid-width (dag-draw--world-to-grid-size width scale))
-         (grid-height (dag-draw--world-to-grid-size height scale))
-         ;; Calculate actual box boundaries after rounding (same as box drawing)
-         (grid-x (round (- grid-center-x (/ grid-width 2))))
-         (grid-y (round (- grid-center-y (/ grid-height 2))))
+conversion and rounding, ensuring precise alignment with rendered boxes.
+If GRAPH is provided and contains adjusted positions, uses those coordinates."
+  (let* ((node-id (dag-draw-node-id node))
+         ;; Use adjusted coordinates if available, otherwise original coordinates
+         (adjusted-coords (and graph
+                               (dag-draw-graph-adjusted-positions graph)
+                               (ht-get (dag-draw-graph-adjusted-positions graph) node-id)))
+         (x (if adjusted-coords
+                ;; Adjusted coordinates are already in grid space: (x y width height)
+                (float (nth 0 adjusted-coords))
+              ;; Original coordinates need conversion
+              (float (or (dag-draw-node-x-coord node) 0))))
+         (y (if adjusted-coords
+                (float (nth 1 adjusted-coords))
+              (float (or (dag-draw-node-y-coord node) 0))))
+         (width (if adjusted-coords
+                    (float (nth 2 adjusted-coords))
+                  (float (dag-draw-node-x-size node))))
+         (height (if adjusted-coords
+                     (float (nth 3 adjusted-coords))
+                   (float (dag-draw-node-y-size node))))
+         ;; If using adjusted coordinates, they're already in grid space
+         (grid-center-x (if adjusted-coords
+                            (+ x (/ width 2.0))
+                          (dag-draw--world-to-grid-coord x min-x scale)))
+         (grid-center-y (if adjusted-coords
+                            (+ y (/ height 2.0))
+                          (dag-draw--world-to-grid-coord y min-y scale)))
+         (grid-width (if adjusted-coords width (dag-draw--world-to-grid-size width scale)))
+         (grid-height (if adjusted-coords height (dag-draw--world-to-grid-size height scale)))
+         ;; Calculate actual box boundaries
+         (grid-x (if adjusted-coords (round x) (round (- grid-center-x (/ grid-width 2)))))
+         (grid-y (if adjusted-coords (round y) (round (- grid-center-y (/ grid-height 2)))))
          (grid-x-end (+ grid-x grid-width -1))
          (grid-y-end (+ grid-y grid-height -1))
          ;; Calculate actual center after rounding
@@ -117,21 +137,42 @@ conversion and rounding, ensuring precise alignment with rendered boxes."
         (dag-draw-point-create :x (+ min-x (* actual-center-x world-scale))
                                :y (+ min-y (* actual-center-y world-scale))))))))
 
-(defun dag-draw--determine-port-side (node port min-x min-y scale)
+(defun dag-draw--determine-port-side (node port min-x min-y scale &optional graph)
   "Determine which side of NODE the PORT is on (top, bottom, left, right)."
-  (let* ((node-x (float (or (dag-draw-node-x-coord node) 0)))
-         (node-y (float (or (dag-draw-node-y-coord node) 0)))
-         (width (float (dag-draw-node-x-size node)))
-         (height (float (dag-draw-node-y-size node)))
+  (let* ((node-id (dag-draw-node-id node))
+         ;; Use adjusted coordinates if available, otherwise original coordinates
+         (adjusted-coords (and graph
+                               (dag-draw-graph-adjusted-positions graph)
+                               (ht-get (dag-draw-graph-adjusted-positions graph) node-id)))
+         (node-x (if adjusted-coords
+                     ;; Adjusted coordinates are already in grid space: (x y width height)
+                     (float (nth 0 adjusted-coords))
+                   ;; Original coordinates need conversion
+                   (float (or (dag-draw-node-x-coord node) 0))))
+         (node-y (if adjusted-coords
+                     (float (nth 1 adjusted-coords))
+                   (float (or (dag-draw-node-y-coord node) 0))))
+         (width (if adjusted-coords
+                    (float (nth 2 adjusted-coords))
+                  (float (dag-draw-node-x-size node))))
+         (height (if adjusted-coords
+                     (float (nth 3 adjusted-coords))
+                   (float (dag-draw-node-y-size node))))
          (port-x (dag-draw-point-x port))
          (port-y (dag-draw-point-y port))
          ;; Convert to grid coordinates for comparison
-         (grid-center-x (dag-draw--world-to-grid-coord node-x min-x scale))
-         (grid-center-y (dag-draw--world-to-grid-coord node-y min-y scale))
-         (grid-width (dag-draw--world-to-grid-size width scale))
-         (grid-height (dag-draw--world-to-grid-size height scale))
-         (grid-x (round (- grid-center-x (/ grid-width 2))))
-         (grid-y (round (- grid-center-y (/ grid-height 2))))
+         ;; If using adjusted coordinates, they're already in grid space
+         (grid-center-x (if adjusted-coords
+                            (+ node-x (/ width 2.0))
+                          (dag-draw--world-to-grid-coord node-x min-x scale)))
+         (grid-center-y (if adjusted-coords
+                            (+ node-y (/ height 2.0))
+                          (dag-draw--world-to-grid-coord node-y min-y scale)))
+         (grid-width (if adjusted-coords width (dag-draw--world-to-grid-size width scale)))
+         (grid-height (if adjusted-coords height (dag-draw--world-to-grid-size height scale)))
+         ;; Calculate actual box boundaries
+         (grid-x (if adjusted-coords (round node-x) (round (- grid-center-x (/ grid-width 2)))))
+         (grid-y (if adjusted-coords (round node-y) (round (- grid-center-y (/ grid-height 2)))))
          (grid-x-end (+ grid-x grid-width -1))
          (grid-y-end (+ grid-y grid-height -1))
          ;; Convert port to grid coordinates for comparison
@@ -325,7 +366,7 @@ Returns nil if either node lacks coordinates."
             (list (dag-draw--get-node-port from-node 'left)
                   (dag-draw--get-node-port to-node 'right)))))))))
 
-(defun dag-draw--calculate-edge-ports-grid (from-node to-node min-x min-y scale)
+(defun dag-draw--calculate-edge-ports-grid (from-node to-node min-x min-y scale &optional graph)
   "Calculate appropriate ports for edge between FROM-NODE and TO-NODE using grid coordinates.
 Returns list of (from-port to-port) based on edge direction with grid-aware positioning."
   (let* ((from-x (dag-draw-node-x-coord from-node))
@@ -345,34 +386,34 @@ Returns list of (from-port to-port) based on edge direction with grid-aware posi
         (cond
          ;; Vertical edge (down)
          ((and (< (abs dx) horizontal-threshold) (> dy 0))
-          (list (dag-draw--get-node-port-grid from-node 'bottom min-x min-y scale)
-                (dag-draw--get-node-port-grid to-node 'top min-x min-y scale)))
+          (list (dag-draw--get-node-port-grid from-node 'bottom min-x min-y scale graph)
+                (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph)))
          ;; Vertical edge (up)
          ((and (< (abs dx) horizontal-threshold) (< dy 0))
-          (list (dag-draw--get-node-port-grid from-node 'top min-x min-y scale)
-                (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale)))
+          (list (dag-draw--get-node-port-grid from-node 'top min-x min-y scale graph)
+                (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph)))
          ;; Horizontal edge (right)
          ((and (< (abs dy) vertical-threshold) (> dx 0))
-          (list (dag-draw--get-node-port-grid from-node 'right min-x min-y scale)
-                (dag-draw--get-node-port-grid to-node 'left min-x min-y scale)))
+          (list (dag-draw--get-node-port-grid from-node 'right min-x min-y scale graph)
+                (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph)))
          ;; Horizontal edge (left)
          ((and (< (abs dy) vertical-threshold) (< dx 0))
-          (list (dag-draw--get-node-port-grid from-node 'left min-x min-y scale)
-                (dag-draw--get-node-port-grid to-node 'right min-x min-y scale)))
+          (list (dag-draw--get-node-port-grid from-node 'left min-x min-y scale graph)
+                (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))
          ;; Diagonal edge - prefer vertical direction (including equal distances)
          ((>= (abs dy) (abs dx))
           (if (> dy 0)
-              (list (dag-draw--get-node-port-grid from-node 'bottom min-x min-y scale)
-                    (dag-draw--get-node-port-grid to-node 'top min-x min-y scale))
-            (list (dag-draw--get-node-port-grid from-node 'top min-x min-y scale)
-                  (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale))))
+              (list (dag-draw--get-node-port-grid from-node 'bottom min-x min-y scale graph)
+                    (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph))
+            (list (dag-draw--get-node-port-grid from-node 'top min-x min-y scale graph)
+                  (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph))))
          ;; Diagonal edge - prefer horizontal direction
          (t
           (if (> dx 0)
-              (list (dag-draw--get-node-port-grid from-node 'right min-x min-y scale)
-                    (dag-draw--get-node-port-grid to-node 'left min-x min-y scale))
-            (list (dag-draw--get-node-port-grid from-node 'left min-x min-y scale)
-                  (dag-draw--get-node-port-grid to-node 'right min-x min-y scale)))))))))
+              (list (dag-draw--get-node-port-grid from-node 'right min-x min-y scale graph)
+                    (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph))
+            (list (dag-draw--get-node-port-grid from-node 'left min-x min-y scale graph)
+                  (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))))))
 
 (defun dag-draw--calculate-distributed-edge-ports (graph edge from-node to-node min-x min-y scale)
   "Calculate edge ports with distribution logic for multiple edges from same node.
@@ -385,11 +426,11 @@ This prevents corner crowding by spreading multiple edges across different port 
     (if (and (> edge-count 1) edge-index)
         ;; Multiple edges from same node - distribute ports
         (dag-draw--calculate-distributed-ports-multi-edge
-         from-node to-node edge-index edge-count min-x min-y scale)
+         from-node to-node edge-index edge-count min-x min-y scale graph)
       ;; Single edge - use standard port calculation
-      (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale))))
+      (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale graph))))
 
-(defun dag-draw--calculate-distributed-ports-multi-edge (from-node to-node edge-index edge-count min-x min-y scale)
+(defun dag-draw--calculate-distributed-ports-multi-edge (from-node to-node edge-index edge-count min-x min-y scale graph)
   "Calculate distributed ports for multiple edges from same node.
 EDGE-INDEX is the 0-based index of this edge among all edges from the node.
 EDGE-COUNT is the total number of edges from the node."
@@ -415,21 +456,21 @@ EDGE-COUNT is the total number of edges from the node."
                         (t (if (> dx 0) 'right 'left)))))
 
     ;; Calculate distributed port for from-node
-    (let ((from-port (dag-draw--get-distributed-port from-node primary-side edge-index edge-count min-x min-y scale))
+    (let ((from-port (dag-draw--get-distributed-port from-node primary-side edge-index edge-count min-x min-y scale graph))
           ;; Use standard port calculation for to-node (no distribution needed for target)
           (to-port (cond
-                    ((eq primary-side 'bottom) (dag-draw--get-node-port-grid to-node 'top min-x min-y scale))
-                    ((eq primary-side 'top) (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale))
-                    ((eq primary-side 'right) (dag-draw--get-node-port-grid to-node 'left min-x min-y scale))
-                    ((eq primary-side 'left) (dag-draw--get-node-port-grid to-node 'right min-x min-y scale)))))
+                    ((eq primary-side 'bottom) (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph))
+                    ((eq primary-side 'top) (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph))
+                    ((eq primary-side 'right) (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph))
+                    ((eq primary-side 'left) (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))
 
       (list from-port to-port))))
 
-(defun dag-draw--get-distributed-port (node side edge-index edge-count min-x min-y scale)
+(defun dag-draw--get-distributed-port (node side edge-index edge-count min-x min-y scale &optional graph)
   "Get a distributed port position for NODE on SIDE.
 EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
   ;; Get the basic side port position
-  (let* ((base-port (dag-draw--get-node-port-grid node side min-x min-y scale))
+  (let* ((base-port (dag-draw--get-node-port-grid node side min-x min-y scale graph))
          (base-x (dag-draw-point-x base-port))
          (base-y (dag-draw-point-y base-port)))
 
@@ -438,14 +479,15 @@ EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
         base-port
       ;; Calculate offset based on edge index
       (let* ((offset-factor (if (> edge-count 1) (/ (- edge-index (/ (1- edge-count) 2.0)) edge-count) 0))
-             (max-offset 3.0)) ; Maximum offset in grid units
+             (max-offset 3.0) ; Maximum offset for horizontal sides
+             (vertical-offset 1.0)) ; Smaller offset for vertical sides to maintain alignment
         (cond
          ;; Horizontal sides: distribute vertically
          ((or (eq side 'left) (eq side 'right))
           (dag-draw-point-create :x base-x :y (+ base-y (* offset-factor max-offset))))
-         ;; Vertical sides: distribute horizontally
+         ;; Vertical sides: distribute horizontally with smaller offset
          ((or (eq side 'top) (eq side 'bottom))
-          (dag-draw-point-create :x (+ base-x (* offset-factor max-offset)) :y base-y)))))))
+          (dag-draw-point-create :x (+ base-x (* offset-factor vertical-offset)) :y base-y)))))))
 
 (defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
   "Convert world coordinate point to ASCII grid coordinates with precise rounding."
@@ -484,9 +526,9 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
            ;; Adaptive spacing buffer based on graph complexity
            (node-count (ht-size (dag-draw-graph-nodes graph)))
            (collision-spacing-buffer (cond
-                                     ((< node-count 3) 20)   ; Small graphs - minimal buffer
-                                     ((< node-count 5) 40)   ; Medium graphs - moderate buffer  
-                                     (t 60))))                ; Large graphs - generous buffer
+                                      ((< node-count 3) 20)   ; Small graphs - minimal buffer
+                                      ((< node-count 5) 40)   ; Medium graphs - moderate buffer
+                                      (t 60))))                ; Large graphs - generous buffer
 
       ;; Find maximum node extents
       (ht-each (lambda (node-id node)
@@ -504,8 +546,9 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
              (total-width (- adjusted-max-x adjusted-min-x))
              (total-height (- adjusted-max-y adjusted-min-y))
              ;; Handle empty graphs and ensure minimum grid size
-             (grid-width (max 1 (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale))))
-             (grid-height (max 1 (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale))))
+             ;; Add extra buffer for collision avoidance adjustments
+             (grid-width (max 1 (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale 1.3))))
+             (grid-height (max 1 (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale 1.3))))
              (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
         ;; Draw nodes using adjusted bounds
@@ -533,7 +576,7 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
         (x1-2 (nth 0 rect2)) (y1-2 (nth 1 rect2)) (x2-2 (nth 2 rect2)) (y2-2 (nth 3 rect2))
         (min-gap 1)) ; Minimum 1-character gap between boxes to prevent ││ artifacts
     ;; Rectangles overlap or are too close if they're within min-gap distance
-    (and (<= x1-1 (+ x2-2 min-gap)) (<= x1-2 (+ x2-1 min-gap))  ; x proximity  
+    (and (<= x1-1 (+ x2-2 min-gap)) (<= x1-2 (+ x2-1 min-gap))  ; x proximity
          (<= y1-1 (+ y2-2 min-gap)) (<= y1-2 (+ y2-1 min-gap))))) ; y proximity
 
 (defun dag-draw--resolve-node-collision (x y width height drawn-nodes)
@@ -611,50 +654,52 @@ Returns (adjusted-x adjusted-y) that avoids all drawn nodes with safe spacing."
 
 (defun dag-draw--ascii-draw-nodes (graph grid min-x min-y scale)
   "Draw nodes on ASCII grid with collision detection."
-  (let ((drawn-nodes '()))  ; Track already drawn nodes for collision detection
-    (ht-each (lambda (node-id node)
-               (let* ((x (or (dag-draw-node-x-coord node) 0))
-                      (y (or (dag-draw-node-y-coord node) 0))
-                      (width (dag-draw-node-x-size node))
-                      (height (dag-draw-node-y-size node))
-                      (label (dag-draw-node-label node))
-                      ;; FIX: Node coordinates are CENTER points, convert to top-left for drawing
-                      (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                      (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                      (grid-width (dag-draw--world-to-grid-size width scale))
-                      (grid-height (dag-draw--world-to-grid-size height scale))
-                      ;; Calculate top-left corner for box drawing
-                      (grid-x (- grid-center-x (/ grid-width 2)))
-                      (grid-y (- grid-center-y (/ grid-height 2))))
+  (let ((drawn-nodes '())  ; Track already drawn nodes for collision detection
+        (adjusted-positions (ht-create)))  ; Track adjusted positions for occupancy map
+    ;; Use direct iteration over hash table keys instead of ht-each
+    (dolist (node-id (ht-keys (dag-draw-graph-nodes graph)))
+      (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
+             (x (or (dag-draw-node-x-coord node) 0))
+             (y (or (dag-draw-node-y-coord node) 0))
+             (width (dag-draw-node-x-size node))
+             (height (dag-draw-node-y-size node))
+             (label (dag-draw-node-label node))
+             ;; FIX: Node coordinates are CENTER points, convert to top-left for drawing
+             (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+             (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+             (grid-width (dag-draw--world-to-grid-size width scale))
+             (grid-height (dag-draw--world-to-grid-size height scale))
+             ;; Calculate top-left corner for box drawing
+             (grid-x (- grid-center-x (/ grid-width 2)))
+             (grid-y (- grid-center-y (/ grid-height 2))))
 
-                 ;; Round coordinates to match occupancy map exactly
-                 (let ((final-x (round grid-x))
-                       (final-y (round grid-y))
-                       (final-width (round grid-width))
-                       (final-height (round grid-height)))
-                   (message "DRAWING node %s: calculated=(%d,%d) final=(%d,%d) size=(%dx%d) label='%s'"
-                            node-id (round grid-center-x) (round grid-center-y)
-                            final-x final-y final-width final-height label)
+        ;; Round coordinates to match occupancy map exactly
+        (let ((final-x (round grid-x))
+              (final-y (round grid-y))
+              (final-width (round grid-width))
+              (final-height (round grid-height)))
 
-                   ;; Apply collision avoidance spacing
-                   (let* ((adjusted-pos (dag-draw--resolve-node-collision
-                                        final-x final-y final-width final-height drawn-nodes))
-                          (adjusted-x (car adjusted-pos))
-                          (adjusted-y (cadr adjusted-pos))
-                          (current-rect (list adjusted-x adjusted-y
-                                             (+ adjusted-x final-width -1)
-                                             (+ adjusted-y final-height -1))))
+          ;; Apply collision avoidance spacing
+          (let* ((adjusted-pos (dag-draw--resolve-node-collision
+                                final-x final-y final-width final-height drawn-nodes))
+                 (adjusted-x (car adjusted-pos))
+                 (adjusted-y (cadr adjusted-pos))
+                 (current-rect (list adjusted-x adjusted-y
+                                     (+ adjusted-x final-width -1)
+                                     (+ adjusted-y final-height -1))))
 
-                     (when (not (and (= adjusted-x final-x) (= adjusted-y final-y)))
-                       (message "SPACING: Node %s moved from (%d,%d) to (%d,%d) to avoid collision"
-                                node-id final-x final-y adjusted-x adjusted-y))
+            ;; Draw the node at adjusted position
+            (dag-draw--ascii-draw-box grid adjusted-x adjusted-y final-width final-height label)
 
-                     ;; Draw the node at adjusted position
-                     (dag-draw--ascii-draw-box grid adjusted-x adjusted-y final-width final-height label)
+            ;; Track this node for future collision detection
+            (push current-rect drawn-nodes)
 
-                     ;; Track this node for future collision detection
-                     (push current-rect drawn-nodes)))))
-             (dag-draw-graph-nodes graph))))
+            ;; Store adjusted position for occupancy map
+            (ht-set! adjusted-positions node-id
+                     (list adjusted-x adjusted-y final-width final-height))))))
+
+    ;; Store adjusted positions in graph for later use by occupancy map
+    (setf (dag-draw-graph-adjusted-positions graph) adjusted-positions)))
 
 
 (defun dag-draw--safe-draw-box-char (grid x y char)
@@ -806,22 +851,31 @@ otherwise calculates from coordinates for compatibility with tests."
                 (let ((char-at-pos (aref (aref grid y) x)))
                   (when (not (eq char-at-pos ?\s))
                     (aset (aref occupancy-map y) x t)))))
-            
+
             ;; Then mark complete box interiors to prevent edge drawing inside boxes
             (ht-each (lambda (node-id node)
-                       (let* ((x (or (dag-draw-node-x-coord node) 0))
-                              (y (or (dag-draw-node-y-coord node) 0))
-                              (width (dag-draw-node-x-size node))
-                              (height (dag-draw-node-y-size node))
-                              ;; Calculate grid positions using same logic as node drawing
-                              (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                              (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                              (grid-width-node (dag-draw--world-to-grid-size width scale))
-                              (grid-height-node (dag-draw--world-to-grid-size height scale))
-                              ;; Calculate top-left corner from center (same as node drawing)
-                              (grid-x (round (- grid-center-x (/ grid-width-node 2))))
-                              (grid-y (round (- grid-center-y (/ grid-height-node 2)))))
-                         
+                       (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                              ;; Use adjusted coordinates if available, otherwise calculate from original
+                              (coords (if (and adjusted-positions (ht-get adjusted-positions node-id))
+                                          (progn
+                                            (message "DEBUG: Using adjusted coords for %s" node-id)
+                                            (ht-get adjusted-positions node-id))
+                                        (let* ((x (or (dag-draw-node-x-coord node) 0))
+                                               (y (or (dag-draw-node-y-coord node) 0))
+                                               (width (dag-draw-node-x-size node))
+                                               (height (dag-draw-node-y-size node))
+                                               (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                                               (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+                                               (grid-width-node (dag-draw--world-to-grid-size width scale))
+                                               (grid-height-node (dag-draw--world-to-grid-size height scale))
+                                               (grid-x (round (- grid-center-x (/ grid-width-node 2))))
+                                               (grid-y (round (- grid-center-y (/ grid-height-node 2)))))
+                                          (list grid-x grid-y grid-width-node grid-height-node))))
+                              (grid-x (nth 0 coords))
+                              (grid-y (nth 1 coords))
+                              (grid-width-node (nth 2 coords))
+                              (grid-height-node (nth 3 coords)))
+
                          ;; Mark entire box interior as occupied (excluding border)
                          (when (and (> grid-width-node 2) (> grid-height-node 2))
                            (dotimes (dy (- grid-height-node 2))
@@ -835,18 +889,25 @@ otherwise calculates from coordinates for compatibility with tests."
 
         ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
         (ht-each (lambda (node-id node)
-                   (let* ((x (or (dag-draw-node-x-coord node) 0))
-                          (y (or (dag-draw-node-y-coord node) 0))
-                          (width (dag-draw-node-x-size node))
-                          (height (dag-draw-node-y-size node))
-                          ;; Calculate grid positions using same logic as node drawing
-                          (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                          (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                          (grid-width-node (dag-draw--world-to-grid-size width scale))
-                          (grid-height-node (dag-draw--world-to-grid-size height scale))
-                          ;; Calculate top-left corner from center
-                          (grid-x (- grid-center-x (/ grid-width-node 2)))
-                          (grid-y (- grid-center-y (/ grid-height-node 2))))
+                   (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                          ;; Use adjusted coordinates if available, otherwise calculate from original
+                          (coords (if (and adjusted-positions (ht-get adjusted-positions node-id))
+                                      (ht-get adjusted-positions node-id)
+                                    (let* ((x (or (dag-draw-node-x-coord node) 0))
+                                           (y (or (dag-draw-node-y-coord node) 0))
+                                           (width (dag-draw-node-x-size node))
+                                           (height (dag-draw-node-y-size node))
+                                           (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                                           (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+                                           (grid-width-node (dag-draw--world-to-grid-size width scale))
+                                           (grid-height-node (dag-draw--world-to-grid-size height scale))
+                                           (grid-x (- grid-center-x (/ grid-width-node 2)))
+                                           (grid-y (- grid-center-y (/ grid-height-node 2))))
+                                      (list grid-x grid-y grid-width-node grid-height-node))))
+                          (grid-x (nth 0 coords))
+                          (grid-y (nth 1 coords))
+                          (grid-width-node (nth 2 coords))
+                          (grid-height-node (nth 3 coords)))
 
                      ;; Mark all cells within this node's bounding box as occupied
                      (dotimes (dy grid-height-node)
@@ -903,10 +964,14 @@ This function is added as advice to catch all direct aset calls during edge draw
       (dag-draw--ascii-draw-safe-edge graph edge grid min-x min-y scale occupancy-map))))
 
 (defun dag-draw--ascii-draw-safe-edge (graph edge grid min-x min-y scale occupancy-map)
-  "Draw edge with enhanced collision detection that prevents any overwrites of node content."
-  ;; Use consistent orthogonal routing for all edges to avoid floating segments
-  ;; This ensures reliable, clean connections while we perfect the spline system
-  (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))
+  "Draw edge with enhanced collision detection that prevents any overwrites of node content.
+    PHASE 2: Now uses proper spline-to-ASCII conversion per GKNV Section 5.2."
+  ;; CRITICAL CHANGE: Use splines if available, otherwise fall back to orthogonal
+  (if (dag-draw-edge-spline-points edge)
+      ;; Use actual splines per GKNV algorithm Phase 4
+      (dag-draw--ascii-draw-spline-path graph edge grid min-x min-y scale occupancy-map)
+    ;; Fallback to orthogonal for edges without splines
+    (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map)))
 
 (defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
   "Draw orthogonal edge with comprehensive collision avoidance."
@@ -922,24 +987,86 @@ This function is added as advice to catch all direct aset calls during edge draw
              (to-y (dag-draw--center-aware-round (dag-draw-point-y to-grid)))
              ;; Calculate port-based arrow direction
              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-             (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale)))
+             (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale graph)))
         ;; Use safe path drawing that absolutely will not overwrite node content
         (dag-draw--ascii-draw-ultra-safe-path-with-port-arrow
          grid from-x from-y to-x to-y occupancy-map target-port-side)))))
 
-(defun dag-draw--ascii-draw-safe-spline-edge (edge grid min-x min-y scale occupancy-map spline-points)
-  "Draw spline edge with enhanced safety checks."
-  ;; For now, fall back to safe orthogonal routing for splined edges too
-  ;; This ensures consistency while we debug the collision issues
-  (let* ((start-point (car spline-points))
+(defun dag-draw--ascii-draw-spline-path (graph edge grid min-x min-y scale occupancy-map)
+  "Draw spline path with proper GKNV Section 5.2 coordinate transformation.
+    Converts spline world coordinates to ASCII grid coordinates using adjusted positions."
+  (let* ((spline-points (dag-draw-edge-spline-points edge))
+         (grid-points (dag-draw--convert-spline-to-grid-coordinates spline-points min-x min-y scale))
+         (from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+         ;; Determine proper port sides based on actual spline direction
+         (start-point (car spline-points))
          (end-point (car (last spline-points)))
-         (start-grid (dag-draw--world-point-to-grid start-point min-x min-y scale))
-         (end-grid (dag-draw--world-point-to-grid end-point min-x min-y scale))
-         (start-x (round (dag-draw-point-x start-grid)))
-         (start-y (round (dag-draw-point-y start-grid)))
-         (end-x (round (dag-draw-point-x end-grid)))
-         (end-y (round (dag-draw-point-y end-grid))))
-    (dag-draw--ascii-draw-ultra-safe-path grid start-x start-y end-x end-y occupancy-map)))
+         ;; PHASE 2 FIX: Use world coordinates for direction since grid conversion loses precision
+         (world-dx (- (dag-draw-point-x end-point) (dag-draw-point-x start-point)))
+         (world-dy (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))
+         ;; Determine port sides from actual world direction - prioritize vertical movement
+         (from-side (cond ((> (abs world-dy) (abs world-dx))  ; Primarily vertical movement
+                           (if (> world-dy 0) 'bottom 'top))
+                          ((> world-dx 0) 'right)
+                          (t 'left)))
+         (to-side (cond ((> (abs world-dy) (abs world-dx))    ; Primarily vertical movement
+                         (if (> world-dy 0) 'top 'bottom))
+                        ((> world-dx 0) 'left)
+                        (t 'right)))
+         (adjusted-from-port (dag-draw--get-adjusted-node-port from-node from-side graph min-x min-y scale))
+         (adjusted-to-port (dag-draw--get-adjusted-node-port to-node to-side graph min-x min-y scale))
+         ;; PHASE 2 FIX: Use calculated to-side directly for proper arrow direction
+         (port-side to-side))
+
+    ;; Draw the spline path as connected line segments
+    (when (>= (length grid-points) 2)
+      (dotimes (i (1- (length grid-points)))
+        (let* ((p1 (nth i grid-points))
+               (p2 (nth (1+ i) grid-points))
+               (x1 (round (dag-draw-point-x p1)))
+               (y1 (round (dag-draw-point-y p1)))
+               (x2 (round (dag-draw-point-x p2)))
+               (y2 (round (dag-draw-point-y p2))))
+          ;; Draw safe path segment
+          (dag-draw--ascii-draw-ultra-safe-path grid x1 y1 x2 y2 occupancy-map)))
+
+      ;; Add proper directional arrow at the endpoint
+      (let* ((last-point (car (last grid-points)))
+             (second-last (nth (- (length grid-points) 2) grid-points))
+             (end-x (round (dag-draw-point-x last-point)))
+             (end-y (round (dag-draw-point-y last-point))))
+        (dag-draw--add-port-based-arrow grid
+                                        (round (dag-draw-point-x second-last))
+                                        (round (dag-draw-point-y second-last))
+                                        end-x end-y occupancy-map port-side)))))
+
+(defun dag-draw--convert-spline-to-grid-coordinates (spline-points min-x min-y scale)
+  "Convert spline world coordinates to ASCII grid coordinates.
+    Implements GKNV Section 5.2 coordinate transformation with proper scaling.
+    For ASCII rendering, simplify to key waypoints to avoid over-sampling artifacts."
+  (if (<= (length spline-points) 4)
+      ;; Simple spline - just use start and end
+      (list (dag-draw--world-point-to-grid (car spline-points) min-x min-y scale)
+            (dag-draw--world-point-to-grid (car (last spline-points)) min-x min-y scale))
+    ;; Complex spline - use strategic sampling
+    (let ((step-size (max 1 (/ (length spline-points) 3))))
+      (mapcar (lambda (point)
+                (dag-draw--world-point-to-grid point min-x min-y scale))
+              (let ((sampled '()))
+                (dotimes (i (length spline-points))
+                  (when (or (= i 0)
+                            (= i (1- (length spline-points)))
+                            (= (mod i step-size) 0))
+                    (push (nth i spline-points) sampled)))
+                (nreverse sampled))))))
+
+(defun dag-draw--get-adjusted-node-port (node side graph min-x min-y scale)
+  "Get node port using adjusted coordinates, then convert to grid coordinates.
+    Ensures spline endpoints align with actual rendered node positions."
+  (let* ((world-port (dag-draw--get-node-port node side graph))
+         (grid-port (dag-draw--world-point-to-grid world-port min-x min-y scale)))
+    grid-port))
 
 (defun dag-draw--ascii-draw-ultra-safe-path (grid x1 y1 x2 y2 occupancy-map)
   "Draw path with absolute safety - never overwrites any non-space character."
@@ -951,10 +1078,10 @@ This function is added as advice to catch all direct aset calls during edge draw
                (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
 
       ;; Choose routing direction based on edge orientation
-      (let ((routing-direction (if (= x1 x2)
-                                   'vertical-only    ; Pure vertical edge
-                                 (if (= y1 y2)
-                                     'horizontal-only  ; Pure horizontal edge
+      (let ((routing-direction (if (<= (abs (- x1 x2)) 4)
+                                   'vertical-only    ; Pure vertical edge (allow 4-char tolerance)
+                                 (if (<= (abs (- y1 y2)) 4)
+                                     'horizontal-only  ; Pure horizontal edge (allow 4-char tolerance)
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with appropriate direction
@@ -973,10 +1100,10 @@ This function is added as advice to catch all direct aset calls during edge draw
                (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
 
       ;; Choose routing direction based on edge orientation
-      (let ((routing-direction (if (= x1 x2)
-                                   'vertical-only    ; Pure vertical edge
-                                 (if (= y1 y2)
-                                     'horizontal-only  ; Pure horizontal edge
+      (let ((routing-direction (if (<= (abs (- x1 x2)) 4)
+                                   'vertical-only    ; Pure vertical edge (allow 4-char tolerance)
+                                 (if (<= (abs (- y1 y2)) 4)
+                                     'horizontal-only  ; Pure horizontal edge (allow 4-char tolerance)
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with appropriate direction
@@ -1719,7 +1846,7 @@ This function is added as advice to catch all direct aset calls during edge draw
           ;; For diagonal connections, use L-shaped routing
           ;; Default: horizontal first, then vertical
           (progn
-            ;; Horizontal segment: x1 to x2 at y1  
+            ;; Horizontal segment: x1 to x2 at y1
             (let ((start-x (min x1 x2))
                   (end-x (max x1 x2)))
               (dotimes (i (1+ (- end-x start-x)))
@@ -1774,7 +1901,7 @@ This function is added as advice to catch all direct aset calls during edge draw
          ;; Empty space - place horizontal line
          ((eq current-char ?\s)
           (aset (aref grid y) x ?─))
-         ;; Already has horizontal line - don't duplicate 
+         ;; Already has horizontal line - don't duplicate
          ((eq current-char ?─)
           nil)
          ;; Vertical line - create junction

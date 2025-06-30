@@ -189,7 +189,7 @@
           (setf (dag-draw-node-y-coord node-b) 100)
           (setf (dag-draw-node-rank node-b) 1)
 
-          (let ((splines (dag-draw--create-horizontal-spline node-a node-b 'right 'left)))
+          (let ((splines (dag-draw--create-horizontal-spline node-a node-b 'right 'left graph)))
             (expect (length splines) :to-equal 1)
 
             (let ((curve (car splines)))

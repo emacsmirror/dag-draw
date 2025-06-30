@@ -106,6 +106,7 @@ Optimized for compact, readable layouts following GKNV algorithm principles."
   (rank-separation dag-draw-default-rank-separation)
   (max-rank nil)                       ; Maximum assigned rank
   (rank-sets nil)                      ; User-specified rank constraints
+  (adjusted-positions nil)             ; Hash table: id -> (x y width height) adjusted coordinates
   attributes)                          ; Graph-level attributes
 
 ;;; Public API
