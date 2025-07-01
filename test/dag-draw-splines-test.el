@@ -152,10 +152,12 @@
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a)
         (dag-draw-add-node graph 'b)
+        (dag-draw-add-edge graph 'a 'b)  ; Add edge for current API
 
         ;; Set coordinates and ranks
         (let ((node-a (dag-draw-get-node graph 'a))
-              (node-b (dag-draw-get-node graph 'b)))
+              (node-b (dag-draw-get-node graph 'b))
+              (edge (car (dag-draw-graph-edges graph))))  ; Get the edge
           (setf (dag-draw-node-x-coord node-a) 50)
           (setf (dag-draw-node-y-coord node-a) 50)
           (setf (dag-draw-node-rank node-a) 0)
@@ -164,23 +166,28 @@
           (setf (dag-draw-node-y-coord node-b) 150)
           (setf (dag-draw-node-rank node-b) 1)
 
-          (let ((splines (dag-draw--create-downward-spline graph node-a node-b)))
-            (expect (length splines) :to-equal 1)
+          ;; Updated to use current API signature (graph, edge, from-node, to-node)
+          (let ((splines (dag-draw--create-downward-spline graph edge node-a node-b)))
+            ;; GKNV Section 5.2 may create multiple spline segments for accurate path
+            (expect (length splines) :to-be-greater-than 0)
 
-            (let ((curve (car splines)))
+            (let ((first-curve (car splines))
+                  (last-curve (car (last splines))))
               ;; Start should be at bottom of node A
-              (expect (dag-draw-point-x (dag-draw-bezier-curve-p0 curve)) :to-equal 50.0)
-              ;; End should be at top of node B
-              (expect (dag-draw-point-x (dag-draw-bezier-curve-p3 curve)) :to-equal 100.0))))))
+              (expect (dag-draw-point-x (dag-draw-bezier-curve-p0 first-curve)) :to-equal 50.0)
+              ;; End should be at top of node B  
+              (expect (dag-draw-point-x (dag-draw-bezier-curve-p3 last-curve)) :to-equal 100.0))))))
 
   (it "should create horizontal flat splines"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a)
         (dag-draw-add-node graph 'b)
+        (dag-draw-add-edge graph 'a 'b)  ; Add edge for current API
 
         ;; Set coordinates on same rank
         (let ((node-a (dag-draw-get-node graph 'a))
-              (node-b (dag-draw-get-node graph 'b)))
+              (node-b (dag-draw-get-node graph 'b))
+              (edge (car (dag-draw-graph-edges graph))))  ; Get the edge
           (setf (dag-draw-node-x-coord node-a) 50)
           (setf (dag-draw-node-y-coord node-a) 100)
           (setf (dag-draw-node-rank node-a) 1)
@@ -189,13 +196,16 @@
           (setf (dag-draw-node-y-coord node-b) 100)
           (setf (dag-draw-node-rank node-b) 1)
 
-          (let ((splines (dag-draw--create-horizontal-spline node-a node-b 'right 'left graph)))
-            (expect (length splines) :to-equal 1)
+          ;; Updated to use current API: (graph edge from-node to-node from-side to-side)
+          (let ((splines (dag-draw--create-horizontal-spline graph edge node-a node-b 'right 'left)))
+            ;; GKNV Section 5.2 may create multiple spline segments for accurate path
+            (expect (length splines) :to-be-greater-than 0)
 
-            (let ((curve (car splines)))
+            (let ((first-curve (car splines))
+                  (last-curve (car (last splines))))
               ;; Y coordinates should be same (horizontal)
-              (expect (dag-draw-point-y (dag-draw-bezier-curve-p0 curve))
-                      :to-equal (dag-draw-point-y (dag-draw-bezier-curve-p3 curve))))))))
+              (expect (dag-draw-point-y (dag-draw-bezier-curve-p0 first-curve))
+                      :to-equal (dag-draw-point-y (dag-draw-bezier-curve-p3 last-curve))))))))
 
   (it "should create self-edge loops"
       (let ((graph (dag-draw-create-graph)))
