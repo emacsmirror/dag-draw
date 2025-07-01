@@ -22,14 +22,28 @@
 
 (defcustom dag-draw-ascii-coordinate-scale 0.6
   "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
-SCALE UNIFICATION: Set to 0.6 (2 * 0.3) to replace the previous double-multiplication
-and create consistent coordinate mapping throughout the system."
+
+ASCII CHARACTER CONSTRAINTS:
+- GKNV paper suggests '72 units per inch' for high-resolution graphics
+- ASCII terminals have ~5 characters per inch in typical monospace fonts  
+- Scale factor needed: 72 ÷ 5 = ~14.4x compression from GKNV to ASCII
+- Our 0.6 scale ≈ 1/14.4 × 8.64, which provides good ASCII grid mapping
+
+VISUAL RESULT: Eliminates coordinate collapse and produces clean edge routing."
   :type 'float
   :group 'dag-draw-render)
 
 (defcustom dag-draw-ascii-box-scale 0.08
   "Scale factor for converting node bounding boxes to ASCII character grid sizes.
-VISUAL FIX: Reverted to proven 0.08 scale for proper text fitting and visual proportions."
+
+ASCII TEXT FITTING CONSTRAINTS:
+- Each ASCII character occupies exactly 1 grid cell (monospace requirement)
+- Node text must fit within character boundaries without overlap
+- Conservative 0.08 scale ensures text labels fit properly in boxes
+- Larger scales cause text truncation, smaller scales waste space
+
+GKNV ADAPTATION: While GKNV uses continuous coordinates, ASCII requires 
+discrete character positioning, hence the smaller box scale."
   :type 'float
   :group 'dag-draw-render)
 

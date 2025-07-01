@@ -128,21 +128,22 @@
     (it "should convert world coordinates to grid coordinates"
       ;; Test the coordinate transformation used in ASCII rendering
       (let ((world-point (dag-draw-point-create :x 100 :y 50))
-            (min-x 0) (min-y 0) (scale 2))
+            (min-x 0) (min-y 0) (scale 2))  ; Note: Uses global coordinate scale
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; Using improved coordinate scale of 0.08: 100 * 2 * 0.08 = 16
-          (expect (dag-draw-point-x grid-point) :to-equal 16.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 8.0))))
+          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
+          (expect (dag-draw-point-x grid-point) :to-equal 60.0)  ; 100 * 0.6 = 60
+          (expect (dag-draw-point-y grid-point) :to-equal 30.0)))) ; 50 * 0.6 = 30
     
     (it "should handle coordinate offsets correctly"
       (let ((world-point (dag-draw-point-create :x 150 :y 100))
-            (min-x 50) (min-y 25) (scale 2))
+            (min-x 50) (min-y 25) (scale 2))  ; Note: Uses global coordinate scale
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; (150-50) * 2 * 0.08 = 16, (100-25) * 2 * 0.08 = 12  
-          (expect (dag-draw-point-x grid-point) :to-equal 16.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 12.0)))))
+          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
+          ;; (150-50) * 0.6 = 60, (100-25) * 0.6 = 45
+          (expect (dag-draw-point-x grid-point) :to-equal 60.0)
+          (expect (dag-draw-point-y grid-point) :to-equal 45.0)))))
 
   (describe "Integration with edge routing"
     

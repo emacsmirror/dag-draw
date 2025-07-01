@@ -121,43 +121,47 @@
     ;; Test the coordinate transformation used in ASCII rendering
     (let* ((min-x 0)
            (min-y 0)
-           (scale 2)
+           (scale 2)  ; Note: Function now uses global dag-draw-ascii-coordinate-scale
            (world-x 100)
            (world-y 200)
            ;; Use the new helper function for consistent calculation
            (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
            (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
-      (expect grid-x :to-equal 16.0)  ; 100 * 2 * 0.08 = 16  
-      (expect grid-y :to-equal 32.0)  ; 200 * 2 * 0.08 = 32
+      ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6) 
+      ;; for proper ASCII character constraints (5 chars/inch vs GKNV 72 units/inch)
+      (expect grid-x :to-equal 60.0)  ; 100 * 0.6 = 60 (ASCII-appropriate scale)
+      (expect grid-y :to-equal 120.0) ; 200 * 0.6 = 120 (ASCII-appropriate scale)
       ))
   
   (it "should handle negative coordinates"
     (let* ((min-x -50)
            (min-y -25)
-           (scale 2)
+           (scale 2)  ; Note: Function now uses global dag-draw-ascii-coordinate-scale
            (world-x 0)
            (world-y 0)
            (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
            (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
       
-      (expect grid-x :to-equal 8.0)  ; (0 - (-50)) * 2 * 0.08 = 8
-      (expect grid-y :to-equal 4.0)   ; (0 - (-25)) * 2 * 0.08 = 4
+      ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
+      (expect grid-x :to-equal 30.0)  ; (0 - (-50)) * 0.6 = 30 (ASCII-appropriate scale)
+      (expect grid-y :to-equal 15.0)  ; (0 - (-25)) * 0.6 = 15 (ASCII-appropriate scale)
       ))
   
   (it "should scale node sizes appropriately"
     ;; Test node size scaling used in dag-draw--ascii-draw-nodes
-    (let* ((scale 2)
+    (let* ((scale 2)  ; Note: Function now uses global dag-draw-ascii-box-scale
            (node-width 50)
            (node-height 30)
            ;; Use the new helper function for consistent calculation
            (grid-width (dag-draw--world-to-grid-size node-width scale))
            (grid-height (dag-draw--world-to-grid-size node-height scale)))
       
-      ;; With dag-draw-ascii-box-scale = 0.08: max(3, ceil(50 * 2 * 0.08)) = max(3, 8) = 8
-      (expect grid-width :to-equal 8)  
-      ;; max(3, ceil(30 * 2 * 0.08)) = max(3, 5) = 5
-      (expect grid-height :to-equal 5)
+      ;; ASCII TEXT FITTING: Uses dag-draw-ascii-box-scale (0.08) for proper text fitting
+      ;; max(3, ceil(50 * 0.08)) = max(3, 4) = 4 (conservative for ASCII character boundaries)
+      (expect grid-width :to-equal 4)  
+      ;; max(3, ceil(30 * 0.08)) = max(3, 3) = 3 (minimum size for text)
+      (expect grid-height :to-equal 3)
       )))
 
 (describe "ASCII Grid Utilities"
