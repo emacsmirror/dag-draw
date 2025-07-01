@@ -173,7 +173,7 @@
         ;; Should have reasonable size (not tiny or enormous)
         (let ((lines (split-string ascii-output "\n")))
           (expect (length lines) :to-be-greater-than 5)
-          (expect (length lines) :to-be-less-than 100)))))
+          (expect (length lines) :to-be-less-than 100))))) ; 4 closing parens: lines-let, ascii-let, graph-let, it
   
   (it "should handle graphs with different node sizes"
     (let ((graph (dag-draw-create-graph)))

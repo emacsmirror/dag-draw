@@ -239,9 +239,11 @@ Returns (width . height) where dimensions fit the actual text content.
 This enables GKNV variable node sizing while respecting user constraints."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
-         ;; Use improved ASCII rendering scale factors
+         ;; SCALING FIX: Use global parameter to eliminate double scaling
          (grid-scale 2)
-         (ascii-box-scale 0.08)
+         (ascii-box-scale (if (boundp 'dag-draw-ascii-box-scale) 
+                             dag-draw-ascii-box-scale 
+                             0.08))  ; Use global scale or fallback
          (min-width 80)
          ;; Calculate width to fit the longest line (variable sizing)
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
