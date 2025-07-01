@@ -99,17 +99,17 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
            (max-node-y-extent 0)
            ;; Adaptive spacing buffer based on graph complexity + collision detection range
            (node-count (ht-size (dag-draw-graph-nodes graph)))
-           ;; COORDINATE PRESERVATION FIX: Drastically reduce collision buffers
-           ;; to preserve hierarchical structure from GKNV positioning algorithm
+           ;; COORDINATE PRESERVATION: Minimal collision buffers for compact output
+           ;; PHASE 1 FIX: Further reduce collision buffers to prevent grid bloat
            (base-collision-buffer (cond
-                                   ((< node-count 3) 3)    ; Small graphs - minimal buffer
-                                   ((< node-count 5) 5)    ; Medium graphs - small buffer
-                                   (t 8)))                  ; Large graphs - modest buffer
-           ;; Reduce collision movement allowance to preserve coordinate precision
+                                   ((< node-count 3) 2)    ; Small graphs - minimal buffer
+                                   ((< node-count 5) 3)    ; Medium graphs - small buffer
+                                   (t 4)))                  ; Large graphs - modest buffer (was 8!)
+           ;; Reduce collision movement allowance to preserve coordinate precision  
            (max-collision-movement (cond
-                                    ((< node-count 3) 5)    ; Small graphs - minimal movement
-                                    ((< node-count 5) 8)    ; Medium graphs - small movement  
-                                    (t 12)))                 ; Large graphs - modest movement
+                                    ((< node-count 3) 3)    ; Small graphs - minimal movement
+                                    ((< node-count 5) 4)    ; Medium graphs - small movement (was 8!)
+                                    (t 6)))                  ; Large graphs - controlled movement (was 12!)
            (collision-spacing-buffer (+ base-collision-buffer max-collision-movement)))                ; Large graphs - generous buffer
 
       ;; Find maximum node extents
@@ -128,32 +128,90 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
              (total-width (- adjusted-max-x adjusted-min-x))
              (total-height (- adjusted-max-y adjusted-min-y))
              ;; Handle empty graphs and ensure minimum grid size
-             ;; DYNAMIC GRID SIZING: Adaptive multiplier optimized for safety and compactness
-             ;; Prioritize ensuring all nodes appear over minimal grid size
+             ;; DYNAMIC GRID SIZING: Compact multiplier for professional output
+             ;; PHASE 1 FIX: Dramatically reduce grid bloat (was causing 108-line output)
              (dynamic-multiplier (cond
-                                  ((= node-count 1) 1.4)    ; Single node - very compact (reduced for test compliance)
-                                  ((< node-count 4) 1.95)   ; Small graphs - moderate but safe (balanced for node visibility)
-                                  ((< node-count 8) 2.7)    ; Medium graphs - generous  
-                                  (t 3.0)))                  ; Large graphs - spacious
-             ;; COLLISION SAFETY: Minimal extra padding to prevent nodes from going outside grid
-             ;; while keeping grid sizes reasonable for test expectations
-             (extra-width-padding (max 20 (* node-count 5)))  ; Increased padding for node visibility
-             (extra-height-padding (max 8 (* node-count 3)))
+                                  ((= node-count 1) 1.2)    ; Single node - compact
+                                  ((< node-count 4) 1.4)    ; Small graphs - reasonable
+                                  ((< node-count 8) 1.6)    ; Medium graphs - moderate (was 2.7!)
+                                  (t 1.8)))                  ; Large graphs - controlled (was 3.0!)
+             ;; COLLISION SAFETY: Minimal padding for compact professional output
+             ;; PHASE 1 FIX: Reduce excessive padding that was inflating grid size
+             (extra-width-padding (max 10 (* node-count 2)))  ; Reduced from (* node-count 5)
+             (extra-height-padding (max 5 (ceiling (* node-count 1.5))))  ; Ensure integer
              (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
              (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
              (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-        ;; Draw nodes using adjusted bounds with generous grid
-        (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
-
+        ;; PHASE 2 FIX: Coordinate System Unification
+        ;; PRE-CALCULATE node positions with collision detection BEFORE drawing anything
+        ;; This ensures edges and nodes use the same final coordinates
+        (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
+        
         ;; Generate splines for smoother edge routing (GKNV algorithm Pass 4)
         (dag-draw-generate-splines graph)
 
-        ;; Draw edges using spline data when available
+        ;; Draw edges FIRST using spline data when available - now uses final positions
         (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+
+        ;; Draw nodes LAST to ensure box integrity - uses same final positions  
+        (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
 
         ;; Convert grid to string
         (dag-draw--ascii-grid-to-string grid)))))
+
+(defun dag-draw--pre-calculate-final-node-positions (graph grid min-x min-y scale)
+  "PHASE 2 FIX: Pre-calculate final node positions with collision detection.
+This ensures edges and nodes use the same coordinate system."
+  (let ((drawn-nodes '())  ; Track already drawn nodes for collision detection
+        (adjusted-positions (ht-create)))  ; Track final positions
+    ;; HIERARCHY-AWARE PROCESSING: Sort nodes by rank to ensure proper ordering
+    (let ((sorted-node-ids (sort (ht-keys (dag-draw-graph-nodes graph))
+                                  (lambda (a b)
+                                    (let* ((node-a (ht-get (dag-draw-graph-nodes graph) a))
+                                           (node-b (ht-get (dag-draw-graph-nodes graph) b))
+                                           (rank-a (or (dag-draw-node-rank node-a) 0))
+                                           (rank-b (or (dag-draw-node-rank node-b) 0)))
+                                      (< rank-a rank-b))))))
+      (dolist (node-id sorted-node-ids)
+        (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
+               (x (or (dag-draw-node-x-coord node) 0))
+               (y (or (dag-draw-node-y-coord node) 0))
+               (width (dag-draw-node-x-size node))
+               (height (dag-draw-node-y-size node))
+               ;; Convert world coordinates to grid coordinates
+               (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+               (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+               (grid-width (dag-draw--world-to-grid-size width scale))
+               (grid-height (dag-draw--world-to-grid-size height scale))
+               ;; Calculate top-left corner for box drawing
+               (grid-x (- grid-center-x (/ grid-width 2)))
+               (grid-y (- grid-center-y (/ grid-height 2))))
+
+          ;; Round coordinates to match occupancy map exactly
+          (let ((final-x (round grid-x))
+                (final-y (round grid-y))
+                (final-width (round grid-width))
+                (final-height (round grid-height)))
+
+            ;; Apply collision avoidance spacing
+            (let* ((adjusted-pos (dag-draw--resolve-node-collision
+                                  final-x final-y final-width final-height drawn-nodes graph node-id))
+                   (adjusted-x (car adjusted-pos))
+                   (adjusted-y (cadr adjusted-pos))
+                   (current-rect (list adjusted-x adjusted-y
+                                       (+ adjusted-x final-width -1)
+                                       (+ adjusted-y final-height -1))))
+
+              ;; Track this node for future collision detection
+              (push (append current-rect (list node-id)) drawn-nodes)
+
+              ;; Store final adjusted position 
+              (ht-set! adjusted-positions node-id
+                       (list adjusted-x adjusted-y final-width final-height)))))))
+
+    ;; Store adjusted positions in graph for both edge and node drawing to use
+    (setf (dag-draw-graph-adjusted-positions graph) adjusted-positions)))
 
 (defun dag-draw-display-in-buffer (graph &optional buffer-name format)
   "Display rendered GRAPH in a buffer."

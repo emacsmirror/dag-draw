@@ -71,13 +71,13 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
     ;; COORDINATE SYSTEM FIX: Return grid coordinates directly to avoid double conversion
     (cond
      ((eq side 'top)
-      (dag-draw-point-create :x actual-center-x :y grid-y))
+      (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
      ((eq side 'bottom)
-      (dag-draw-point-create :x actual-center-x :y grid-y-end))
+      (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
      ((eq side 'left)
-      (dag-draw-point-create :x grid-x :y (+ grid-y 1)))  ; Content line, not center
+      (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
      ((eq side 'right)
-      (dag-draw-point-create :x grid-x-end :y (+ grid-y 1)))
+      (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
      (t
       (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
 
@@ -208,7 +208,7 @@ This prevents corner crowding by spreading multiple edges across different port 
          (edge-count (length edges-from-node))
          (edge-index (--find-index (eq edge it) edges-from-node)))
 
-    (if (and (> edge-count 1) edge-index)
+    (if (and (> edge-count 1) (numberp edge-index))
         ;; Multiple edges from same node - distribute ports
         (dag-draw--calculate-distributed-ports-multi-edge
          from-node to-node edge-index edge-count min-x min-y scale graph)
@@ -262,10 +262,10 @@ EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
     ;; For multiple edges, offset from the base position
     (if (= edge-count 1)
         base-port
-      ;; Calculate offset based on edge index
+      ;; Calculate offset based on edge index - GKNV Section 5.1.1 compliance
       (let* ((offset-factor (if (> edge-count 1) (/ (- edge-index (/ (1- edge-count) 2.0)) edge-count) 0))
-             (max-offset 3.0) ; Maximum offset for horizontal sides
-             (vertical-offset 1.0)) ; Smaller offset for vertical sides to maintain alignment
+             (max-offset 6.0) ; Increased offset to prevent ASCII grid overlaps 
+             (vertical-offset 3.0)) ; Increased offset for better visual separation
         (cond
          ;; Horizontal sides: distribute vertically
          ((or (eq side 'left) (eq side 'right))

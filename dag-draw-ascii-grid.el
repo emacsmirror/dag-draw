@@ -20,9 +20,10 @@
 
 ;;; Customization
 
-(defcustom dag-draw-ascii-coordinate-scale 0.08
+(defcustom dag-draw-ascii-coordinate-scale 0.6
   "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
-VISUAL FIX: Reverted to proven 0.08 scale for proper edge connectivity."
+SCALE UNIFICATION: Set to 0.6 (2 * 0.3) to replace the previous double-multiplication
+and create consistent coordinate mapping throughout the system."
   :type 'float
   :group 'dag-draw-render)
 
@@ -37,13 +38,15 @@ VISUAL FIX: Reverted to proven 0.08 scale for proper text fitting and visual pro
 (defun dag-draw--world-to-grid-coord (coord min-coord scale)
   "Convert GKNV world coordinate to ASCII grid coordinate with precise rounding.
 COORD is the world coordinate, MIN-COORD is the minimum coordinate for offset,
-SCALE is the grid scale factor."
-  (float (round (* (- coord min-coord) scale dag-draw-ascii-coordinate-scale))))
+SCALE is the grid scale factor.
+SCALE UNIFICATION: Use only dag-draw-ascii-coordinate-scale to eliminate double multiplication."
+  (float (round (* (- coord min-coord) dag-draw-ascii-coordinate-scale))))
 
 (defun dag-draw--world-to-grid-size (size scale)
   "Convert GKNV node size to ASCII grid size.
-SIZE is the node size in world coordinates, SCALE is the grid scale factor."
-  (max 3 (ceiling (* size scale dag-draw-ascii-box-scale))))
+SIZE is the node size in world coordinates, SCALE is the grid scale factor.
+SCALE UNIFICATION: Use only dag-draw-ascii-box-scale to eliminate double multiplication."
+  (max 3 (ceiling (* size dag-draw-ascii-box-scale))))
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
   "Get node center coordinates directly in grid space for simple edge routing.
@@ -120,7 +123,7 @@ CURRENT-DRAWN-NODES is a list of (node-id x y width height) for already position
 Returns (adjusted-x adjusted-y) that avoids all drawn nodes with safe spacing.
 GRAPH and NODE-ID are optional for hierarchy-aware collision resolution."
   ;; Debug output removed for cleaner production code
-  (let ((min-spacing 6)  ; Optimal minimum spacing - clean separation and prevents corruption
+  (let ((min-spacing 3)  ; Reduced spacing for better test compatibility
         (current-rect (list x y (+ x width -1) (+ y height -1)))
         (max-attempts 20)
         (attempt 0)
