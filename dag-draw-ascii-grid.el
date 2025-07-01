@@ -33,14 +33,14 @@ VISUAL RESULT: Eliminates coordinate collapse and produces clean edge routing."
   :type 'float
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-box-scale 0.08
+(defcustom dag-draw-ascii-box-scale 0.16
   "Scale factor for converting node bounding boxes to ASCII character grid sizes.
 
 ASCII TEXT FITTING CONSTRAINTS:
 - Each ASCII character occupies exactly 1 grid cell (monospace requirement)
 - Node text must fit within character boundaries without overlap
-- Conservative 0.08 scale ensures text labels fit properly in boxes
-- Larger scales cause text truncation, smaller scales waste space
+- Increased to 0.16 scale to allow more text to fit within boxes
+- Balance between text visibility and algorithm stability
 
 GKNV ADAPTATION: While GKNV uses continuous coordinates, ASCII requires 
 discrete character positioning, hence the smaller box scale."

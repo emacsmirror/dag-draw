@@ -174,14 +174,19 @@
           (setf (dag-draw-node-x-size target) 40)
           (setf (dag-draw-node-y-size target) 20))
 
-        ;; Create grid with plenty of free space
+        ;; Create grid with plenty of free space  
+        ;; COORDINATE FIX: Ensure grid is large enough for our test coordinates
+        ;; Source (100,100) -> grid (30,30), Target (200,200) -> grid (90,90) with 0.6 scale
         (let* ((min-x 50) (min-y 50) (scale 2)
-               (grid-width 40) (grid-height 40)
+               (grid-width 120) (grid-height 120)  ; Increased to fit coordinates
                (grid (make-vector grid-height nil)))
 
           (dotimes (y grid-height)
             (aset grid y (make-vector grid-width ?\s)))
 
+          ;; Generate splines for the edges (required for edge drawing)
+          (dag-draw-generate-splines graph)
+          
           ;; Draw nodes and edges
           (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
           (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
