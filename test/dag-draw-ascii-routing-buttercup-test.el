@@ -65,7 +65,7 @@
         (let ((grid-coord (dag-draw--world-to-grid-coord world-coord min-coord scale)))
           (expect grid-coord :to-be-close-to 30.0 1.0))  ; (150-100) * 0.6 = 30 (ASCII-appropriate)
 
-        ;; Test world-to-grid size conversion (uses dag-draw-ascii-box-scale 0.08)
+        ;; Test world-to-grid size conversion using unified coordinate scale
         (let ((world-size 80))
           (let ((grid-size (dag-draw--world-to-grid-size world-size scale)))
             (expect grid-size :to-be-greater-than 3))))))

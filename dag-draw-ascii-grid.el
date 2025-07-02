@@ -33,17 +33,6 @@ VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
   :type 'float
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-box-scale 0.15
-  "DEPRECATED: Use dag-draw-ascii-coordinate-scale for unified mathematical consistency.
-
-MATHEMATICAL UNIFICATION: This variable is deprecated to eliminate scale factor
-mismatches that cause boundary alignment issues. All coordinate and size 
-conversions now use dag-draw-ascii-coordinate-scale for consistency.
-
-LEGACY NOTE: Previously 0.16, now 0.15 to match coordinate scale and prevent
-the 6.7% mismatch that caused double vertical line artifacts."
-  :type 'float
-  :group 'dag-draw-render)
 
 ;;; ASCII Scaling Helper Functions
 
@@ -378,7 +367,9 @@ lands at the true visual center of the box, not the mathematical center."
 (defun dag-draw--ascii-grid-to-string (grid)
   "Convert ASCII grid to string representation."
   (mapconcat (lambda (row)
-               (string-trim-right (apply #'string (append row nil))))
+               ;; FIXED: Don't use string-trim-right as it removes important characters
+               ;; that happen to be followed by spaces. Instead, preserve all characters.
+               (apply #'string (append row nil)))
              grid
              "\n"))
 

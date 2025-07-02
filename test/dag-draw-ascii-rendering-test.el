@@ -150,14 +150,14 @@
   
   (it "should scale node sizes appropriately"
     ;; Test node size scaling used in dag-draw--ascii-draw-nodes
-    (let* ((scale 2)  ; Note: Function now uses global dag-draw-ascii-box-scale
+    (let* ((scale 2)  ; Uses unified dag-draw-ascii-coordinate-scale
            (node-width 50)
            (node-height 30)
            ;; Use the new helper function for consistent calculation
            (grid-width (dag-draw--world-to-grid-size node-width scale))
            (grid-height (dag-draw--world-to-grid-size node-height scale)))
       
-      ;; ASCII TEXT FITTING: Uses dag-draw-ascii-box-scale (0.08) for proper text fitting
+      ;; ASCII TEXT FITTING: Uses unified coordinate scale for proper text fitting
       ;; max(3, ceil(50 * 0.08)) = max(3, 4) = 4 (conservative for ASCII character boundaries)
       (expect grid-width :to-equal 4)  
       ;; max(3, ceil(30 * 0.08)) = max(3, 3) = 3 (minimum size for text)

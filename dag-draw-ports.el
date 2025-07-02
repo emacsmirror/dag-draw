@@ -31,7 +31,7 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (manual-x (dag-draw-node-x-coord node))
          (manual-y (dag-draw-node-y-coord node))
          (has-manual-coords (and manual-x manual-y))
-         ;; COORDINATE SYSTEM FIX: Always prioritize adjusted coordinates when available
+         ;; Always prioritize adjusted coordinates when available
          ;; The adjusted-positions contain the final collision-resolved positions
          (adjusted-positions-table (and graph (dag-draw-graph-adjusted-positions graph)))
          (adjusted-coords (and adjusted-positions-table
@@ -39,39 +39,35 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (x (if adjusted-coords
                 ;; Adjusted coordinates are already in grid space: (x y width height)
                 (float (nth 0 adjusted-coords))
-              ;; Prioritize manual coordinates - need conversion
-              (float (or manual-x 0))))
+              ;; Convert manual world coordinates to grid coordinates
+              (dag-draw--world-to-grid-coord (or manual-x 0) min-x scale)))
          (y (if adjusted-coords
                 (float (nth 1 adjusted-coords))
-              (float (or manual-y 0))))
+              ;; Convert manual world coordinates to grid coordinates
+              (dag-draw--world-to-grid-coord (or manual-y 0) min-y scale)))
          (width (if adjusted-coords
                     (float (nth 2 adjusted-coords))
-                  (float (dag-draw-node-x-size node))))
+                  (dag-draw--world-to-grid-size (dag-draw-node-x-size node) scale)))
          (height (if adjusted-coords
                      (float (nth 3 adjusted-coords))
-                   (float (dag-draw-node-y-size node))))
-         ;; COORDINATE SYSTEM UNIFICATION: Use EXACT same logic as node rendering
-         ;; CRITICAL FIX: Use min-x/min-y directly (NOT adjusted-min-x/y) to match rendering
-         (grid-center-x (if adjusted-coords
-                            (+ x (/ width 2.0))
-                          (dag-draw--world-to-grid-coord x min-x scale)))
-         (grid-center-y (if adjusted-coords
-                            (+ y (/ height 2.0))
-                          (dag-draw--world-to-grid-coord y min-y scale)))
-         (grid-width (if adjusted-coords width (dag-draw--world-to-grid-size width scale)))
-         (grid-height (if adjusted-coords height (dag-draw--world-to-grid-size height scale)))
-         ;; FIXED: Use adjusted coordinates consistently without additional transformations
-         (grid-x (if adjusted-coords (round x) (round (- grid-center-x (/ grid-width 2)))))
-         (grid-y (if adjusted-coords (round y) (round (- grid-center-y (/ grid-height 2)))))
-         (grid-x-end (if adjusted-coords (+ grid-x grid-width -1) (+ grid-x grid-width -1)))
-         (grid-y-end (if adjusted-coords (+ grid-y grid-height -1) (+ grid-y grid-height -1)))
-         ;; COORDINATE PRECISION FIX: Ensure all coordinates are integer-quantized
-         (actual-center-x (round (if adjusted-coords (+ x (/ width 2.0)) (+ grid-x (/ grid-width 2.0)))))
-         (actual-center-y (round (if adjusted-coords (+ y (/ height 2.0)) (+ grid-y (/ grid-height 2.0))))))
+                   (dag-draw--world-to-grid-size (dag-draw-node-y-size node) scale)))
+         ;; Both paths now use converted coordinates
+         (grid-center-x (+ x (/ width 2.0)))
+         (grid-center-y (+ y (/ height 2.0)))
+         (grid-width width)
+         (grid-height height)
+         ;; Use unified coordinate system consistently
+         (grid-x (round (- grid-center-x (/ grid-width 2))))
+         (grid-y (round (- grid-center-y (/ grid-height 2))))
+         (grid-x-end (+ grid-x grid-width -1))
+         (grid-y-end (+ grid-y grid-height -1))
+         ;; Ensure all coordinates are integer-quantized
+         (actual-center-x (round grid-center-x))
+         (actual-center-y (round grid-center-y)))
 
     ;; Port calculation using coordinate priority: adjusted > manual > default
 
-    ;; COORDINATE SYSTEM FIX: Return grid coordinates directly to avoid double conversion
+    ;; Return grid coordinates directly to avoid double conversion
     (let ((result-port
            (cond
             ((eq side 'top)
@@ -209,98 +205,12 @@ Returns list of (from-port to-port) based on edge direction with grid-aware posi
                   (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))))))
 
 (defun dag-draw--calculate-distributed-edge-ports (graph edge from-node to-node min-x min-y scale)
-  "Calculate edge ports with distribution logic for multiple edges from same node.
-This prevents corner crowding by spreading multiple edges across different port positions."
-  (let* ((from-node-id (dag-draw-edge-from-node edge))
-         (edges-from-node (dag-draw-get-edges-from graph from-node-id))
-         (edge-count (length edges-from-node))
-         (edge-index (--find-index (eq edge it) edges-from-node)))
+  "Calculate edge ports using simplified GKNV-compliant approach.
+Removes complex multi-edge distribution in favor of basic direction-based ports."
+  ;; Simplified: always use standard grid-based port calculation
+  ;; This aligns with GKNV Section 5.1.1: \"route to appropriate side\"
+  (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale graph))
 
-    (if (and (> edge-count 1) (numberp edge-index))
-        ;; Multiple edges from same node - distribute ports
-        (dag-draw--calculate-distributed-ports-multi-edge
-         from-node to-node edge-index edge-count min-x min-y scale graph)
-      ;; Single edge - use standard port calculation
-      (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale graph))))
-
-(defun dag-draw--calculate-distributed-ports-multi-edge (from-node to-node edge-index edge-count min-x min-y scale graph)
-  "Calculate distributed ports for multiple edges from same node.
-EDGE-INDEX is the 0-based index of this edge among all edges from the node.
-EDGE-COUNT is the total number of edges from the node."
-  (let* ((from-x (dag-draw-node-x-coord from-node))
-         (from-y (dag-draw-node-y-coord from-node))
-         (to-x (dag-draw-node-x-coord to-node))
-         (to-y (dag-draw-node-y-coord to-node))
-         (dx (- to-x from-x))
-         (dy (- to-y from-y))
-         ;; MULTI-EDGE FIX: For multiple edges, use a consistent side strategy instead of per-edge direction
-         ;; This prevents edges from scattering to different sides and creates clean distributions
-         (primary-side (dag-draw--calculate-consistent-side-for-multi-edges
-                        from-node nil dx dy))
-         ;; Multi-edge distribution using consistent side strategy
-         ;; Calculate distributed port for from-node
-         (from-port (dag-draw--get-distributed-port from-node primary-side edge-index edge-count min-x min-y scale graph))
-         ;; Use standard port calculation for to-node (no distribution needed for target)
-         (to-port (cond
-                   ((eq primary-side 'bottom) (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph))
-                   ((eq primary-side 'top) (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph))
-                   ((eq primary-side 'right) (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph))
-                   ((eq primary-side 'left) (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))
-
-    (list from-port to-port)))
-
-(defun dag-draw--calculate-consistent-side-for-multi-edges (from-node edges-from-node dx dy)
-  "Calculate a consistent side for all edges from FROM-NODE for clean multi-edge distribution.
-This prevents edges from scattering to different sides and creates professional layouts."
-  (let ((edge-count (length edges-from-node)))
-    (if (= edge-count 1)
-        ;; Single edge - use direction-based logic
-        (let ((horizontal-threshold 50.0)  ; Simplified thresholds
-              (vertical-threshold 50.0))
-          (cond
-           ;; Vertical edges
-           ((and (< (abs dx) horizontal-threshold) (> dy 0)) 'bottom)
-           ((and (< (abs dx) horizontal-threshold) (< dy 0)) 'top)
-           ;; Horizontal edges
-           ((and (< (abs dy) vertical-threshold) (> dx 0)) 'right)
-           ((and (< (abs dy) vertical-threshold) (< dx 0)) 'left)
-           ;; Diagonal - prefer vertical for better ASCII rendering
-           ((>= (abs dy) (abs dx)) (if (> dy 0) 'bottom 'top))
-           ;; Default to horizontal
-           (t (if (> dx 0) 'right 'left))))
-      ;; Multiple edges - use consistent side strategy for clean distribution
-      (dag-draw--select-primary-side-for-node from-node edges-from-node))))
-
-(defun dag-draw--select-primary-side-for-node (from-node edges-from-node)
-  "Select the primary side for all edges from FROM-NODE for consistent distribution.
-For now, uses bottom side which works well for most DAG layouts."
-  ;; SIMPLIFIED: Always use bottom side for multi-edge nodes
-  ;; This creates clean, consistent distributions and works well for typical DAG layouts
-  ;; where most dependencies flow downward. Future versions could analyze target positions.
-  'bottom)
-
-(defun dag-draw--get-distributed-port (node side edge-index edge-count min-x min-y scale &optional graph)
-  "Get a distributed port position for NODE on SIDE.
-EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
-  ;; Get the basic side port position
-  (let* ((base-port (dag-draw--get-node-port-grid node side min-x min-y scale graph))
-         (base-x (dag-draw-point-x base-port))
-         (base-y (dag-draw-point-y base-port)))
-
-    ;; For multiple edges, offset from the base position
-    (if (= edge-count 1)
-        base-port
-      ;; Calculate offset based on edge index - GKNV Section 5.1.1 compliance
-      (let* ((offset-factor (if (> edge-count 1) (/ (- edge-index (/ (1- edge-count) 2.0)) edge-count) 0))
-             (max-offset 6.0) ; Increased offset to prevent ASCII grid overlaps
-             (vertical-offset 3.0)) ; Increased offset for better visual separation
-        (cond
-         ;; Horizontal sides: distribute vertically
-         ((or (eq side 'left) (eq side 'right))
-          (dag-draw-point-create :x base-x :y (+ base-y (* offset-factor max-offset))))
-         ;; Vertical sides: distribute horizontally with smaller offset
-         ((or (eq side 'top) (eq side 'bottom))
-          (dag-draw-point-create :x (+ base-x (* offset-factor vertical-offset)) :y base-y)))))))
 
 (defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
   "Convert world coordinate point to ASCII grid coordinates with precise rounding."
@@ -314,10 +224,9 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (result (if (and min-x min-y scale)
-                     ;; Use enhanced port calculation with multi-edge distribution
+                     ;; Use simplified GKNV-compliant port calculation
                      (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)
                    (dag-draw--calculate-edge-ports from-node to-node))))
-    ;; Port calculation using enhanced multi-edge distribution logic
     result))
 
 (provide 'dag-draw-ports)
