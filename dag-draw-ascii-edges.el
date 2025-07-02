@@ -196,7 +196,7 @@
             (aset (aref grid y) x arrow-char)
             (push position-key dag-draw--arrow-positions))
 
-           ;; Case 3: Already has arrow - SKIP TO PREVENT CONFLICTS  
+           ;; Case 3: Already has arrow - SKIP TO PREVENT CONFLICTS
            ;; Don't place arrows where another arrow already exists to prevent ▶◀ conflicts
            ((memq current-char '(?▼ ?▲ ?▶ ?◀))
             ;; Skip this arrow placement to avoid visual conflicts
@@ -225,7 +225,7 @@
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-      ;; BUFFER ZONE FIX: Check occupancy map first to respect buffer zones  
+      ;; BUFFER ZONE FIX: Check occupancy map first to respect buffer zones
       ;; If position is in a buffer zone, skip drawing ANY edge character
       (unless (and occupancy-map
                    (let ((grid-height-occ (length occupancy-map))
@@ -647,8 +647,13 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
 (defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 occupancy-map port-side)
   "Add directional arrow based on actual coordinate direction, with port-side as secondary."
   (let* ((dx (- x2 x1))
-         (dy (- y2 y1))
-         (arrow-char (cond
+         (dy (- y2 y1)))
+
+    ;; DEBUG: Show coordinates and direction calculation for arrow placement
+    (message "    GRID-ARROW: (%d,%d)->(%d,%d) dx=%d dy=%d port-side=%s"
+             x1 y1 x2 y2 dx dy port-side)
+
+    (let ((arrow-char (cond
                       ;; PRIORITY: Use coordinate-based direction for clear vertical/horizontal cases
                       ((and (= dx 0) (> dy 0)) ?▼)  ; Pure vertical downward
                       ((and (= dx 0) (< dy 0)) ?▲)  ; Pure vertical upward
@@ -658,7 +663,12 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
                       ((> (abs dy) (abs dx))
                        (if (> dy 0) ?▼ ?▲))    ; Primarily vertical
                       ((> (abs dx) (abs dy))
-                       (if (> dx 0) ?▶ ?◀))    ; Primarily horizontal
+                       ;; ARROW DIRECTION FIX: For primarily horizontal edges, use port-side as hint
+                       ;; Port-side 'left means arrow goes rightward (INTO left side)
+                       (cond ((eq port-side 'left) ?▶)   ; Arrow pointing right into left side
+                             ((eq port-side 'right) ?◀)  ; Arrow pointing left into right side  
+                             ((> dx 0) ?▶)               ; Fallback to coordinate direction
+                             (t ?◀)))                    ; Fallback to coordinate direction
                       ;; FALLBACK: Use port side only for unclear cases
                       ((eq port-side 'top) ?▼)
                       ((eq port-side 'bottom) ?▲)
@@ -666,8 +676,8 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
                       ((eq port-side 'right) ?◀)
                       (t ?▶))))                      ; Final default
 
-    ;; Draw arrow at endpoint with ultra-safe collision detection
-    (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map)))
+      ;; Draw arrow at endpoint with ultra-safe collision detection
+      (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map))))
 
 (defun dag-draw--draw-gknv-continuous-horizontal-line (grid start-x end-x y occupancy-map)
   "Draw continuous horizontal line per GKNV spline algorithm.
@@ -708,19 +718,19 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
          (to-port (when connection-points (cadr connection-points))))
 
     (when (and from-port to-port)
-      (message "  RAW-PORTS: from=(%.2f,%.2f) to=(%.2f,%.2f)" 
+      (message "  RAW-PORTS: from=(%.2f,%.2f) to=(%.2f,%.2f)"
                (dag-draw-point-x from-port) (dag-draw-point-y from-port)
                (dag-draw-point-x to-port) (dag-draw-point-y to-port))
       (let* ((start-x (round (dag-draw-point-x from-port)))
              (start-y (round (dag-draw-point-y from-port)))
              (end-x (round (dag-draw-point-x to-port)))
              (end-y (round (dag-draw-point-y to-port))))
-        
-        (message "  GRID-PORTS: Edge %s->%s: (%d,%d) -> (%d,%d) %s" 
+
+        (message "  GRID-PORTS: Edge %s->%s: (%d,%d) -> (%d,%d) %s"
                  (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
                  start-x start-y end-x end-y
                  (if (and (= start-x end-x) (= start-y end-y)) "ZERO-LENGTH!" ""))
-             
+
         (let* ((to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
                (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale graph))
                ;; Calculate edge separation offset to prevent overlapping
@@ -729,7 +739,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
                (edge-index (--find-index (eq edge it) edges-from-same-node))
                (total-edges (length edges-from-same-node))
                ;; Enable edge separation to prevent overlapping parallel lines
-               (y-separation (if (> total-edges 1) 
+               (y-separation (if (> total-edges 1)
                                 (* edge-index 2)  ; Separate multiple edges by 2 grid units
                               0))
                (adjusted-start-y (+ start-y y-separation)))
@@ -762,7 +772,7 @@ PHASE 2 FIX: Converts spline points from world coordinates to grid coordinates b
     ;; Reverse to get correct order
     (setq converted-points (nreverse converted-points))
 
-    ;; REVERTED: Use simple L-path but fix the collision detection  
+    ;; REVERTED: Use simple L-path but fix the collision detection
     ;; The spline points route through nodes, so use safe orthogonal routing instead
     (dag-draw--draw-ultra-safe-l-path grid start-x start-y end-x end-y occupancy-map 'horizontal-first)
     ;; Add proper arrow at endpoint
@@ -780,18 +790,18 @@ PHASE 2 FIX: Converts spline points from world coordinates to grid coordinates b
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
             (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
-     
-     ;; Vertical line  
+
+     ;; Vertical line
      ((= dx 0)
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map)))))
-     
+
      ;; Diagonal - use L-shaped path
      (t
-      ;; Draw horizontal first, then vertical  
+      ;; Draw horizontal first, then vertical
       (dag-draw--draw-clean-line-segment grid x1 y1 x2 y1 occupancy-map)
       (dag-draw--draw-clean-line-segment grid x2 y1 x2 y2 occupancy-map)))))
 
@@ -912,7 +922,7 @@ Trust the GKNV algorithm - no safety hacks, just draw the lines."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          ;; Calculate arrow direction based on edge direction
-         (direction (dag-draw--detect-edge-direction from-node to-node))
+         (direction (dag-draw--detect-edge-direction from-node to-node graph))
          (arrow-char (dag-draw--get-arrow-char direction)))
 
     ;; Place arrow directly - trust the GKNV algorithm
@@ -999,22 +1009,44 @@ Implements GKNV Section 5.2 boundary clipping - arrow must be exactly on node bo
   (let* ((to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          ;; Calculate direction based on node positions for proper arrow orientation
-         (direction (dag-draw--detect-edge-direction from-node to-node))
+         (direction (dag-draw--detect-edge-direction from-node to-node graph))
          ;; Use existing arrow character function for proper Unicode arrows
          (arrow-char (dag-draw--get-arrow-char direction)))
 
     ;; GKNV Section 5.2: Ensure arrow is clipped to node boundary
     (dag-draw--place-boundary-clipped-arrow graph edge grid x y arrow-char occupancy-map)))
 
-(defun dag-draw--detect-edge-direction (from-node to-node)
+(defun dag-draw--detect-edge-direction (from-node to-node &optional graph)
   "Detect direction of edge from FROM-NODE to TO-NODE for proper arrow selection.
-Returns 'left, 'right, 'up, or 'down based on node coordinate differences."
-  (let* ((from-x (or (dag-draw-node-x-coord from-node) 0))
-         (from-y (or (dag-draw-node-y-coord from-node) 0))
-         (to-x (or (dag-draw-node-x-coord to-node) 0))
-         (to-y (or (dag-draw-node-y-coord to-node) 0))
+Returns 'left, 'right, 'up, or 'down based on node coordinate differences.
+COORDINATE SYSTEM FIX: Uses adjusted-positions when available to match port calculation."
+  (let* ((from-id (dag-draw-node-id from-node))
+         (to-id (dag-draw-node-id to-node))
+         ;; Use same coordinate source as port calculation - adjusted-positions first
+         (adjusted-positions (and graph (dag-draw-graph-adjusted-positions graph)))
+         (from-adjusted (and adjusted-positions (ht-get adjusted-positions from-id)))
+         (to-adjusted (and adjusted-positions (ht-get adjusted-positions to-id)))
+         ;; Calculate coordinates with adjusted-positions priority
+         (from-x (if from-adjusted
+                     (+ (nth 0 from-adjusted) (/ (nth 2 from-adjusted) 2.0))  ; center of adjusted box
+                   (or (dag-draw-node-x-coord from-node) 0)))
+         (from-y (if from-adjusted
+                     (+ (nth 1 from-adjusted) (/ (nth 3 from-adjusted) 2.0))  ; center of adjusted box
+                   (or (dag-draw-node-y-coord from-node) 0)))
+         (to-x (if to-adjusted
+                   (+ (nth 0 to-adjusted) (/ (nth 2 to-adjusted) 2.0))      ; center of adjusted box
+                 (or (dag-draw-node-x-coord to-node) 0)))
+         (to-y (if to-adjusted
+                   (+ (nth 1 to-adjusted) (/ (nth 3 to-adjusted) 2.0))      ; center of adjusted box
+                 (or (dag-draw-node-y-coord to-node) 0)))
          (dx (- to-x from-x))
          (dy (- to-y from-y)))
+
+    ;; DEBUG: Show direction calculation for diagnosis
+    (message "    ARROW-DIR: %s->%s from=(%.1f,%.1f) to=(%.1f,%.1f) dx=%.1f dy=%.1f direction=%s"
+             from-id to-id from-x from-y to-x to-y dx dy
+             (cond ((>= (abs dy) (abs dx)) (if (> dy 0) 'down 'up))
+                   (t (if (> dx 0) 'right 'left))))
 
     ;; Determine primary direction based on larger coordinate difference
     (cond

@@ -163,7 +163,10 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
                      (label-y (+ start-y line-idx)))
 
                 (when (and (>= label-y 0) (< label-y grid-height)
-                           (>= label-x 0))
+                           (>= label-x 0)
+                           ;; BOUNDARY FIX: Ensure text stays within box interior vertically
+                           (>= label-y (+ y 1))           ; Below top border
+                           (< label-y (+ y height -1)))   ; Above bottom border
                   (dotimes (i text-len)
                     (let ((char-x (+ label-x i)))
                       (when (and (>= char-x 0) (< char-x grid-width)

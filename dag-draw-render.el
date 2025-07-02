@@ -148,6 +148,9 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
         ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
         (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
         
+        ;; GHOST NODE FIX: Regenerate splines after collision detection to ensure consistency
+        (dag-draw--regenerate-splines-after-collision graph)
+        
         ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
         ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
         (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
@@ -213,6 +216,41 @@ This ensures edges and nodes use the same coordinate system."
 
     ;; Store adjusted positions in graph for both edge and node drawing to use
     (setf (dag-draw-graph-adjusted-positions graph) adjusted-positions)))
+
+(defun dag-draw--regenerate-splines-after-collision (graph)
+  "GHOST NODE FIX: Regenerate splines using collision-adjusted node positions.
+This ensures splines connect nodes at their final positions after collision detection."
+  (let ((adjusted-positions (dag-draw-graph-adjusted-positions graph)))
+    (when adjusted-positions
+      ;; Temporarily update node coordinates to collision-adjusted positions
+      (let ((original-coords (ht-create)))
+        ;; Save original coordinates and set adjusted coordinates
+        (ht-each (lambda (node-id coords)
+                   (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
+                          (adjusted-x (nth 0 coords))
+                          (adjusted-y (nth 1 coords))
+                          ;; Convert back to world coordinates for spline generation
+                          (world-x (+ adjusted-x (/ (nth 2 coords) 2.0)))  ; Use center
+                          (world-y (+ adjusted-y (/ (nth 3 coords) 2.0))))
+                     (when node
+                       ;; Save original coordinates
+                       (ht-set! original-coords node-id 
+                                (list (dag-draw-node-x-coord node) (dag-draw-node-y-coord node)))
+                       ;; Set collision-adjusted coordinates  
+                       (setf (dag-draw-node-x-coord node) world-x)
+                       (setf (dag-draw-node-y-coord node) world-y))))
+                 adjusted-positions)
+        
+        ;; Regenerate splines with updated coordinates
+        (dag-draw-generate-splines graph)
+        
+        ;; Restore original coordinates (optional - may not be needed)
+        (ht-each (lambda (node-id original-coord-pair)
+                   (let ((node (ht-get (dag-draw-graph-nodes graph) node-id)))
+                     (when node
+                       (setf (dag-draw-node-x-coord node) (nth 0 original-coord-pair))
+                       (setf (dag-draw-node-y-coord node) (nth 1 original-coord-pair)))))
+                 original-coords)))))
 
 (defun dag-draw--convert-splines-to-grid-coordinates (graph min-x min-y scale)
   "Convert spline coordinates from GKNV world coordinates to ASCII grid coordinates.
