@@ -60,10 +60,15 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
 
          ;; AGGRESSIVE BOX PROTECTION: Always draw box characters to ensure clean boxes
          ;; Since nodes are drawn last, they have final authority over box integrity
-         ((memq current-char '(?┌ ?┐ ?└ ?┘ ?─ ?│ ?┼ ?▼ ?▲ ?▶ ?◀))
+         ;; FIXED: NEVER overwrite arrows - they have priority on node boundaries per GKNV 5.2
+         ((memq current-char '(?┌ ?┐ ?└ ?┘ ?─ ?│ ?┼))
           ;; ANTI-DUPLICATION: Only overwrite if placing a different character
           (unless (eq current-char char)
             (aset (aref grid y) x char)))
+
+         ;; NEW: Arrow characters have priority - NEVER overwrite them
+         ((memq current-char '(?▼ ?▲ ?▶ ?◀))
+          nil) ; Keep arrows, don't overwrite with node borders
 
          ;; Default - draw the character
          (t (aset (aref grid y) x char)))))))

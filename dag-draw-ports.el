@@ -71,13 +71,13 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
     (let ((result-port
            (cond
             ((eq side 'top)
-             (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
+             (dag-draw-point-create :x actual-center-x :y grid-y))  ; ON top boundary
             ((eq side 'bottom)
-             (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
+             (dag-draw-point-create :x actual-center-x :y grid-y-end))  ; ON bottom boundary
             ((eq side 'left)
-             (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
+             (dag-draw-point-create :x grid-x :y actual-center-y))  ; ON left boundary
             ((eq side 'right)
-             (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
+             (dag-draw-point-create :x grid-x-end :y actual-center-y))  ; ON right boundary
             (t
              (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
 

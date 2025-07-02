@@ -335,6 +335,7 @@ Returns (min-x min-y max-x max-y)."
                         (top (- y (/ height 2.0)))
                         (bottom (+ y (/ height 2.0))))
                    
+                   
                    (setq min-x (min min-x left))
                    (setq max-x (max max-x right))
                    (setq min-y (min min-y top))

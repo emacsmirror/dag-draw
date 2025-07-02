@@ -25,7 +25,7 @@
 
 ASCII CHARACTER CONSTRAINTS:
 - GKNV paper suggests '72 units per inch' for high-resolution graphics
-- ASCII terminals have ~5 characters per inch in typical monospace fonts  
+- ASCII terminals have ~5 characters per inch in typical monospace fonts
 - Scale factor needed: 72 ÷ 5 = ~14.4x compression from GKNV to ASCII
 - Our 0.15 scale provides balanced compression avoiding coordinate collapse
 
@@ -259,78 +259,54 @@ otherwise calculates from coordinates for compatibility with tests."
                                (when (and (>= box-x 0) (< box-x grid-width)
                                           (>= box-y 0) (< box-y grid-height))
                                  (aset (aref occupancy-map box-y) box-x t)))))
-                         
-                         ;; BUFFER ZONE FIX: Mark cells immediately adjacent to vertical node boundaries
-                         ;; to prevent ││ artifacts from parallel edge lines
-                         (let ((left-buffer-x (1- grid-x))
-                               (right-buffer-x (+ grid-x grid-width-node)))
-                           ;; Mark left buffer column
-                           (when (and (>= left-buffer-x 0) (< left-buffer-x grid-width))
-                             (dotimes (dy grid-height-node)
-                               (let ((buffer-y (+ grid-y dy)))
-                                 (when (and (>= buffer-y 0) (< buffer-y grid-height))
-                                   (aset (aref occupancy-map buffer-y) left-buffer-x t)))))
-                           ;; Mark right buffer column  
-                           (when (and (>= right-buffer-x 0) (< right-buffer-x grid-width))
-                             (dotimes (dy grid-height-node)
-                               (let ((buffer-y (+ grid-y dy)))
-                                 (when (and (>= buffer-y 0) (< buffer-y grid-height))
-                                   (aset (aref occupancy-map buffer-y) right-buffer-x t))))))))
-                     (dag-draw-graph-nodes graph)))
 
-        ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
-        (ht-each (lambda (node-id node)
-                   (let* ((manual-x (dag-draw-node-x-coord node))
-                          (manual-y (dag-draw-node-y-coord node))
-                          (has-manual-coords (and manual-x manual-y))
-                          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-                          ;; Prioritize manual coordinates over adjusted coordinates
-                          (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
-                                      (ht-get adjusted-positions node-id)
-                                    (let* ((x (or manual-x 0))
-                                           (y (or manual-y 0))
-                                           (width (dag-draw-node-x-size node))
-                                           (height (dag-draw-node-y-size node))
-                                           (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                                           (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                                           (grid-width-node (dag-draw--world-to-grid-size width scale))
-                                           (grid-height-node (dag-draw--world-to-grid-size height scale))
-                                           (grid-x (- grid-center-x (/ grid-width-node 2)))
-                                           (grid-y (- grid-center-y (/ grid-height-node 2))))
-                                      (list grid-x grid-y grid-width-node grid-height-node))))
-                          (grid-x (nth 0 coords))
-                          (grid-y (nth 1 coords))
-                          (grid-width-node (nth 2 coords))
-                          (grid-height-node (nth 3 coords)))
+                         ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
+                         ;; by blocking proper edge placement. Node boundaries are handled by
+                         ;; ultra-safe-draw-char logic instead.
+                         ))
+                     (dag-draw-graph-nodes graph))
 
-                     ;; Mark all cells within this node's bounding box as occupied
-                     (dotimes (dy grid-height-node)
-                       (dotimes (dx grid-width-node)
-                         (let ((map-x (round (+ grid-x dx)))
-                               (map-y (round (+ grid-y dy))))
-                           (when (and (>= map-x 0) (< map-x grid-width)
-                                      (>= map-y 0) (< map-y grid-height))
-                             (aset (aref occupancy-map map-y) map-x t)))))
-                     
-                     ;; BUFFER ZONE FIX: Mark cells immediately adjacent to vertical node boundaries  
-                     ;; to prevent ││ artifacts from parallel edge lines (fallback case)
-                     (let ((left-buffer-x (round (1- grid-x)))
-                           (right-buffer-x (round (+ grid-x grid-width-node))))
-                       ;; Mark left buffer column
-                       (when (and (>= left-buffer-x 0) (< left-buffer-x grid-width))
+            ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
+            (ht-each (lambda (node-id node)
+                       (let* ((manual-x (dag-draw-node-x-coord node))
+                              (manual-y (dag-draw-node-y-coord node))
+                              (has-manual-coords (and manual-x manual-y))
+                              (adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                              ;; Prioritize manual coordinates over adjusted coordinates
+                              (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
+                                          (ht-get adjusted-positions node-id)
+                                        (let* ((x (or manual-x 0))
+                                               (y (or manual-y 0))
+                                               (width (dag-draw-node-x-size node))
+                                               (height (dag-draw-node-y-size node))
+                                               (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                                               (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+                                               (grid-width-node (dag-draw--world-to-grid-size width scale))
+                                               (grid-height-node (dag-draw--world-to-grid-size height scale))
+                                               (grid-x (- grid-center-x (/ grid-width-node 2)))
+                                               (grid-y (- grid-center-y (/ grid-height-node 2))))
+                                          (list grid-x grid-y grid-width-node grid-height-node))))
+                              (grid-x (nth 0 coords))
+                              (grid-y (nth 1 coords))
+                              (grid-width-node (nth 2 coords))
+                              (grid-height-node (nth 3 coords)))
+
+                         ;; Mark all cells within this node's bounding box as occupied
                          (dotimes (dy grid-height-node)
-                           (let ((buffer-y (round (+ grid-y dy))))
-                             (when (and (>= buffer-y 0) (< buffer-y grid-height))
-                               (aset (aref occupancy-map buffer-y) left-buffer-x t)))))
-                       ;; Mark right buffer column  
-                       (when (and (>= right-buffer-x 0) (< right-buffer-x grid-width))
-                         (dotimes (dy grid-height-node)
-                           (let ((buffer-y (round (+ grid-y dy))))
-                             (when (and (>= buffer-y 0) (< buffer-y grid-height))
-                               (aset (aref occupancy-map buffer-y) right-buffer-x t))))))))
-                 (dag-draw-graph-nodes graph))))
+                           (dotimes (dx grid-width-node)
+                             (let ((map-x (round (+ grid-x dx)))
+                                   (map-y (round (+ grid-y dy))))
+                               (when (and (>= map-x 0) (< map-x grid-width)
+                                          (>= map-y 0) (< map-y grid-height))
+                                 (aset (aref occupancy-map map-y) map-x t)))))
 
-    occupancy-map))
+                         ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
+                         ;; by blocking proper edge placement. Node boundaries are handled by
+                         ;; ultra-safe-draw-char logic instead.
+                         ))
+                     (dag-draw-graph-nodes graph))
+
+            occupancy-map)))))
 
 ;;; Global Occupancy Map
 

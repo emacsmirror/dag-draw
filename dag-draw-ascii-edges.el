@@ -546,6 +546,270 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
 ;;; Edge Drawing Implementation - FIXED VERSION
 
 
+;;; GKNV Section 5.2 Boundary Clipping Implementation
+
+(defun dag-draw--find-node-boundary-intersection (graph node-id x1 y1 x2 y2 min-x min-y scale)
+  "Find where line from (X1,Y1) to (X2,Y2) intersects NODE boundary.
+Returns intersection point (x,y) on the node boundary, or nil if no intersection.
+Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint node shapes'."
+  (let* ((node (dag-draw-get-node graph node-id))
+         (adjusted-positions (dag-draw-graph-adjusted-positions graph))
+         (node-coords (ht-get adjusted-positions node-id)))
+    (when (and node node-coords)
+      (let* ((node-x (nth 0 node-coords))
+             (node-y (nth 1 node-coords))
+             (node-width (nth 2 node-coords))
+             (node-height (nth 3 node-coords))
+             ;; Node boundary coordinates
+             (left node-x)
+             (right (+ node-x node-width -1))
+             (top node-y)
+             (bottom (+ node-y node-height -1)))
+        
+        ;; DEBUG: Log boundary intersection attempt
+        (message "INTERSECTION-DEBUG: Node %s bounds: (%d,%d,%d,%d) line: (%d,%d)->(%d,%d)"
+                 node-id left top right bottom x1 y1 x2 y2)
+        
+        ;; Check intersection with each boundary edge
+        (let ((result (or
+                       ;; Left boundary (vertical line at x=left)
+                       (dag-draw--line-intersects-vertical x1 y1 x2 y2 left top bottom)
+                       ;; Right boundary (vertical line at x=right)  
+                       (dag-draw--line-intersects-vertical x1 y1 x2 y2 right top bottom)
+                       ;; Top boundary (horizontal line at y=top)
+                       (dag-draw--line-intersects-horizontal x1 y1 x2 y2 top left right)
+                       ;; Bottom boundary (horizontal line at y=bottom)
+                       (dag-draw--line-intersects-horizontal x1 y1 x2 y2 bottom left right))))
+          (when result
+            (message "INTERSECTION-FOUND: Node %s intersection at (%d,%d)" node-id (nth 0 result) (nth 1 result)))
+          result)))))
+
+(defun dag-draw--point-on-node-boundary (graph node-id x y)
+  "Check if point (X,Y) is exactly on the boundary of NODE-ID.
+Returns t if point is on the node boundary, nil otherwise."
+  (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+         (node-coords (ht-get adjusted-positions node-id)))
+    (when node-coords
+      (let* ((node-x (nth 0 node-coords))
+             (node-y (nth 1 node-coords))
+             (node-width (nth 2 node-coords))
+             (node-height (nth 3 node-coords))
+             (left node-x)
+             (right (+ node-x node-width -1))
+             (top node-y)
+             (bottom (+ node-y node-height -1)))
+        ;; Point is on boundary if it's on any edge of the rectangle
+        (or (and (= x left) (>= y top) (<= y bottom))     ; Left edge
+            (and (= x right) (>= y top) (<= y bottom))    ; Right edge  
+            (and (= y top) (>= x left) (<= x right))      ; Top edge
+            (and (= y bottom) (>= x left) (<= x right)))))))  ; Bottom edge
+
+(defun dag-draw--would-violate-node-boundary (graph x y min-x min-y scale)
+  "Check if drawing at position (X,Y) would create a boundary violation.
+GKNV Section 5.2: Prevents true boundary violations while allowing legitimate edge routing."
+  (let ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+        (would-violate nil))
+    (when adjusted-positions
+      (ht-each (lambda (node-id coords)
+                 (let* ((node-x (nth 0 coords))
+                        (node-y (nth 1 coords))
+                        (node-width (nth 2 coords))
+                        (node-height (nth 3 coords))
+                        (left node-x)
+                        (right (+ node-x node-width -1))
+                        (top node-y)
+                        (bottom (+ node-y node-height -1)))
+                   ;; REFINED FIX: Only block true boundary violations, not legitimate edge routing
+                   ;; Allow edge exit/approach paths but prevent ──────│node│────── patterns
+                   (when (and (>= y top) (<= y bottom)  ; Within node vertical range
+                              (or (< x left) (> x right))  ; Outside node horizontally
+                              ;; CRITICAL: Only block if this creates a boundary violation pattern
+                              ;; Allow edges that are clearly routing to/from the node
+                              (dag-draw--is-true-boundary-violation graph node-id x y left right top bottom))
+                     (message "TRUE-BOUNDARY-VIOLATION: Node %s at (%d,%d) x=%d violates boundary"
+                              node-id node-x node-y x)
+                     (setq would-violate t))))
+               adjusted-positions))
+    would-violate))
+
+(defun dag-draw--is-true-boundary-violation (graph node-id x y left right top bottom)
+  "Determine if position (X,Y) represents a true boundary violation vs legitimate edge routing.
+Returns t for true violations (like ──────│node│──────), nil for legitimate routing."
+  ;; FINAL STRATEGY: Detect true boundary violations based on context
+  ;; The ──────│node│────── pattern occurs when lines extend on BOTH sides of a node
+  ;; Legitimate routing only extends on ONE side
+  
+  (cond
+   ;; If we're on the left side of the node, check if there are also lines on the right side
+   ((< x left)
+    (dag-draw--check-bilateral-violation graph node-id x y left right top bottom 'left))
+   ;; If we're on the right side of the node, check if there are also lines on the left side  
+   ((> x right)
+    (dag-draw--check-bilateral-violation graph node-id x y left right top bottom 'right))
+   ;; Inside the node - not a boundary violation issue
+   (t nil)))
+
+(defun dag-draw--check-bilateral-violation (graph node-id x y left right top bottom side)
+  "Check if this represents a bilateral boundary violation pattern.
+SIDE is either 'left or 'right indicating which side we're checking from."
+  ;; For a true ──────│node│────── violation, we need lines on BOTH sides
+  ;; This function checks if the opposite side also has boundary-violating lines
+  
+  ;; SIMPLIFIED APPROACH: For now, allow unilateral extensions but prevent
+  ;; the specific bilateral pattern that creates the ──────│node│────── issue
+  ;; This is a complex detection problem, so start with a simple heuristic
+  
+  ;; Check if we're very far from the node boundary (indicates violation)
+  (let ((distance (if (eq side 'left) (- left x) (- x right))))
+    (> distance 2)))  ; Allow up to 2 chars of routing, block longer extensions
+
+(defun dag-draw--line-intersects-vertical (x1 y1 x2 y2 boundary-x min-y max-y)
+  "Find intersection of line (X1,Y1)→(X2,Y2) with vertical boundary at BOUNDARY-X.
+Returns (x,y) intersection point or nil if no intersection within Y range."
+  (when (not (= x1 x2))  ; Avoid division by zero for vertical lines
+    (let* ((t-param (/ (float (- boundary-x x1)) (- x2 x1)))
+           (intersect-y (+ y1 (* t-param (- y2 y1)))))
+      ;; Check if intersection is within the line segment and boundary range
+      (when (and (>= t-param 0) (<= t-param 1)
+                 (>= intersect-y min-y) (<= intersect-y max-y))
+        (list boundary-x (round intersect-y))))))
+
+(defun dag-draw--line-intersects-horizontal (x1 y1 x2 y2 boundary-y min-x max-x)
+  "Find intersection of line (X1,Y1)→(X2,Y2) with horizontal boundary at BOUNDARY-Y.
+Returns (x,y) intersection point or nil if no intersection within X range."
+  (when (not (= y1 y2))  ; Avoid division by zero for horizontal lines
+    (let* ((t-param (/ (float (- boundary-y y1)) (- y2 y1)))
+           (intersect-x (+ x1 (* t-param (- x2 x1)))))
+      ;; Check if intersection is within the line segment and boundary range
+      (when (and (>= t-param 0) (<= t-param 1)
+                 (>= intersect-x min-x) (<= intersect-x max-x))
+        (list (round intersect-x) boundary-y)))))
+
+(defun dag-draw--clip-edge-to-boundaries (graph edge x1 y1 x2 y2 min-x min-y scale)
+  "Clip edge endpoints to node boundaries per GKNV Section 5.2.
+Returns (start-x start-y end-x end-y) with boundary-clipped coordinates.
+GKNV FIX: Handles edges that start/end on node boundaries by preventing inward extension."
+  (let* ((from-node-id (dag-draw-edge-from-node edge))
+         (to-node-id (dag-draw-edge-to-node edge))
+         ;; Find boundary intersections
+         (from-intersection (dag-draw--find-node-boundary-intersection graph from-node-id x1 y1 x2 y2 min-x min-y scale))
+         (to-intersection (dag-draw--find-node-boundary-intersection graph to-node-id x2 y2 x1 y1 min-x min-y scale))
+         ;; GKNV FIX: Check if points are already on node boundaries  
+         (from-on-boundary (dag-draw--point-on-node-boundary graph from-node-id x1 y1))
+         (to-on-boundary (dag-draw--point-on-node-boundary graph to-node-id x2 y2)))
+    
+    ;; DEBUG: Log boundary status
+    (message "BOUNDARY-STATUS: Edge %s->%s from-boundary=%s to-boundary=%s"
+             from-node-id to-node-id from-on-boundary to-on-boundary)
+    
+    ;; Use intersection points if found, otherwise use original coordinates
+    ;; If point is already on boundary, keep it (don't clip further)
+    (list (if (and from-intersection (not from-on-boundary)) (nth 0 from-intersection) x1)
+          (if (and from-intersection (not from-on-boundary)) (nth 1 from-intersection) y1)
+          (if (and to-intersection (not to-on-boundary)) (nth 0 to-intersection) x2)
+          (if (and to-intersection (not to-on-boundary)) (nth 1 to-intersection) y2))))
+
+;;; GKNV-Compliant Boundary-Aware Edge Drawing
+
+(defun dag-draw--ascii-draw-boundary-aware-path-with-arrow (graph grid x1 y1 x2 y2 occupancy-map port-side min-x min-y scale)
+  "Draw path that respects node boundaries per GKNV Section 5.2.
+This function ensures edges never extend beyond node boundaries by checking each segment."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    ;; Only draw if we can do so safely
+    (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
+               (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
+
+      ;; Choose routing direction based on edge orientation
+      (let ((routing-direction (if (<= (abs (- x1 x2)) 4)
+                                   'vertical-only    ; Pure vertical edge
+                                 (if (<= (abs (- y1 y2)) 4)
+                                     'horizontal-only  ; Pure horizontal edge
+                                   'horizontal-first)))) ; L-shaped edge
+
+        ;; Draw the path with boundary awareness
+        (dag-draw--draw-boundary-aware-l-path graph grid x1 y1 x2 y2 occupancy-map routing-direction min-x min-y scale))
+
+      ;; Add port-based directional arrow at the endpoint
+      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 occupancy-map port-side))))
+
+(defun dag-draw--draw-boundary-aware-l-path (graph grid x1 y1 x2 y2 occupancy-map direction min-x min-y scale)
+  "Draw L-shaped path that never extends beyond node boundaries.
+Implements GKNV Section 5.2 boundary clipping by checking each segment against node boundaries."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+
+    (cond
+     ;; Pure vertical line
+     ((eq direction 'vertical-only)
+      (dag-draw--draw-boundary-clipped-vertical-line graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale))
+     
+     ;; Pure horizontal line  
+     ((eq direction 'horizontal-only)
+      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale))
+     
+     ;; L-shaped path - horizontal first, then vertical
+     ((eq direction 'horizontal-first)
+      ;; Draw horizontal segment from (x1,y1) to (x2,y1) with boundary clipping
+      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y1 occupancy-map min-x min-y scale)
+      ;; Draw vertical segment from (x2,y1) to (x2,y2) with boundary clipping  
+      (dag-draw--draw-boundary-clipped-vertical-line graph grid x2 y1 x2 y2 occupancy-map min-x min-y scale)))))
+
+(defun dag-draw--draw-boundary-clipped-horizontal-line (graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale)
+  "Draw horizontal line segment that stops at node boundaries.
+GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary exit."
+  (let* ((start-x (min x1 x2))
+         (end-x (max x1 x2))
+         (y y1)  ; Horizontal line uses y1
+         (direction (if (< x1 x2) 1 -1)))  ; Drawing direction: 1=right, -1=left
+    
+    ;; GKNV Section 5.2 FIX: Smart boundary-aware drawing with obstacle avoidance
+    ;; Route around nodes rather than through them
+    (let ((current-x x1))  ; Start from actual start point, not min
+      (while (if (> direction 0) (<= current-x x2) (>= current-x x2))
+        (when (and (>= current-x 0) (< current-x (if (> (length grid) 0) (length (aref grid 0)) 0))
+                   (>= y 0) (< y (length grid)))
+          ;; RESTORE DAG EDGE DRAWING: Allow full horizontal lines for proper DAG connectivity
+          ;; Only avoid drawing through node interiors, but allow full edge lines
+          (unless (dag-draw--position-inside-any-node graph current-x y min-x min-y scale)
+            (dag-draw--ultra-safe-draw-char grid current-x y ?─ occupancy-map)))
+        (setq current-x (+ current-x direction))))))
+
+(defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale)
+  "Draw vertical line segment that stops at node boundaries."
+  (let* ((start-y (min y1 y2))
+         (end-y (max y1 y2))
+         (x x1))  ; Vertical line uses x1
+    
+    ;; Draw each character of the vertical line, checking boundaries
+    (dotimes (i (1+ (- end-y start-y)))
+      (let ((y (+ start-y i)))
+        (when (and (>= x 0) (< x (if (> (length grid) 0) (length (aref grid 0)) 0))
+                   (>= y 0) (< y (length grid)))
+          ;; GKNV boundary check: Don't draw if this position is inside a node
+          (unless (dag-draw--position-inside-any-node graph x y min-x min-y scale)
+            (dag-draw--ultra-safe-draw-char grid x y ?│ occupancy-map)))))))
+
+(defun dag-draw--position-inside-any-node (graph x y min-x min-y scale)
+  "Check if position (X,Y) is inside any node interior (not including boundary).
+Returns t if inside a node interior, nil if on boundary or outside all nodes.
+GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
+  (let ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+        (inside-node nil))
+    (when adjusted-positions
+      (ht-each (lambda (node-id coords)
+                 (let* ((node-x (nth 0 coords))
+                        (node-y (nth 1 coords))
+                        (node-width (nth 2 coords))
+                        (node-height (nth 3 coords)))
+                   ;; Check if position is inside the node interior (excludes boundary)
+                   (when (and (> x node-x) (< x (+ node-x node-width -1))
+                              (> y node-y) (< y (+ node-y node-height -1)))
+                     (setq inside-node t))))
+               adjusted-positions))
+    inside-node))
+
 ;;; Enhanced Edge Drawing Functions
 
 (defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
@@ -564,14 +828,30 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
                ;; Calculate port-based arrow direction
                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
                (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale graph)))
-          ;; DEBUG: Log enhanced port usage
-          (message "ENHANCED: Edge %s->%s using calculated ports (%d,%d)->(%d,%d)"
-                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
-                   from-x from-y to-x to-y)
-          ;; Drawing edge with calculated coordinates
-          ;; Use safe path drawing that absolutely will not overwrite node content
-          (dag-draw--ascii-draw-ultra-safe-path-with-port-arrow
-           grid from-x from-y to-x to-y occupancy-map target-port-side))
+          ;; GKNV Section 5.2: Apply boundary clipping to ensure edges terminate at node boundaries
+          (let ((clipped-coords (dag-draw--clip-edge-to-boundaries graph edge from-x from-y to-x to-y min-x min-y scale)))
+            (let ((clipped-from-x (nth 0 clipped-coords))
+                  (clipped-from-y (nth 1 clipped-coords))
+                  (clipped-to-x (nth 2 clipped-coords))
+                  (clipped-to-y (nth 3 clipped-coords)))
+              
+              ;; DEBUG: Log boundary clipping results
+              (message "ENHANCED: Edge %s->%s using calculated ports (%d,%d)->(%d,%d)"
+                       (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                       from-x from-y to-x to-y)
+              (message "BOUNDARY-CHECK: Edge %s->%s clipping (%d,%d)->(%d,%d) result: (%d,%d)->(%d,%d)"
+                       (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                       from-x from-y to-x to-y
+                       clipped-from-x clipped-from-y clipped-to-x clipped-to-y)
+              (when (or (not (= clipped-from-x from-x)) (not (= clipped-from-y from-y))
+                        (not (= clipped-to-x to-x)) (not (= clipped-to-y to-y)))
+                (message "CLIPPED: Edge %s->%s clipped to boundaries (%d,%d)->(%d,%d)"
+                         (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                         clipped-from-x clipped-from-y clipped-to-x clipped-to-y))
+              
+              ;; Draw the boundary-clipped edge using GKNV-compliant boundary-aware drawing
+              (dag-draw--ascii-draw-boundary-aware-path-with-arrow
+               graph grid clipped-from-x clipped-from-y clipped-to-x clipped-to-y occupancy-map target-port-side min-x min-y scale))))
       ;; CRITICAL FIX: Still try to draw something even if connection points fail
       (progn
         ;; DEBUG: Log fallback usage
@@ -761,12 +1041,25 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
       (let* ((start-x (round (dag-draw-point-x from-port)))
              (start-y (round (dag-draw-point-y from-port)))
              (end-x (round (dag-draw-point-x to-port)))
-             (end-y (round (dag-draw-point-y to-port))))
+             (end-y (round (dag-draw-point-y to-port)))
+             ;; PHASE 2B FIX: Apply GKNV Section 5.2 boundary clipping to spline drawing
+             (clipped-coords (dag-draw--clip-edge-to-boundaries graph edge start-x start-y end-x end-y min-x min-y scale))
+             (clipped-start-x (nth 0 clipped-coords))
+             (clipped-start-y (nth 1 clipped-coords))
+             (clipped-end-x (nth 2 clipped-coords))
+             (clipped-end-y (nth 3 clipped-coords)))
 
         (message "  GRID-PORTS: Edge %s->%s: (%d,%d) -> (%d,%d) %s"
                  (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
-                 start-x start-y end-x end-y
-                 (if (and (= start-x end-x) (= start-y end-y)) "ZERO-LENGTH!" ""))
+                 clipped-start-x clipped-start-y clipped-end-x clipped-end-y
+                 (if (and (= clipped-start-x clipped-end-x) (= clipped-start-y clipped-end-y)) "ZERO-LENGTH!" ""))
+        
+        ;; Log boundary clipping for splines  
+        (when (or (not (= clipped-start-x start-x)) (not (= clipped-start-y start-y))
+                  (not (= clipped-end-x end-x)) (not (= clipped-end-y end-y)))
+          (message "  SPLINE-CLIPPED: Edge %s->%s clipped from (%d,%d)->(%d,%d) to (%d,%d)->(%d,%d)"
+                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                   start-x start-y end-x end-y clipped-start-x clipped-start-y clipped-end-x clipped-end-y))
 
         (let* ((to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
                (target-port-side (dag-draw--determine-port-side to-node to-port min-x min-y scale graph))
@@ -779,7 +1072,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
                (y-separation (if (> total-edges 1)
                                 (* edge-index 2)  ; Separate multiple edges by 2 grid units
                               0))
-               (adjusted-start-y (+ start-y y-separation)))
+               (adjusted-start-y (+ clipped-start-y y-separation)))
           ;; Multi-edge distribution working correctly - debug output removed
 
           ;; Spline path analysis
@@ -807,10 +1100,10 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
           (if (and spline-points (>= (length spline-points) 2))
               ;; Use actual spline path with coordinate conversion
               (dag-draw--draw-converted-spline-segments
-               graph edge spline-points start-x start-y end-x end-y grid min-x min-y occupancy-map target-port-side)
+               graph edge spline-points clipped-start-x clipped-start-y clipped-end-x clipped-end-y grid min-x min-y occupancy-map target-port-side)
             ;; Fallback to straight line if no valid spline data
             (dag-draw--ascii-draw-ultra-safe-path-with-port-arrow
-             grid start-x adjusted-start-y end-x end-y occupancy-map target-port-side)))))))
+             grid clipped-start-x adjusted-start-y clipped-end-x clipped-end-y occupancy-map target-port-side)))))))
 
 (defun dag-draw--draw-converted-spline-segments (graph edge spline-points start-x start-y end-x end-y grid min-x min-y occupancy-map target-port-side)
   "Draw spline path with proper world→grid coordinate conversion.

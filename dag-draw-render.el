@@ -94,80 +94,98 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
            (min-x (nth 0 bounds))
            (min-y (nth 1 bounds))
            (max-x (nth 2 bounds))
-           (max-y (nth 3 bounds))
-           ;; PHASE 1 FIX: Use unified coordinate scale throughout system
-           (scale dag-draw-ascii-coordinate-scale)
-           (width-diff (- max-x min-x))
-           (height-diff (- max-y min-y))
-           ;; Calculate maximum node extents to ensure complete boxes fit
-           (max-node-x-extent 0)
-           (max-node-y-extent 0)
-           ;; Adaptive spacing buffer based on graph complexity + collision detection range
-           (node-count (ht-size (dag-draw-graph-nodes graph)))
-           ;; COORDINATE PRESERVATION: Minimal collision buffers for compact output
-           ;; PHASE 1 FIX: Further reduce collision buffers to prevent grid bloat
-           (base-collision-buffer (cond
-                                   ((< node-count 3) 2)    ; Small graphs - minimal buffer
-                                   ((< node-count 5) 3)    ; Medium graphs - small buffer
-                                   (t 4)))                  ; Large graphs - modest buffer (was 8!)
-           ;; Reduce collision movement allowance to preserve coordinate precision
-           (max-collision-movement (cond
-                                    ((< node-count 3) 3)    ; Small graphs - minimal movement
-                                    ((< node-count 5) 4)    ; Medium graphs - small movement (was 8!)
-                                    (t 6)))                  ; Large graphs - controlled movement (was 12!)
-           (collision-spacing-buffer (+ base-collision-buffer max-collision-movement)))                ; Large graphs - generous buffer
+           (max-y (nth 3 bounds)))
 
-      ;; Find maximum node extents
-      (ht-each (lambda (node-id node)
-                 (let ((x-extent (/ (dag-draw-node-x-size node) 2.0))
-                       (y-extent (/ (dag-draw-node-y-size node) 2.0)))
-                   (setq max-node-x-extent (max max-node-x-extent x-extent))
-                   (setq max-node-y-extent (max max-node-y-extent y-extent))))
-               (dag-draw-graph-nodes graph))
 
-      (let* (;; Adjust bounds to prevent grid coordinate clipping with collision spacing buffer
-             (adjusted-min-x (- min-x max-node-x-extent collision-spacing-buffer))
-             (adjusted-min-y (- min-y max-node-y-extent collision-spacing-buffer))
-             (adjusted-max-x (+ max-x max-node-x-extent collision-spacing-buffer))
-             (adjusted-max-y (+ max-y max-node-y-extent collision-spacing-buffer))
-             (total-width (- adjusted-max-x adjusted-min-x))
-             (total-height (- adjusted-max-y adjusted-min-y))
-             ;; Handle empty graphs and ensure minimum grid size
-             ;; DYNAMIC GRID SIZING: Compact multiplier for professional output
-             ;; PHASE 1 FIX: Dramatically reduce grid bloat (was causing 108-line output)
-             (dynamic-multiplier (cond
-                                  ((= node-count 1) 1.2)    ; Single node - compact
-                                  ((< node-count 4) 1.4)    ; Small graphs - reasonable
-                                  ((< node-count 8) 1.6)    ; Medium graphs - moderate (was 2.7!)
-                                  (t 1.8)))                  ; Large graphs - controlled (was 3.0!)
-             ;; COLLISION SAFETY: Minimal padding for compact professional output
-             ;; PHASE 1 FIX: Reduce excessive padding that was inflating grid size
-             (extra-width-padding (max 10 (* node-count 2)))  ; Reduced from (* node-count 5)
-             (extra-height-padding (max 5 (ceiling (* node-count 1.5))))  ; Ensure integer
-             (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
-             (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
-             (grid (dag-draw--create-ascii-grid grid-width grid-height)))
+      (let* (;; PHASE 1 FIX: Use unified coordinate scale throughout system
+             (scale dag-draw-ascii-coordinate-scale)
+             (width-diff (- max-x min-x))
+             (height-diff (- max-y min-y))
+             ;; Calculate maximum node extents to ensure complete boxes fit
+             (max-node-x-extent 0)
+             (max-node-y-extent 0)
+             ;; Adaptive spacing buffer based on graph complexity + collision detection range
+             (node-count (ht-size (dag-draw-graph-nodes graph)))
+             ;; COORDINATE PRESERVATION: Minimal collision buffers for compact output
+             ;; PHASE 1 FIX: Further reduce collision buffers to prevent grid bloat
+             (base-collision-buffer (cond
+                                     ((< node-count 3) 2)    ; Small graphs - minimal buffer
+                                     ((< node-count 5) 3)    ; Medium graphs - small buffer
+                                     (t 4)))                  ; Large graphs - modest buffer (was 8!)
+             ;; Reduce collision movement allowance to preserve coordinate precision
+             (max-collision-movement (cond
+                                      ((< node-count 3) 3)    ; Small graphs - minimal movement
+                                      ((< node-count 5) 4)    ; Medium graphs - small movement (was 8!)
+                                      (t 6)))                  ; Large graphs - controlled movement (was 12!)
+             (collision-spacing-buffer (+ base-collision-buffer max-collision-movement)))                ; Large graphs - generous buffer
 
-        ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
-        ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
-        (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
+        ;; Find maximum node extents
+        (ht-each (lambda (node-id node)
+                   (let ((x-extent (/ (dag-draw-node-x-size node) 2.0))
+                         (y-extent (/ (dag-draw-node-y-size node) 2.0)))
+                     (setq max-node-x-extent (max max-node-x-extent x-extent))
+                     (setq max-node-y-extent (max max-node-y-extent y-extent))))
+                 (dag-draw-graph-nodes graph))
 
-        ;; GHOST NODE FIX: Disable spline regeneration to prevent coordinate system mixing
-        ;; The spline-to-grid conversion handles collision-adjusted positions correctly
-        ;; (dag-draw--regenerate-splines-after-collision graph)
+        (let* (;; Adjust bounds to prevent grid coordinate clipping with collision spacing buffer
+               (adjusted-min-x (- min-x max-node-x-extent collision-spacing-buffer))
+               (adjusted-min-y (- min-y max-node-y-extent collision-spacing-buffer))
+               (adjusted-max-x (+ max-x max-node-x-extent collision-spacing-buffer))
+               (adjusted-max-y (+ max-y max-node-y-extent collision-spacing-buffer))
+               (total-width (- adjusted-max-x adjusted-min-x))
+               (total-height (- adjusted-max-y adjusted-min-y))
+               ;; Handle empty graphs and ensure minimum grid size
+               ;; DYNAMIC GRID SIZING: Compact multiplier for professional output
+               ;; PHASE 1 FIX: Dramatically reduce grid bloat (was causing 108-line output)
+               (dynamic-multiplier (cond
+                                    ((= node-count 1) 1.2)    ; Single node - compact
+                                    ((< node-count 4) 1.4)    ; Small graphs - reasonable
+                                    ((< node-count 8) 1.6)    ; Medium graphs - moderate (was 2.7!)
+                                    (t 1.8)))                  ; Large graphs - controlled (was 3.0!)
+               ;; COLLISION SAFETY: Minimal padding for compact professional output
+               ;; PHASE 1 FIX: Reduce excessive padding that was inflating grid size
+               (extra-width-padding (max 10 (* node-count 2)))  ; Reduced from (* node-count 5)
+               (extra-height-padding (max 5 (ceiling (* node-count 1.5))))  ; Ensure integer
+               (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
+               (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
+               (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-        ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
-        ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
-        (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
+          ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
+          ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
+          (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
 
-        ;; Draw edges FIRST using spline data when available - now uses final positions
-        (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+          ;; PHASE 1B FIX: Recalculate grid size after collision detection to accommodate moved nodes
+          (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                 (final-bounds (dag-draw--calculate-final-bounds adjusted-positions)))
+            (when final-bounds
+              (let* ((final-min-x (nth 0 final-bounds))
+                     (final-min-y (nth 1 final-bounds))  
+                     (final-max-x (nth 2 final-bounds))
+                     (final-max-y (nth 3 final-bounds))
+                     (final-width (- final-max-x final-min-x))
+                     (final-height (- final-max-y final-min-y))
+                     (required-grid-width (max grid-width (+ 10 (ceiling final-width))))
+                     (required-grid-height (max grid-height (+ 5 (ceiling final-height)))))
+                ;; Recreate grid if it needs to be larger to accommodate collision-adjusted positions
+                (when (or (> required-grid-width grid-width) (> required-grid-height grid-height))
+                  (setq grid (dag-draw--create-ascii-grid required-grid-width required-grid-height))))))
 
-        ;; Draw nodes LAST to ensure box integrity - uses same final positions
-        (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
+          ;; GHOST NODE FIX: Disable spline regeneration to prevent coordinate system mixing
+          ;; The spline-to-grid conversion handles collision-adjusted positions correctly
+          ;; (dag-draw--regenerate-splines-after-collision graph)
 
-        ;; Convert grid to string
-        (dag-draw--ascii-grid-to-string grid)))))
+          ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
+          ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
+          (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
+
+          ;; Draw edges FIRST using spline data when available - now uses final positions
+          (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+
+          ;; Draw nodes LAST to ensure box integrity - uses same final positions
+          (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
+
+          ;; Convert grid to string
+          (dag-draw--ascii-grid-to-string grid))))))
 
 (defun dag-draw--pre-calculate-final-node-positions (graph grid min-x min-y scale)
   "PHASE 2 FIX: Pre-calculate final node positions with collision detection.
@@ -197,6 +215,7 @@ This ensures edges and nodes use the same coordinate system."
                (grid-x (- grid-center-x (/ grid-width 2)))
                (grid-y (- grid-center-y (/ grid-height 2))))
 
+
           ;; Round coordinates to match occupancy map exactly
           (let ((final-x (round grid-x))
                 (final-y (round grid-y))
@@ -207,17 +226,17 @@ This ensures edges and nodes use the same coordinate system."
             (let* ((adjusted-pos (dag-draw--resolve-node-collision
                                   final-x final-y final-width final-height drawn-nodes graph node-id))
                    (adjusted-x (car adjusted-pos))
-                   (adjusted-y (cadr adjusted-pos))
-                   (current-rect (list adjusted-x adjusted-y
-                                       (+ adjusted-x final-width -1)
-                                       (+ adjusted-y final-height -1))))
+                   (adjusted-y (cadr adjusted-pos)))
+              (let ((current-rect (list adjusted-x adjusted-y
+                                        (+ adjusted-x final-width -1)
+                                        (+ adjusted-y final-height -1))))
 
-              ;; Track this node for future collision detection
-              (push (append current-rect (list node-id)) drawn-nodes)
+                ;; Track this node for future collision detection
+                (push (append current-rect (list node-id)) drawn-nodes)
 
-              ;; Store final adjusted position
-              (ht-set! adjusted-positions node-id
-                       (list adjusted-x adjusted-y final-width final-height)))))))
+                ;; Store final adjusted position
+                (ht-set! adjusted-positions node-id
+                         (list adjusted-x adjusted-y final-width final-height))))))))
 
     ;; Store adjusted positions in graph for both edge and node drawing to use
     (setf (dag-draw-graph-adjusted-positions graph) adjusted-positions)))
