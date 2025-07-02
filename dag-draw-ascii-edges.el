@@ -73,12 +73,11 @@
          ;; Empty space - place horizontal line
          ((eq current-char ?\s)
           (aset (aref grid y) x ?─))
-         ;; Already has horizontal line - don't duplicate
-         ((eq current-char ?─)
-          nil)
-         ;; Vertical line - create junction
-         ((eq current-char ?│)
-          (aset (aref grid y) x ?┼)))))))
+         ;; Use enhanced junction logic for any edge character
+         ((memq current-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))
+          (let ((enhanced-char (dag-draw--get-enhanced-junction-char current-char ?─ nil)))
+            (when enhanced-char
+              (aset (aref grid y) x enhanced-char)))))))))
 
 (defun dag-draw--detect-direction (x1 y1 x2 y2)
   "Detect direction from coordinates (X1,Y1) to (X2,Y2)."
@@ -253,42 +252,21 @@
                  (or (dag-draw--position-adjacent-to-vertical-boundary grid x y)
                      (dag-draw--position-inside-or-touching-node-box grid x y)))
             nil)
-           ;; Case 3: Junction and line combinations (avoid double vertical lines)
+           ;; Case 3: Enhanced junction and line combinations using smart character selection
            ((and (eq current-char ?│) (eq char ?│))
             ;; NEVER place vertical line on existing vertical line
             nil)
-           ((and (eq current-char ?─) (eq char ?│))
-            ;; Horizontal + Vertical = Junction
-            (aset (aref grid y) x ?┼)
-            t)
-           ((and (eq current-char ?│) (eq char ?─))
-            ;; Vertical + Horizontal = Junction
-            (aset (aref grid y) x ?┼)
-            t)
-           ((and (memq current-char '(?─ ?┼))
-                 (memq char '(?─ ?┼)))
-            ;; Other line character combinations
-            (aset (aref grid y) x char)
-            t)
+           ((memq current-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))
+            ;; Use enhanced junction logic for any edge character combination
+            (let ((enhanced-char (dag-draw--get-enhanced-junction-char current-char char nil)))
+              (when enhanced-char
+                (aset (aref grid y) x enhanced-char)
+                t)))
            ;; Case 4: Never overwrite node text content
            ((or (and (>= current-char ?a) (<= current-char ?z))
                 (and (>= current-char ?A) (<= current-char ?Z))
                 (and (>= current-char ?0) (<= current-char ?9)))
             nil)
-           ;; Case 5: Can create junctions with existing edge characters
-           ((and (memq current-char '(?─ ?│))
-                 (memq char '(?─ ?│ ?┼)))
-            ;; Create proper junctions when edges meet
-            (cond
-             ;; Horizontal meets vertical - create junction
-             ((and (eq current-char ?─) (eq char ?│))
-              (aset (aref grid y) x ?┼) t)
-             ((and (eq current-char ?│) (eq char ?─))
-              (aset (aref grid y) x ?┼) t)
-             ;; Same character - allow
-             ((eq current-char char)
-              (aset (aref grid y) x char) t)
-             (t nil)))
            ;; Case 6: Default - allow placement in empty space only
            (t
             (aset (aref grid y) x char)
@@ -311,6 +289,93 @@ This is the CRITICAL function that prevents drawing through node text."
         ;; Safe to place character
         (aset (aref grid y) x char)
         t))))
+
+;;; Enhanced Junction Character Selection
+
+(defun dag-draw--get-enhanced-junction-char (existing-char new-char position-context)
+  "Determine the best junction character when two edge characters meet.
+POSITION-CONTEXT contains information about edge directions at this position."
+  (cond
+   ;; Same character - no junction needed
+   ((eq existing-char new-char) existing-char)
+   
+   ;; Enhanced junction logic - horizontal and vertical
+   ((and (eq existing-char ?─) (eq new-char ?│)) ?┼)
+   ((and (eq existing-char ?│) (eq new-char ?─)) ?┼)
+   
+   ;; Corner character combinations with lines
+   ((and (memq existing-char '(?┌ ?┐ ?└ ?┘)) (eq new-char ?─))
+    (dag-draw--merge-corner-with-horizontal existing-char))
+   ((and (memq existing-char '(?┌ ?┐ ?└ ?┘)) (eq new-char ?│))
+    (dag-draw--merge-corner-with-vertical existing-char))
+   ((and (eq existing-char ?─) (memq new-char '(?┌ ?┐ ?└ ?┘)))
+    (dag-draw--merge-corner-with-horizontal new-char))
+   ((and (eq existing-char ?│) (memq new-char '(?┌ ?┐ ?└ ?┘)))
+    (dag-draw--merge-corner-with-vertical new-char))
+   
+   ;; Enhanced multi-directional junctions
+   ((and (eq existing-char ?┼) (memq new-char '(?─ ?│))) ?┼)
+   ((and (memq existing-char '(?─ ?│)) (eq new-char ?┼)) ?┼)
+   
+   ;; Advanced T-junction scenarios for better directional flow
+   ((and (eq existing-char ?─) (memq new-char '(?▲ ?▼))) ?┬) ; Horizontal with vertical arrows
+   ((and (eq existing-char ?│) (memq new-char '(?◀ ?▶))) ?├) ; Vertical with horizontal arrows
+   
+   ;; Enhanced T-junction patterns for corner/line intersections
+   ((and (memq existing-char '(?┬ ?┴)) (eq new-char ?─)) existing-char) ; Keep T-junction  
+   ((and (memq existing-char '(?├ ?┤)) (eq new-char ?│)) existing-char) ; Keep T-junction
+   ((and (eq existing-char ?─) (memq new-char '(?┬ ?┴))) new-char) ; Upgrade to T-junction
+   ((and (eq existing-char ?│) (memq new-char '(?├ ?┤))) new-char) ; Upgrade to T-junction
+   
+   ;; Default to full intersection for complex cases
+   ((and (memq existing-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))
+         (memq new-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))) ?┼)
+   
+   ;; Keep new character if existing is space
+   ((eq existing-char ?\s) new-char)
+   
+   ;; Keep existing character if new is space
+   ((eq new-char ?\s) existing-char)
+   
+   ;; Fallback to new character
+   (t new-char)))
+
+(defun dag-draw--merge-corner-with-horizontal (corner-char)
+  "Merge a corner character with a horizontal line to create appropriate junction."
+  (pcase corner-char
+    (?┌ ?┬)  ; Top-left corner + horizontal = top T-junction
+    (?┐ ?┬)  ; Top-right corner + horizontal = top T-junction  
+    (?└ ?┴)  ; Bottom-left corner + horizontal = bottom T-junction
+    (?┘ ?┴)  ; Bottom-right corner + horizontal = bottom T-junction
+    (_ ?┼))) ; Fallback to full intersection
+
+(defun dag-draw--merge-corner-with-vertical (corner-char)
+  "Merge a corner character with a vertical line to create appropriate junction."
+  (pcase corner-char
+    (?┌ ?├)  ; Top-left corner + vertical = left T-junction
+    (?└ ?├)  ; Bottom-left corner + vertical = left T-junction
+    (?┐ ?┤)  ; Top-right corner + vertical = right T-junction
+    (?┘ ?┤)  ; Bottom-right corner + vertical = right T-junction  
+    (_ ?┼))) ; Fallback to full intersection
+
+(defun dag-draw--choose-optimal-corner-char (from-x from-y to-x to-y)
+  "Choose the optimal corner character based on edge routing direction.
+This creates more intuitive L-shaped paths that follow natural flow."
+  (let ((dx (- to-x from-x))
+        (dy (- to-y from-y)))
+    (cond
+     ;; Horizontal-first routing (most common for DAGs)
+     ((and (> (abs dx) (abs dy)) (> dx 0) (> dy 0)) ?┐)  ; Right then down
+     ((and (> (abs dx) (abs dy)) (> dx 0) (< dy 0)) ?┘)  ; Right then up  
+     ((and (> (abs dx) (abs dy)) (< dx 0) (> dy 0)) ?┌)  ; Left then down
+     ((and (> (abs dx) (abs dy)) (< dx 0) (< dy 0)) ?└)  ; Left then up
+     ;; Vertical-first routing (for compact layouts)
+     ((and (> (abs dy) (abs dx)) (> dy 0) (> dx 0)) ?┌)  ; Down then right
+     ((and (> (abs dy) (abs dx)) (> dy 0) (< dx 0)) ?┐)  ; Down then left
+     ((and (> (abs dy) (abs dx)) (< dy 0) (> dx 0)) ?└)  ; Up then right
+     ((and (> (abs dy) (abs dx)) (< dy 0) (< dx 0)) ?┘)  ; Up then left
+     ;; Default to appropriate corner for positive flow
+     (t ?┐)))) ; Right-down default for typical DAG flow
 
 ;;; PHASE 3: Edge Conflict Resolution Functions
 
