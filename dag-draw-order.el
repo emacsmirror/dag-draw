@@ -301,12 +301,12 @@ DIRECTION is 'down or 'up indicating sweep direction."
 This is the second pass of the GKNV algorithm with enhanced convergence detection."
   (let* ((graph-with-virtuals (dag-draw--create-virtual-nodes graph))
          (ranks (dag-draw--organize-by-ranks graph-with-virtuals))
-         (convergence-result (dag-draw--crossing-reduction-with-convergence 
+         (convergence-result (dag-draw--crossing-reduction-with-convergence
                              graph-with-virtuals ranks)))
 
     ;; Apply best ordering back to original graph
     (dag-draw--apply-ordering-to-graph graph (ht-get convergence-result 'best-ranks))
-    
+
     ;; Log convergence information
     (message "Crossing reduction completed: iterations=%s crossings=%s converged=%s"
              (ht-get convergence-result 'iterations)
@@ -337,10 +337,10 @@ Returns hash table with convergence information."
     ;; Iterative improvement with convergence detection
     (let ((iteration 0)
           (converged nil))
-      
-      (while (and (< iteration max-iterations) 
+
+      (while (and (< iteration max-iterations)
                   (not converged))
-        
+
         (let ((forward (= (mod iteration 2) 0))
               (prev-crossings best-crossings))
 
@@ -374,7 +374,7 @@ Returns hash table with convergence information."
           (let ((current-crossings (dag-draw--count-total-crossings graph ranks)))
             (push current-crossings crossings-history)
             (push (copy-sequence ranks) ranks-history)
-            
+
             ;; Update best solution
             (if (< current-crossings best-crossings)
                 (progn
@@ -382,28 +382,28 @@ Returns hash table with convergence information."
                   (setq best-ranks (copy-sequence ranks))
                   (setq iterations-without-improvement 0))
               (setq iterations-without-improvement (1+ iterations-without-improvement)))
-            
+
             ;; Check convergence conditions
-            (setq converged (dag-draw--check-convergence 
-                           crossings-history 
+            (setq converged (dag-draw--check-convergence
+                           crossings-history
                            ranks-history
-                           iterations-without-improvement 
-                           convergence-threshold 
+                           iterations-without-improvement
+                           convergence-threshold
                            oscillation-window))
-            
+
             (setq iteration (1+ iteration))))
-      
+
       ;; Store results
       (ht-set! result 'best-ranks best-ranks)
       (ht-set! result 'final-crossings best-crossings)
       (ht-set! result 'iterations iteration)
       (ht-set! result 'converged converged)
       (ht-set! result 'crossings-history (reverse crossings-history)))
-    
-    result))
 
-(defun dag-draw--check-convergence (crossings-history ranks-history 
-                                   iterations-without-improvement 
+    result)))
+
+(defun dag-draw--check-convergence (crossings-history ranks-history
+                                   iterations-without-improvement
                                    convergence-threshold oscillation-window)
   "Advanced convergence detection for crossing reduction algorithm.
 Returns t if algorithm has converged."
@@ -411,21 +411,21 @@ Returns t if algorithm has converged."
    ;; 1. No improvement for several iterations
    ((>= iterations-without-improvement convergence-threshold)
     t)
-   
+
    ;; 2. Optimal solution found (zero crossings)
    ((and crossings-history (= (car crossings-history) 0))
     t)
-   
+
    ;; 3. Oscillation detection - check if we're cycling between solutions
    ((and (>= (length crossings-history) oscillation-window)
          (dag-draw--detect-oscillation crossings-history oscillation-window))
     t)
-   
+
    ;; 4. Diminishing returns - improvement rate is too slow
    ((and (>= (length crossings-history) 6)
          (dag-draw--detect-diminishing-returns crossings-history))
     t)
-   
+
    ;; Continue optimization
    (t nil)))
 

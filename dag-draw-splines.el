@@ -93,6 +93,7 @@
      (t
       (dag-draw-point-create :x x :y y)))))
 
+
 ;;; Inter-rank edge splines
 
 (defun dag-draw--create-inter-rank-spline (graph edge)

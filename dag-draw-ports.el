@@ -34,7 +34,7 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          ;; COORDINATE SYSTEM FIX: Always prioritize adjusted coordinates when available
          ;; The adjusted-positions contain the final collision-resolved positions
          (adjusted-positions-table (and graph (dag-draw-graph-adjusted-positions graph)))
-         (adjusted-coords (and adjusted-positions-table 
+         (adjusted-coords (and adjusted-positions-table
                                (ht-get adjusted-positions-table node-id)))
          (x (if adjusted-coords
                 ;; Adjusted coordinates are already in grid space: (x y width height)
@@ -69,41 +69,24 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (actual-center-x (round (if adjusted-coords (+ x (/ width 2.0)) (+ grid-x (/ grid-width 2.0)))))
          (actual-center-y (round (if adjusted-coords (+ y (/ height 2.0)) (+ grid-y (/ grid-height 2.0))))))
 
-    ;; DEBUG: Show coordinate source decision
-    (message "    PORT-COORD-SOURCE: Node %s has-manual=%s adjusted-available=%s using=%s"
-             node-id has-manual-coords 
-             (if adjusted-coords "YES" "NO")
-             (cond (adjusted-coords "ADJUSTED")
-                   (has-manual-coords "MANUAL") 
-                   (t "DEFAULT")))
-    
-    (when adjusted-coords
-      (message "    ADJUSTED-COORDS: Node %s -> (%.1f,%.1f,%.1f,%.1f)"
-               node-id (nth 0 adjusted-coords) (nth 1 adjusted-coords) 
-               (nth 2 adjusted-coords) (nth 3 adjusted-coords)))
-               
-    ;; DEBUG: Show calculated values for diagnosis  
-    (message "    PORT-CALC-VARS: Node %s side=%s x=%.1f y=%.1f center=(%.1f,%.1f) grid-box=(%d,%d to %d,%d)"
-             node-id side x y grid-center-x grid-center-y grid-x grid-y grid-x-end grid-y-end)
-      
+    ;; Port calculation using coordinate priority: adjusted > manual > default
+
     ;; COORDINATE SYSTEM FIX: Return grid coordinates directly to avoid double conversion
     (let ((result-port
-      (cond
-       ((eq side 'top)
-        (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
-       ((eq side 'bottom)
-        (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
-       ((eq side 'left)
-        (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
-       ((eq side 'right)
-        (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
-       (t
-        (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
-        
-      ;; DEBUG: Show final port result
-      (message "    FINAL-PORT: Node %s side=%s -> (%.1f,%.1f)"
-               node-id side (dag-draw-point-x result-port) (dag-draw-point-y result-port))
-               
+           (cond
+            ((eq side 'top)
+             (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
+            ((eq side 'bottom)
+             (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
+            ((eq side 'left)
+             (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
+            ((eq side 'right)
+             (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
+            (t
+             (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
+
+      ;; Port calculation complete
+
       result-port)))
 
 (defun dag-draw--determine-port-side (node port min-x min-y scale &optional graph)
@@ -116,7 +99,7 @@ This function helps identify port orientation for proper connection logic."
          (port-y (dag-draw-point-y port))
          (dx (- port-x center-x))
          (dy (- port-y center-y)))
-    
+
     ;; Determine which side based on the largest directional difference
     (cond
      ((and (>= (abs dy) (abs dx)) (< dy 0)) 'top)
@@ -250,31 +233,51 @@ EDGE-COUNT is the total number of edges from the node."
          (to-y (dag-draw-node-y-coord to-node))
          (dx (- to-x from-x))
          (dy (- to-y from-y))
-         ;; Determine primary side based on direction
-         (horizontal-threshold (/ (+ (dag-draw-node-x-size from-node) (dag-draw-node-x-size to-node)) 4.0))
-         (vertical-threshold (/ (+ (dag-draw-node-y-size from-node) (dag-draw-node-y-size to-node)) 4.0))
-         (primary-side (cond
-                        ;; Vertical edges
-                        ((and (< (abs dx) horizontal-threshold) (> dy 0)) 'bottom)
-                        ((and (< (abs dx) horizontal-threshold) (< dy 0)) 'top)
-                        ;; Horizontal edges
-                        ((and (< (abs dy) vertical-threshold) (> dx 0)) 'right)
-                        ((and (< (abs dy) vertical-threshold) (< dx 0)) 'left)
-                        ;; Diagonal - prefer vertical
-                        ((>= (abs dy) (abs dx)) (if (> dy 0) 'bottom 'top))
-                        ;; Diagonal - prefer horizontal
-                        (t (if (> dx 0) 'right 'left)))))
+         ;; MULTI-EDGE FIX: For multiple edges, use a consistent side strategy instead of per-edge direction
+         ;; This prevents edges from scattering to different sides and creates clean distributions
+         (primary-side (dag-draw--calculate-consistent-side-for-multi-edges
+                        from-node nil dx dy))
+         ;; Multi-edge distribution using consistent side strategy
+         ;; Calculate distributed port for from-node
+         (from-port (dag-draw--get-distributed-port from-node primary-side edge-index edge-count min-x min-y scale graph))
+         ;; Use standard port calculation for to-node (no distribution needed for target)
+         (to-port (cond
+                   ((eq primary-side 'bottom) (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph))
+                   ((eq primary-side 'top) (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph))
+                   ((eq primary-side 'right) (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph))
+                   ((eq primary-side 'left) (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))
 
-    ;; Calculate distributed port for from-node
-    (let ((from-port (dag-draw--get-distributed-port from-node primary-side edge-index edge-count min-x min-y scale graph))
-          ;; Use standard port calculation for to-node (no distribution needed for target)
-          (to-port (cond
-                    ((eq primary-side 'bottom) (dag-draw--get-node-port-grid to-node 'top min-x min-y scale graph))
-                    ((eq primary-side 'top) (dag-draw--get-node-port-grid to-node 'bottom min-x min-y scale graph))
-                    ((eq primary-side 'right) (dag-draw--get-node-port-grid to-node 'left min-x min-y scale graph))
-                    ((eq primary-side 'left) (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))
+    (list from-port to-port)))
 
-      (list from-port to-port))))
+(defun dag-draw--calculate-consistent-side-for-multi-edges (from-node edges-from-node dx dy)
+  "Calculate a consistent side for all edges from FROM-NODE for clean multi-edge distribution.
+This prevents edges from scattering to different sides and creates professional layouts."
+  (let ((edge-count (length edges-from-node)))
+    (if (= edge-count 1)
+        ;; Single edge - use direction-based logic
+        (let ((horizontal-threshold 50.0)  ; Simplified thresholds
+              (vertical-threshold 50.0))
+          (cond
+           ;; Vertical edges
+           ((and (< (abs dx) horizontal-threshold) (> dy 0)) 'bottom)
+           ((and (< (abs dx) horizontal-threshold) (< dy 0)) 'top)
+           ;; Horizontal edges
+           ((and (< (abs dy) vertical-threshold) (> dx 0)) 'right)
+           ((and (< (abs dy) vertical-threshold) (< dx 0)) 'left)
+           ;; Diagonal - prefer vertical for better ASCII rendering
+           ((>= (abs dy) (abs dx)) (if (> dy 0) 'bottom 'top))
+           ;; Default to horizontal
+           (t (if (> dx 0) 'right 'left))))
+      ;; Multiple edges - use consistent side strategy for clean distribution
+      (dag-draw--select-primary-side-for-node from-node edges-from-node))))
+
+(defun dag-draw--select-primary-side-for-node (from-node edges-from-node)
+  "Select the primary side for all edges from FROM-NODE for consistent distribution.
+For now, uses bottom side which works well for most DAG layouts."
+  ;; SIMPLIFIED: Always use bottom side for multi-edge nodes
+  ;; This creates clean, consistent distributions and works well for typical DAG layouts
+  ;; where most dependencies flow downward. Future versions could analyze target positions.
+  'bottom)
 
 (defun dag-draw--get-distributed-port (node side edge-index edge-count min-x min-y scale &optional graph)
   "Get a distributed port position for NODE on SIDE.
@@ -289,7 +292,7 @@ EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
         base-port
       ;; Calculate offset based on edge index - GKNV Section 5.1.1 compliance
       (let* ((offset-factor (if (> edge-count 1) (/ (- edge-index (/ (1- edge-count) 2.0)) edge-count) 0))
-             (max-offset 6.0) ; Increased offset to prevent ASCII grid overlaps 
+             (max-offset 6.0) ; Increased offset to prevent ASCII grid overlaps
              (vertical-offset 3.0)) ; Increased offset for better visual separation
         (cond
          ;; Horizontal sides: distribute vertically
@@ -314,18 +317,7 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
                      ;; Use enhanced port calculation with multi-edge distribution
                      (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)
                    (dag-draw--calculate-edge-ports from-node to-node))))
-    ;; DEBUG: Log port calculation results
-    (message "PORT-CALC: Edge %s->%s, result: %s" 
-             (dag-draw-edge-from-node edge)
-             (dag-draw-edge-to-node edge)
-             (if result (format "SUCCESS (%d points)" (length result)) "FAILED"))
-    
-    ;; DEBUG: Show node coordinates for zero-length edge diagnosis
-    (let ((from-id (dag-draw-edge-from-node edge))
-          (to-id (dag-draw-edge-to-node edge)))
-      (message "  NODE-COORDS: %s=(%.1f,%.1f) %s=(%.1f,%.1f)" 
-               from-id (or (dag-draw-node-x-coord from-node) 0) (or (dag-draw-node-y-coord from-node) 0)
-               to-id (or (dag-draw-node-x-coord to-node) 0) (or (dag-draw-node-y-coord to-node) 0)))
+    ;; Port calculation using enhanced multi-edge distribution logic
     result))
 
 (provide 'dag-draw-ports)

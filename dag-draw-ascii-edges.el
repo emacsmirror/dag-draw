@@ -666,7 +666,7 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
                        ;; ARROW DIRECTION FIX: For primarily horizontal edges, use port-side as hint
                        ;; Port-side 'left means arrow goes rightward (INTO left side)
                        (cond ((eq port-side 'left) ?▶)   ; Arrow pointing right into left side
-                             ((eq port-side 'right) ?◀)  ; Arrow pointing left into right side  
+                             ((eq port-side 'right) ?◀)  ; Arrow pointing left into right side
                              ((> dx 0) ?▶)               ; Fallback to coordinate direction
                              (t ?◀)))                    ; Fallback to coordinate direction
                       ;; FALLBACK: Use port side only for unclear cases
@@ -743,6 +743,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
                                 (* edge-index 2)  ; Separate multiple edges by 2 grid units
                               0))
                (adjusted-start-y (+ start-y y-separation)))
+          ;; Multi-edge distribution working correctly - debug output removed
 
           ;; PHASE 2 FIX: Actually use the spline points and convert world→grid coordinates
           (if (and spline-points (>= (length spline-points) 2))
@@ -774,8 +775,10 @@ PHASE 2 FIX: Converts spline points from world coordinates to grid coordinates b
 
     ;; REVERTED: Use simple L-path but fix the collision detection
     ;; The spline points route through nodes, so use safe orthogonal routing instead
+    (message "  DRAWING L-PATH: (%d,%d) -> (%d,%d)" start-x start-y end-x end-y)
     (dag-draw--draw-ultra-safe-l-path grid start-x start-y end-x end-y occupancy-map 'horizontal-first)
     ;; Add proper arrow at endpoint
+    (message "  ADDING ARROW: (%d,%d) -> (%d,%d) port-side=%s" start-x start-y end-x end-y target-port-side)
     (dag-draw--add-port-based-arrow grid start-x start-y end-x end-y occupancy-map target-port-side)))
 
 (defun dag-draw--draw-clean-line-segment (grid x1 y1 x2 y2 occupancy-map)

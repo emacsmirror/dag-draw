@@ -79,10 +79,14 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
 
 (defun dag-draw-render-ascii (graph)
   "Render GRAPH as ASCII art with box-drawing characters."
-  ;; GKNV COMPLIANCE FIX: Ensure all 4 passes are executed before rendering
-  ;; The layout algorithm must be called to generate splines (Pass 4)
-  (dag-draw-layout-graph graph)
-  
+  ;; GHOST NODE FIX: Only run layout if graph hasn't been laid out yet
+  ;; Check if splines exist to determine if layout has been done
+  (unless (and (dag-draw-graph-edges graph)
+               (dag-draw-edge-spline-points (car (dag-draw-graph-edges graph))))
+    ;; GKNV COMPLIANCE FIX: Ensure all 4 passes are executed before rendering
+    ;; The layout algorithm must be called to generate splines (Pass 4)
+    (dag-draw-layout-graph graph))
+
   ;; Handle empty graphs explicitly
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
@@ -106,7 +110,7 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                                    ((< node-count 3) 2)    ; Small graphs - minimal buffer
                                    ((< node-count 5) 3)    ; Medium graphs - small buffer
                                    (t 4)))                  ; Large graphs - modest buffer (was 8!)
-           ;; Reduce collision movement allowance to preserve coordinate precision  
+           ;; Reduce collision movement allowance to preserve coordinate precision
            (max-collision-movement (cond
                                     ((< node-count 3) 3)    ; Small graphs - minimal movement
                                     ((< node-count 5) 4)    ; Medium graphs - small movement (was 8!)
@@ -147,10 +151,11 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
         ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
         ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
         (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
-        
-        ;; GHOST NODE FIX: Regenerate splines after collision detection to ensure consistency
-        (dag-draw--regenerate-splines-after-collision graph)
-        
+
+        ;; GHOST NODE FIX: Disable spline regeneration to prevent coordinate system mixing
+        ;; The spline-to-grid conversion handles collision-adjusted positions correctly
+        ;; (dag-draw--regenerate-splines-after-collision graph)
+
         ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
         ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
         (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
@@ -158,7 +163,7 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
         ;; Draw edges FIRST using spline data when available - now uses final positions
         (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
 
-        ;; Draw nodes LAST to ensure box integrity - uses same final positions  
+        ;; Draw nodes LAST to ensure box integrity - uses same final positions
         (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
 
         ;; Convert grid to string
@@ -171,12 +176,12 @@ This ensures edges and nodes use the same coordinate system."
         (adjusted-positions (ht-create)))  ; Track final positions
     ;; HIERARCHY-AWARE PROCESSING: Sort nodes by rank to ensure proper ordering
     (let ((sorted-node-ids (sort (ht-keys (dag-draw-graph-nodes graph))
-                                  (lambda (a b)
-                                    (let* ((node-a (ht-get (dag-draw-graph-nodes graph) a))
-                                           (node-b (ht-get (dag-draw-graph-nodes graph) b))
-                                           (rank-a (or (dag-draw-node-rank node-a) 0))
-                                           (rank-b (or (dag-draw-node-rank node-b) 0)))
-                                      (< rank-a rank-b))))))
+                                 (lambda (a b)
+                                   (let* ((node-a (ht-get (dag-draw-graph-nodes graph) a))
+                                          (node-b (ht-get (dag-draw-graph-nodes graph) b))
+                                          (rank-a (or (dag-draw-node-rank node-a) 0))
+                                          (rank-b (or (dag-draw-node-rank node-b) 0)))
+                                     (< rank-a rank-b))))))
       (dolist (node-id sorted-node-ids)
         (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
                (x (or (dag-draw-node-x-coord node) 0))
@@ -210,7 +215,7 @@ This ensures edges and nodes use the same coordinate system."
               ;; Track this node for future collision detection
               (push (append current-rect (list node-id)) drawn-nodes)
 
-              ;; Store final adjusted position 
+              ;; Store final adjusted position
               (ht-set! adjusted-positions node-id
                        (list adjusted-x adjusted-y final-width final-height)))))))
 
@@ -234,16 +239,20 @@ This ensures splines connect nodes at their final positions after collision dete
                           (world-y (+ adjusted-y (/ (nth 3 coords) 2.0))))
                      (when node
                        ;; Save original coordinates
-                       (ht-set! original-coords node-id 
+                       (ht-set! original-coords node-id
                                 (list (dag-draw-node-x-coord node) (dag-draw-node-y-coord node)))
-                       ;; Set collision-adjusted coordinates  
+                       ;; Set collision-adjusted coordinates
                        (setf (dag-draw-node-x-coord node) world-x)
                        (setf (dag-draw-node-y-coord node) world-y))))
                  adjusted-positions)
-        
+
+        ;; GHOST NODE FIX: Clear existing splines to prevent duplication
+        (dolist (edge (dag-draw-graph-edges graph))
+          (setf (dag-draw-edge-spline-points edge) nil))
+
         ;; Regenerate splines with updated coordinates
         (dag-draw-generate-splines graph)
-        
+
         ;; Restore original coordinates (optional - may not be needed)
         (ht-each (lambda (node-id original-coord-pair)
                    (let ((node (ht-get (dag-draw-graph-nodes graph) node-id)))
@@ -259,9 +268,9 @@ This ensures splines and final node positions use the same coordinate system."
     (let ((spline-points (dag-draw-edge-spline-points edge)))
       (when spline-points
         ;; Convert each spline point from world coordinates to grid coordinates
-        (let ((converted-points 
+        (let ((converted-points
                (mapcar (lambda (point)
-                         (dag-draw-point-create 
+                         (dag-draw-point-create
                           :x (dag-draw--world-to-grid-coord (dag-draw-point-x point) min-x scale)
                           :y (dag-draw--world-to-grid-coord (dag-draw-point-y point) min-y scale)))
                        spline-points)))
