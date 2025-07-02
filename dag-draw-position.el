@@ -300,6 +300,16 @@ for optimal X-coordinate assignment."
   ;; First assign Y coordinates (straightforward)
   (dag-draw--assign-y-coordinates graph)
   
+  ;; DEBUG: Show node positions for connectivity analysis
+  (message "NODE POSITIONS after positioning:")
+  (ht-each (lambda (node-id node)
+             (message "  Node %s: (%.1f,%.1f) rank=%s"
+                      node-id 
+                      (or (dag-draw-node-x-coord node) 0)
+                      (or (dag-draw-node-y-coord node) 0)
+                      (or (dag-draw-node-rank node) "nil")))
+           (dag-draw-graph-nodes graph))
+  
   ;; Then assign X coordinates using auxiliary graph approach
   (let ((use-auxiliary-graph nil))  ; Switch to control approach - use heuristic for now
     

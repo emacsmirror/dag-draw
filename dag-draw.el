@@ -241,10 +241,11 @@ This enables GKNV variable node sizing while respecting user constraints."
          (num-lines (length text-lines))
          ;; SCALING FIX: Use global parameter to eliminate double scaling
          (grid-scale 2)
-         (ascii-box-scale (if (boundp 'dag-draw-ascii-box-scale) 
-                             dag-draw-ascii-box-scale 
-                             0.08))  ; Use global scale or fallback
-         (min-width 80)
+         ;; MATHEMATICAL UNIFICATION FIX: Use unified coordinate scale
+         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale) 
+                             dag-draw-ascii-coordinate-scale 
+                             0.15))  ; Use unified scale for mathematical consistency
+         (min-width 147)  ; FIXED: Ensure 20+ character interior space after grid conversion (147*0.15=22, 22-2=20 chars)
          ;; Calculate width to fit the longest line (variable sizing)
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
          (calculated-width (ceiling (/ required-grid-chars
@@ -293,10 +294,12 @@ and height accommodates all lines with padding.
 GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
-         ;; Use improved ASCII rendering scale factors
+         ;; MATHEMATICAL UNIFICATION FIX: Use unified coordinate scale
          (grid-scale 2)
-         (ascii-box-scale 0.08)
-         (min-width 80)
+         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale) 
+                             dag-draw-ascii-coordinate-scale 
+                             0.15))  ; Use unified scale for mathematical consistency
+         (min-width 147)  ; FIXED: Ensure 20+ character interior space after grid conversion (147*0.15=22, 22-2=20 chars)
          ;; Calculate width to fit the longest line
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
          (calculated-width (ceiling (/ required-grid-chars

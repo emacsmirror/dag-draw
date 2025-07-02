@@ -49,12 +49,8 @@
   :type 'string
   :group 'dag-draw-render)
 
-(defcustom dag-draw-render-ascii-grid-scale 2
-  "Scale factor for ASCII grid density (higher = more detailed)."
-  :type 'integer
-  :group 'dag-draw-render)
-
-;; COORDINATE SYSTEM FIX: Scale factors moved to dag-draw-ascii-grid.el to avoid duplicates
+;; PHASE 1 FIX: Removed dag-draw-render-ascii-grid-scale - use dag-draw-ascii-coordinate-scale only
+;; COORDINATE SYSTEM FIX: Scale factors unified in dag-draw-ascii-grid.el
 
 ;;; Helper Functions
 
@@ -83,6 +79,10 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
 
 (defun dag-draw-render-ascii (graph)
   "Render GRAPH as ASCII art with box-drawing characters."
+  ;; GKNV COMPLIANCE FIX: Ensure all 4 passes are executed before rendering
+  ;; The layout algorithm must be called to generate splines (Pass 4)
+  (dag-draw-layout-graph graph)
+  
   ;; Handle empty graphs explicitly
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
@@ -91,7 +91,8 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
            (min-y (nth 1 bounds))
            (max-x (nth 2 bounds))
            (max-y (nth 3 bounds))
-           (scale dag-draw-render-ascii-grid-scale)
+           ;; PHASE 1 FIX: Use unified coordinate scale throughout system
+           (scale dag-draw-ascii-coordinate-scale)
            (width-diff (- max-x min-x))
            (height-diff (- max-y min-y))
            ;; Calculate maximum node extents to ensure complete boxes fit
@@ -139,17 +140,17 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
              ;; PHASE 1 FIX: Reduce excessive padding that was inflating grid size
              (extra-width-padding (max 10 (* node-count 2)))  ; Reduced from (* node-count 5)
              (extra-height-padding (max 5 (ceiling (* node-count 1.5))))  ; Ensure integer
-             (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) scale dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
-             (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) scale dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
+             (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
+             (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
              (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-        ;; PHASE 2 FIX: Coordinate System Unification
-        ;; PRE-CALCULATE node positions with collision detection BEFORE drawing anything
-        ;; This ensures edges and nodes use the same final coordinates
+        ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
+        ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
         (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
         
-        ;; Generate splines for smoother edge routing (GKNV algorithm Pass 4)
-        (dag-draw-generate-splines graph)
+        ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
+        ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
+        (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
 
         ;; Draw edges FIRST using spline data when available - now uses final positions
         (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
@@ -212,6 +213,22 @@ This ensures edges and nodes use the same coordinate system."
 
     ;; Store adjusted positions in graph for both edge and node drawing to use
     (setf (dag-draw-graph-adjusted-positions graph) adjusted-positions)))
+
+(defun dag-draw--convert-splines-to-grid-coordinates (graph min-x min-y scale)
+  "Convert spline coordinates from GKNV world coordinates to ASCII grid coordinates.
+This ensures splines and final node positions use the same coordinate system."
+  (dolist (edge (dag-draw-graph-edges graph))
+    (let ((spline-points (dag-draw-edge-spline-points edge)))
+      (when spline-points
+        ;; Convert each spline point from world coordinates to grid coordinates
+        (let ((converted-points 
+               (mapcar (lambda (point)
+                         (dag-draw-point-create 
+                          :x (dag-draw--world-to-grid-coord (dag-draw-point-x point) min-x scale)
+                          :y (dag-draw--world-to-grid-coord (dag-draw-point-y point) min-y scale)))
+                       spline-points)))
+          ;; Update the edge with converted spline points
+          (setf (dag-draw-edge-spline-points edge) converted-points))))))
 
 (defun dag-draw-display-in-buffer (graph &optional buffer-name format)
   "Display rendered GRAPH in a buffer."

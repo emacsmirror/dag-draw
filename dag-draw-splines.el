@@ -19,6 +19,7 @@
 (require 'ht)
 (require 'dag-draw)
 (require 'dag-draw-core)
+(require 'dag-draw-ascii-grid)
 
 ;;; Data structures for splines
 
@@ -65,17 +66,19 @@
                                (dag-draw-graph-adjusted-positions graph)
                                (ht-get (dag-draw-graph-adjusted-positions graph) node-id)))
          (x (if adjusted-coords
-                ;; Adjusted coordinates are in grid space, convert back to world coordinates
-                (float (nth 0 adjusted-coords))
+                ;; COORDINATE SYSTEM FIX: Convert grid coordinates back to world coordinates
+                ;; Adjusted coords are in grid space, need conversion for spline generation
+                (/ (float (nth 0 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
               (float (or (dag-draw-node-x-coord node) 0))))
          (y (if adjusted-coords
-                (float (nth 1 adjusted-coords))
+                (/ (float (nth 1 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
               (float (or (dag-draw-node-y-coord node) 0))))
          (width (if adjusted-coords
-                    (float (nth 2 adjusted-coords))
+                    ;; Width and height are also in grid scale, convert back
+                    (/ (float (nth 2 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                   (float (dag-draw-node-x-size node))))
          (height (if adjusted-coords
-                     (float (nth 3 adjusted-coords))
+                     (/ (float (nth 3 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                    (float (dag-draw-node-y-size node)))))
 
     (cond
@@ -201,16 +204,17 @@
          (adjusted-coords (and (dag-draw-graph-adjusted-positions graph)
                                (ht-get (dag-draw-graph-adjusted-positions graph) node-id)))
          (center-x (if adjusted-coords
-                       (float (nth 0 adjusted-coords))
+                       ;; COORDINATE SYSTEM FIX: Convert grid coordinates back to world coordinates
+                       (/ (float (nth 0 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                      (or (dag-draw-node-x-coord node) 0)))
          (center-y (if adjusted-coords
-                       (float (nth 1 adjusted-coords))
+                       (/ (float (nth 1 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                      (or (dag-draw-node-y-coord node) 0)))
          (width (if adjusted-coords
-                    (float (nth 2 adjusted-coords))
+                    (/ (float (nth 2 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                   (dag-draw-node-x-size node)))
          (height (if adjusted-coords
-                     (float (nth 3 adjusted-coords))
+                     (/ (float (nth 3 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
                    (dag-draw-node-y-size node)))
          (loop-size (* 1.5 (max width height)))
          (start-port (dag-draw--get-node-port node 'right graph))
@@ -369,20 +373,38 @@ Implements proper spline routing that avoids node boundaries and other obstacles
     (let* ((edge-type (dag-draw--classify-edge graph edge))
            (splines (cond
                      ((eq edge-type 'inter-rank-edge)
+                      (message "SPLINE-GEN: Creating inter-rank spline for %s->%s" 
+                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-inter-rank-spline graph edge))
                      ((eq edge-type 'flat-edge)
+                      (message "SPLINE-GEN: Creating flat spline for %s->%s" 
+                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-flat-spline graph edge))
                      ((eq edge-type 'self-edge)
+                      (message "SPLINE-GEN: Creating self spline for %s->%s" 
+                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-self-spline graph edge))
                      ;; PHASE 3 FIX: All edges must have splines per GKNV algorithm
                      (t (progn
                           (message "WARNING: Unknown edge type %s for edge %s->%s, treating as inter-rank"
                                    edge-type (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
-                          (dag-draw--create-inter-rank-spline graph edge))))))
+                          (dag-draw--create-inter-rank-spline graph edge)))))
+           (spline-points (dag-draw--convert-splines-to-points splines)))
 
+      (message "SPLINE-GEN: Edge %s->%s generated %d spline points" 
+               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge) 
+               (if spline-points (length spline-points) 0))
+      
+      ;; DEBUG: Show actual spline coordinates for connectivity analysis
+      (when spline-points
+        (message "  SPLINE-COORDS: Start: (%.1f,%.1f) End: (%.1f,%.1f)"
+                 (dag-draw-point-x (car spline-points))
+                 (dag-draw-point-y (car spline-points))
+                 (dag-draw-point-x (car (last spline-points)))
+                 (dag-draw-point-y (car (last spline-points)))))
+      
       ;; Store splines in edge
-      (setf (dag-draw-edge-spline-points edge)
-            (dag-draw--convert-splines-to-points splines))))
+      (setf (dag-draw-edge-spline-points edge) spline-points)))
 
   graph)
 

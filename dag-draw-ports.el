@@ -31,11 +31,11 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (manual-x (dag-draw-node-x-coord node))
          (manual-y (dag-draw-node-y-coord node))
          (has-manual-coords (and manual-x manual-y))
-         ;; Use adjusted coordinates only if no manual coordinates are set
-         (adjusted-coords (and graph
-                               (dag-draw-graph-adjusted-positions graph)
-                               (ht-get (dag-draw-graph-adjusted-positions graph) node-id)
-                               (not has-manual-coords)))
+         ;; COORDINATE SYSTEM FIX: Always prioritize adjusted coordinates when available
+         ;; The adjusted-positions contain the final collision-resolved positions
+         (adjusted-positions-table (and graph (dag-draw-graph-adjusted-positions graph)))
+         (adjusted-coords (and adjusted-positions-table 
+                               (ht-get adjusted-positions-table node-id)))
          (x (if adjusted-coords
                 ;; Adjusted coordinates are already in grid space: (x y width height)
                 (float (nth 0 adjusted-coords))
@@ -50,7 +50,8 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (height (if adjusted-coords
                      (float (nth 3 adjusted-coords))
                    (float (dag-draw-node-y-size node))))
-         ;; If using adjusted coordinates, they're already in grid space
+         ;; COORDINATE SYSTEM UNIFICATION: Use EXACT same logic as node rendering
+         ;; CRITICAL FIX: Use min-x/min-y directly (NOT adjusted-min-x/y) to match rendering
          (grid-center-x (if adjusted-coords
                             (+ x (/ width 2.0))
                           (dag-draw--world-to-grid-coord x min-x scale)))
@@ -59,27 +60,51 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
                           (dag-draw--world-to-grid-coord y min-y scale)))
          (grid-width (if adjusted-coords width (dag-draw--world-to-grid-size width scale)))
          (grid-height (if adjusted-coords height (dag-draw--world-to-grid-size height scale)))
-         ;; Calculate actual box boundaries
+         ;; FIXED: Use adjusted coordinates consistently without additional transformations
          (grid-x (if adjusted-coords (round x) (round (- grid-center-x (/ grid-width 2)))))
          (grid-y (if adjusted-coords (round y) (round (- grid-center-y (/ grid-height 2)))))
-         (grid-x-end (+ grid-x grid-width -1))
-         (grid-y-end (+ grid-y grid-height -1))
-         ;; Calculate actual center after rounding
-         (actual-center-x (+ grid-x (/ grid-width 2.0)))
-         (actual-center-y (+ grid-y (/ grid-height 2.0))))
+         (grid-x-end (if adjusted-coords (+ grid-x grid-width -1) (+ grid-x grid-width -1)))
+         (grid-y-end (if adjusted-coords (+ grid-y grid-height -1) (+ grid-y grid-height -1)))
+         ;; COORDINATE PRECISION FIX: Ensure all coordinates are integer-quantized
+         (actual-center-x (round (if adjusted-coords (+ x (/ width 2.0)) (+ grid-x (/ grid-width 2.0)))))
+         (actual-center-y (round (if adjusted-coords (+ y (/ height 2.0)) (+ grid-y (/ grid-height 2.0))))))
 
+    ;; DEBUG: Show coordinate source decision
+    (message "    PORT-COORD-SOURCE: Node %s has-manual=%s adjusted-available=%s using=%s"
+             node-id has-manual-coords 
+             (if adjusted-coords "YES" "NO")
+             (cond (adjusted-coords "ADJUSTED")
+                   (has-manual-coords "MANUAL") 
+                   (t "DEFAULT")))
+    
+    (when adjusted-coords
+      (message "    ADJUSTED-COORDS: Node %s -> (%.1f,%.1f,%.1f,%.1f)"
+               node-id (nth 0 adjusted-coords) (nth 1 adjusted-coords) 
+               (nth 2 adjusted-coords) (nth 3 adjusted-coords)))
+               
+    ;; DEBUG: Show calculated values for diagnosis  
+    (message "    PORT-CALC-VARS: Node %s side=%s x=%.1f y=%.1f center=(%.1f,%.1f) grid-box=(%d,%d to %d,%d)"
+             node-id side x y grid-center-x grid-center-y grid-x grid-y grid-x-end grid-y-end)
+      
     ;; COORDINATE SYSTEM FIX: Return grid coordinates directly to avoid double conversion
-    (cond
-     ((eq side 'top)
-      (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
-     ((eq side 'bottom)
-      (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
-     ((eq side 'left)
-      (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
-     ((eq side 'right)
-      (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
-     (t
-      (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
+    (let ((result-port
+      (cond
+       ((eq side 'top)
+        (dag-draw-point-create :x actual-center-x :y (- grid-y 1)))  ; OUTSIDE box, above it
+       ((eq side 'bottom)
+        (dag-draw-point-create :x actual-center-x :y (+ grid-y-end 1)))  ; OUTSIDE box, below it
+       ((eq side 'left)
+        (dag-draw-point-create :x (- grid-x 1) :y (+ grid-y 1)))  ; OUTSIDE box, left of it
+       ((eq side 'right)
+        (dag-draw-point-create :x (+ grid-x-end 1) :y (+ grid-y 1)))  ; OUTSIDE box, right of it
+       (t
+        (dag-draw-point-create :x actual-center-x :y actual-center-y)))))
+        
+      ;; DEBUG: Show final port result
+      (message "    FINAL-PORT: Node %s side=%s -> (%.1f,%.1f)"
+               node-id side (dag-draw-point-x result-port) (dag-draw-point-y result-port))
+               
+      result-port)))
 
 (defun dag-draw--determine-port-side (node port min-x min-y scale &optional graph)
   "Determine which side of NODE the PORT is on (top/bottom/left/right).
@@ -284,11 +309,24 @@ EDGE-INDEX is 0-based index of this edge, EDGE-COUNT is total edges from node."
   "Get connection points for edge in ASCII rendering context.
 If grid parameters are provided, uses grid-aware port calculation for precise alignment."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
-    (if (and min-x min-y scale)
-        ;; Use enhanced port calculation with multi-edge distribution
-        (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)
-      (dag-draw--calculate-edge-ports from-node to-node))))
+         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+         (result (if (and min-x min-y scale)
+                     ;; Use enhanced port calculation with multi-edge distribution
+                     (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)
+                   (dag-draw--calculate-edge-ports from-node to-node))))
+    ;; DEBUG: Log port calculation results
+    (message "PORT-CALC: Edge %s->%s, result: %s" 
+             (dag-draw-edge-from-node edge)
+             (dag-draw-edge-to-node edge)
+             (if result (format "SUCCESS (%d points)" (length result)) "FAILED"))
+    
+    ;; DEBUG: Show node coordinates for zero-length edge diagnosis
+    (let ((from-id (dag-draw-edge-from-node edge))
+          (to-id (dag-draw-edge-to-node edge)))
+      (message "  NODE-COORDS: %s=(%.1f,%.1f) %s=(%.1f,%.1f)" 
+               from-id (or (dag-draw-node-x-coord from-node) 0) (or (dag-draw-node-y-coord from-node) 0)
+               to-id (or (dag-draw-node-x-coord to-node) 0) (or (dag-draw-node-y-coord to-node) 0)))
+    result))
 
 (provide 'dag-draw-ports)
 

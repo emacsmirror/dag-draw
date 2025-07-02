@@ -61,8 +61,9 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
          ;; AGGRESSIVE BOX PROTECTION: Always draw box characters to ensure clean boxes
          ;; Since nodes are drawn last, they have final authority over box integrity
          ((memq current-char '(?┌ ?┐ ?└ ?┘ ?─ ?│ ?┼ ?▼ ?▲ ?▶ ?◀))
-          ;; Overwrite edge characters AND arrows that conflict with box drawing
-          (aset (aref grid y) x char))
+          ;; ANTI-DUPLICATION: Only overwrite if placing a different character
+          (unless (eq current-char char)
+            (aset (aref grid y) x char)))
 
          ;; Default - draw the character
          (t (aset (aref grid y) x char)))))))

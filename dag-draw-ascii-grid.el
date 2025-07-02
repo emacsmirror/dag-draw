@@ -20,30 +20,28 @@
 
 ;;; Customization
 
-(defcustom dag-draw-ascii-coordinate-scale 0.6
+(defcustom dag-draw-ascii-coordinate-scale 0.15
   "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
 
 ASCII CHARACTER CONSTRAINTS:
 - GKNV paper suggests '72 units per inch' for high-resolution graphics
 - ASCII terminals have ~5 characters per inch in typical monospace fonts  
 - Scale factor needed: 72 ÷ 5 = ~14.4x compression from GKNV to ASCII
-- Our 0.6 scale ≈ 1/14.4 × 8.64, which provides good ASCII grid mapping
+- Our 0.15 scale provides balanced compression avoiding coordinate collapse
 
-VISUAL RESULT: Eliminates coordinate collapse and produces clean edge routing."
+VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
   :type 'float
   :group 'dag-draw-render)
 
-(defcustom dag-draw-ascii-box-scale 0.16
-  "Scale factor for converting node bounding boxes to ASCII character grid sizes.
+(defcustom dag-draw-ascii-box-scale 0.15
+  "DEPRECATED: Use dag-draw-ascii-coordinate-scale for unified mathematical consistency.
 
-ASCII TEXT FITTING CONSTRAINTS:
-- Each ASCII character occupies exactly 1 grid cell (monospace requirement)
-- Node text must fit within character boundaries without overlap
-- Increased to 0.16 scale to allow more text to fit within boxes
-- Balance between text visibility and algorithm stability
+MATHEMATICAL UNIFICATION: This variable is deprecated to eliminate scale factor
+mismatches that cause boundary alignment issues. All coordinate and size 
+conversions now use dag-draw-ascii-coordinate-scale for consistency.
 
-GKNV ADAPTATION: While GKNV uses continuous coordinates, ASCII requires 
-discrete character positioning, hence the smaller box scale."
+LEGACY NOTE: Previously 0.16, now 0.15 to match coordinate scale and prevent
+the 6.7% mismatch that caused double vertical line artifacts."
   :type 'float
   :group 'dag-draw-render)
 
@@ -57,10 +55,10 @@ SCALE UNIFICATION: Use only dag-draw-ascii-coordinate-scale to eliminate double 
   (float (round (* (- coord min-coord) dag-draw-ascii-coordinate-scale))))
 
 (defun dag-draw--world-to-grid-size (size scale)
-  "Convert GKNV node size to ASCII grid size.
+  "Convert GKNV node size to ASCII grid size using UNIFIED scale factor.
 SIZE is the node size in world coordinates, SCALE is the grid scale factor.
-SCALE UNIFICATION: Use only dag-draw-ascii-box-scale to eliminate double multiplication."
-  (max 3 (ceiling (* size dag-draw-ascii-box-scale))))
+MATHEMATICAL UNIFICATION FIX: Use same scale as coordinate conversion to eliminate 6.7% mismatch."
+  (max 3 (ceiling (* size dag-draw-ascii-coordinate-scale))))
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
   "Get node center coordinates directly in grid space for simple edge routing.
@@ -219,14 +217,9 @@ otherwise calculates from coordinates for compatibility with tests."
     (dotimes (y grid-height)
       (aset occupancy-map y (make-vector grid-width nil)))
 
-    ;; Check if grid has any node content (non-space characters)
-    (let ((has-content nil))
-      (catch 'found-content
-        (dotimes (y grid-height)
-          (dotimes (x grid-width)
-            (when (not (eq (aref (aref grid y) x) ?\s))
-              (setq has-content t)
-              (throw 'found-content t)))))
+    ;; FIXED: Always use coordinate-based calculation since edges are drawn before nodes
+    ;; The grid content analysis fails because nodes aren't drawn yet when edges need the occupancy map
+    (let ((has-content nil))  ; Force coordinate-based mode
 
       (if has-content
           ;; PREFERRED: Grid has content - analyze actual drawn positions and mark complete box interiors
@@ -276,7 +269,24 @@ otherwise calculates from coordinates for compatibility with tests."
                                    (box-y (+ grid-y dy)))
                                (when (and (>= box-x 0) (< box-x grid-width)
                                           (>= box-y 0) (< box-y grid-height))
-                                 (aset (aref occupancy-map box-y) box-x t)))))))
+                                 (aset (aref occupancy-map box-y) box-x t)))))
+                         
+                         ;; BUFFER ZONE FIX: Mark cells immediately adjacent to vertical node boundaries
+                         ;; to prevent ││ artifacts from parallel edge lines
+                         (let ((left-buffer-x (1- grid-x))
+                               (right-buffer-x (+ grid-x grid-width-node)))
+                           ;; Mark left buffer column
+                           (when (and (>= left-buffer-x 0) (< left-buffer-x grid-width))
+                             (dotimes (dy grid-height-node)
+                               (let ((buffer-y (+ grid-y dy)))
+                                 (when (and (>= buffer-y 0) (< buffer-y grid-height))
+                                   (aset (aref occupancy-map buffer-y) left-buffer-x t)))))
+                           ;; Mark right buffer column  
+                           (when (and (>= right-buffer-x 0) (< right-buffer-x grid-width))
+                             (dotimes (dy grid-height-node)
+                               (let ((buffer-y (+ grid-y dy)))
+                                 (when (and (>= buffer-y 0) (< buffer-y grid-height))
+                                   (aset (aref occupancy-map buffer-y) right-buffer-x t))))))))
                      (dag-draw-graph-nodes graph)))
 
         ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
@@ -311,7 +321,24 @@ otherwise calculates from coordinates for compatibility with tests."
                                (map-y (round (+ grid-y dy))))
                            (when (and (>= map-x 0) (< map-x grid-width)
                                       (>= map-y 0) (< map-y grid-height))
-                             (aset (aref occupancy-map map-y) map-x t)))))))
+                             (aset (aref occupancy-map map-y) map-x t)))))
+                     
+                     ;; BUFFER ZONE FIX: Mark cells immediately adjacent to vertical node boundaries  
+                     ;; to prevent ││ artifacts from parallel edge lines (fallback case)
+                     (let ((left-buffer-x (round (1- grid-x)))
+                           (right-buffer-x (round (+ grid-x grid-width-node))))
+                       ;; Mark left buffer column
+                       (when (and (>= left-buffer-x 0) (< left-buffer-x grid-width))
+                         (dotimes (dy grid-height-node)
+                           (let ((buffer-y (round (+ grid-y dy))))
+                             (when (and (>= buffer-y 0) (< buffer-y grid-height))
+                               (aset (aref occupancy-map buffer-y) left-buffer-x t)))))
+                       ;; Mark right buffer column  
+                       (when (and (>= right-buffer-x 0) (< right-buffer-x grid-width))
+                         (dotimes (dy grid-height-node)
+                           (let ((buffer-y (round (+ grid-y dy))))
+                             (when (and (>= buffer-y 0) (< buffer-y grid-height))
+                               (aset (aref occupancy-map buffer-y) right-buffer-x t))))))))
                  (dag-draw-graph-nodes graph))))
 
     occupancy-map))
