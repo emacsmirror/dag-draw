@@ -184,6 +184,9 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
           ;; Draw nodes LAST to ensure box integrity - uses same final positions
           (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
 
+          ;; Post-process junction characters to improve visual connections
+          (dag-draw--post-process-junction-characters grid)
+
           ;; Convert grid to string
           (dag-draw--ascii-grid-to-string grid))))))
 

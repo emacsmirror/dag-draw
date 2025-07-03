@@ -38,7 +38,11 @@
      ;; Horizontal line
      ((= dy 0)
       (let ((start-x (min x1 x2))
-            (end-x (max x1 x2)))
+            (end-x (max x1 x2))
+            (direction (if (< x1 x2) 'right 'left)))
+        ;; Apply junction character at start if needed
+        (dag-draw--apply-boundary-junction grid start-x y1 direction)
+        ;; Draw the horizontal line
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
             (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
@@ -46,7 +50,11 @@
      ;; Vertical line
      ((= dx 0)
       (let ((start-y (min y1 y2))
-            (end-y (max y1 y2)))
+            (end-y (max y1 y2))
+            (direction (if (< y1 y2) 'down 'up)))
+        ;; Apply junction character at start if needed
+        (dag-draw--apply-boundary-junction grid x1 start-y direction)
+        ;; Draw the vertical line
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (when (and (>= x1 0) (< x1 grid-width)
@@ -506,6 +514,75 @@ Prevents junction characters adjacent to node boundaries per GKNV edge terminati
    ;; Default: prefer new character to avoid stale states
    (t new-char)))
 
+
+;;; Junction Character Enhancement Functions
+
+(defun dag-draw--detect-boundary-junction-needed (grid x y direction)
+  "Detect if a junction character is needed when drawing an edge from (X,Y) in DIRECTION.
+Returns junction character if replacement needed, nil otherwise."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+      (let ((current-char (aref (aref grid y) x)))
+        (cond
+         ;; Vertical boundary character with horizontal edge
+         ((and (eq current-char ?│) 
+               (memq direction '(right left)))
+          (if (eq direction 'right) ?├ ?┤))
+         
+         ;; Horizontal boundary character with vertical edge  
+         ((and (eq current-char ?─)
+               (memq direction '(up down)))
+          (if (eq direction 'down) ?┬ ?┴))
+         
+         ;; No junction needed
+         (t nil))))))
+
+(defun dag-draw--apply-boundary-junction (grid x y direction)
+  "Apply junction character at (X,Y) if drawing edge in DIRECTION from a boundary.
+Returns t if junction was applied, nil otherwise."
+  (let ((junction-char (dag-draw--detect-boundary-junction-needed grid x y direction)))
+    (when junction-char
+      (let* ((grid-height (length grid))
+             (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+        (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+          (aset (aref grid y) x junction-char)
+          t)))))
+
+(defun dag-draw--post-process-junction-characters (grid)
+  "Post-process the grid to replace boundary+edge patterns with junction characters.
+This fixes patterns like '│──' with '├──' after both nodes and edges are drawn."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    
+    (dotimes (y grid-height)
+      (dotimes (x grid-width)
+        (let ((current-char (aref (aref grid y) x)))
+          (cond
+           ;; Vertical boundary with horizontal line to the right
+           ((and (eq current-char ?│)
+                 (< (1+ x) grid-width)
+                 (eq (aref (aref grid y) (1+ x)) ?─))
+            (aset (aref grid y) x ?├))
+           
+           ;; Vertical boundary with horizontal line to the left  
+           ((and (eq current-char ?│)
+                 (> x 0)
+                 (eq (aref (aref grid y) (1- x)) ?─))
+            (aset (aref grid y) x ?┤))
+           
+           ;; Horizontal boundary with vertical line below
+           ((and (eq current-char ?─)
+                 (< (1+ y) grid-height)
+                 (eq (aref (aref grid (1+ y)) x) ?│))
+            (aset (aref grid y) x ?┬))
+           
+           ;; Horizontal boundary with vertical line above
+           ((and (eq current-char ?─)
+                 (> y 0)
+                 (eq (aref (aref grid (1- y)) x) ?│))
+            (aset (aref grid y) x ?┴))))))))
 
 ;;; Edge Conflict Resolution Functions
 
