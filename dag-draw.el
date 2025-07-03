@@ -197,66 +197,68 @@ Returns a string representation of the rendered graph."
 ;;; Text Processing Utilities
 
 (defun dag-draw--format-node-text-with-constraints (text)
-  "Format TEXT for constrained node size (max 2 rows, 20 chars each).
+  "Format TEXT for node display with expanded constraints.
 Returns a list of strings representing the formatted rows.
-This implements the user requirement for variable node sizes with constraints."
-  (if (<= (length text) 20)
-      (list text)
-    ;; Check if text has no spaces (single long word)
-    (if (not (string-match " " text))
-        ;; Handle single long word - truncate with ellipsis
-        (list (concat (substring text 0 17) "..."))
-      ;; Word wrapping for text longer than 20 chars
-      (let ((words (split-string text " "))
-            (line1 "")
-            (line2 ""))
-        ;; Fill first line up to 20 chars
-        (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) 20))
-          (setq line1 (if (string-empty-p line1)
-                          (car words)
-                        (concat line1 " " (car words))))
-          (setq words (cdr words)))
-        ;; Fill second line up to 20 chars
-        (when words
-          (let ((remaining-text (mapconcat 'identity words " ")))
-            (if (<= (length remaining-text) 20)
-                ;; All remaining text fits in second line
-                (setq line2 remaining-text)
-              ;; Need to truncate with ellipsis
-              (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) 17))
-                (setq line2 (if (string-empty-p line2)
-                                (car words)
-                              (concat line2 " " (car words))))
-                (setq words (cdr words)))
-              (setq line2 (concat line2 "...")))))
-        (if (string-empty-p line2)
-            (list line1)
-          (list line1 line2))))))
+Supports longer text labels while maintaining readable formatting."
+  (let ((max-chars-per-line 25))  ; Increased from 20 to 25 characters per line
+    (if (<= (length text) max-chars-per-line)
+        (list text)
+      ;; Check if text has no spaces (single long word)
+      (if (not (string-match " " text))
+          ;; Handle single long word - truncate with ellipsis only if extremely long
+          (if (> (length text) 30)
+              (list (concat (substring text 0 27) "..."))
+            (list text))  ; Allow single words up to 30 characters
+        ;; Word wrapping for text longer than max-chars-per-line
+        (let ((words (split-string text " "))
+              (line1 "")
+              (line2 ""))
+          ;; Fill first line up to max-chars-per-line
+          (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) max-chars-per-line))
+            (setq line1 (if (string-empty-p line1)
+                            (car words)
+                          (concat line1 " " (car words))))
+            (setq words (cdr words)))
+          ;; Fill second line up to max-chars-per-line
+          (when words
+            (let ((remaining-text (mapconcat 'identity words " ")))
+              (if (<= (length remaining-text) max-chars-per-line)
+                  ;; All remaining text fits in second line
+                  (setq line2 remaining-text)
+                ;; Need to truncate with ellipsis only if extremely long
+                (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) (- max-chars-per-line 3)))
+                  (setq line2 (if (string-empty-p line2)
+                                  (car words)
+                                (concat line2 " " (car words))))
+                  (setq words (cdr words)))
+                (when words  ; Only add ellipsis if there are still remaining words
+                  (setq line2 (concat line2 "..."))))))
+          (if (string-empty-p line2)
+              (list line1)
+            (list line1 line2)))))))
 
 (defun dag-draw--calculate-constrained-node-size (text-lines)
   "Calculate appropriate variable node size for constrained text lines.
-Returns (width . height) where dimensions fit the actual text content.
-This enables GKNV variable node sizing while respecting user constraints."
+ASCII-FIRST APPROACH: Measures actual ASCII grid requirements, then converts to world coordinates.
+Returns (width . height) where dimensions fit the actual text content per GKNV Section 1.2."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
-         ;; SCALING FIX: Use global parameter to eliminate double scaling
-         (grid-scale 2)
-         ;; MATHEMATICAL UNIFICATION FIX: Use unified coordinate scale
-         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale) 
-                             dag-draw-ascii-coordinate-scale 
-                             0.15))  ; Use unified scale for mathematical consistency
-         (min-width 147)  ; FIXED: Ensure 20+ character interior space after grid conversion (147*0.15=22, 22-2=20 chars)
-         ;; Calculate width to fit the longest line (variable sizing)
-         (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
-         (calculated-width (ceiling (/ required-grid-chars
-                                      (* grid-scale ascii-box-scale))))
-         (node-width (max min-width calculated-width))
-         ;; Calculate height based on actual number of lines (minimal sizing)
-         (base-height-per-line 6)
-         (border-height 8)
-         (calculated-height (+ (* num-lines base-height-per-line) border-height))
-         (node-height calculated-height))
-    
+         ;; ASCII-FIRST CALCULATION: Direct measurement of actual requirements
+         (ascii-width-needed (+ max-line-length 4))    ; Text + left/right borders + padding
+         (ascii-height-needed (+ num-lines 2))         ; Text lines + top/bottom borders
+         ;; MATHEMATICAL UNIFICATION: Use unified coordinate scale for conversion
+         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale)
+                              dag-draw-ascii-coordinate-scale
+                            0.15))  ; Use unified scale for mathematical consistency
+         ;; Convert ASCII requirements to world coordinates
+         (calculated-width (/ ascii-width-needed ascii-box-scale))
+         (calculated-height (/ ascii-height-needed ascii-box-scale))
+         ;; GKNV-COMPLIANT SIZE CONSTRAINTS: Variable sizing with practical limits
+         (min-width 60)     ; Minimum for very short text (prevents unusably tiny nodes)
+         (max-width 170)    ; Maximum proven to work well (prevents layout issues)
+         (node-width (max min-width (min max-width calculated-width)))
+         (node-height (max 14 calculated-height)))  ; Minimum reasonable height
+
     (cons node-width node-height)))
 
 (defun dag-draw--smart-wrap-text (text max-width)
@@ -264,12 +266,12 @@ This enables GKNV variable node sizing while respecting user constraints."
 Returns a list of lines."
   (if (<= (length text) max-width)
       (list text)  ; No wrapping needed
-    
+
     ;; Find the best place to break the text
     (let* ((target-pos (/ (length text) 2))  ; Ideal break position (middle)
            (best-pos nil)
            (best-distance most-positive-fixnum))
-      
+
       ;; Find whitespace closest to the middle
       (dotimes (i (length text))
         (when (= (aref text i) ?\s)  ; Found a space
@@ -277,7 +279,7 @@ Returns a list of lines."
             (when (< distance best-distance)
               (setq best-distance distance)
               (setq best-pos i)))))
-      
+
       (if best-pos
           ;; Split at the best whitespace position
           (let ((line1 (substring text 0 best-pos))
@@ -296,20 +298,20 @@ GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
          (num-lines (length text-lines))
          ;; MATHEMATICAL UNIFICATION FIX: Use unified coordinate scale
          (grid-scale 2)
-         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale) 
-                             dag-draw-ascii-coordinate-scale 
-                             0.15))  ; Use unified scale for mathematical consistency
+         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale)
+                              dag-draw-ascii-coordinate-scale
+                            0.15))  ; Use unified scale for mathematical consistency
          (min-width 147)  ; FIXED: Ensure 20+ character interior space after grid conversion (147*0.15=22, 22-2=20 chars)
          ;; Calculate width to fit the longest line
          (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
          (calculated-width (ceiling (/ required-grid-chars
-                                      (* grid-scale ascii-box-scale))))
+                                       (* grid-scale ascii-box-scale))))
          (node-width (max min-width calculated-width))
          ;; GKNV-compatible: Use fixed height to maintain algorithm assumptions
          ;; The original GKNV algorithm expects consistent node dimensions
          (base-height 14)  ; Minimal fixed height for optimal visual density
          (node-height base-height))  ; Always use base height for layout consistency
-    
+
     (cons node-width node-height)))
 
 ;;; Graph utility functions
@@ -324,7 +326,7 @@ Returns (min-x min-y max-x max-y)."
           (min-y most-positive-fixnum)
           (max-x most-negative-fixnum)
           (max-y most-negative-fixnum))
-      
+
       (ht-each (lambda (node-id node)
                  (let* ((x (or (dag-draw-node-x-coord node) 0))
                         (y (or (dag-draw-node-y-coord node) 0))
@@ -334,14 +336,14 @@ Returns (min-x min-y max-x max-y)."
                         (right (+ x (/ width 2.0)))
                         (top (- y (/ height 2.0)))
                         (bottom (+ y (/ height 2.0))))
-                   
-                   
+
+
                    (setq min-x (min min-x left))
                    (setq max-x (max max-x right))
                    (setq min-y (min min-y top))
                    (setq max-y (max max-y bottom))))
                (dag-draw-graph-nodes graph))
-      
+
       (list min-x min-y max-x max-y))))
 
 (provide 'dag-draw)

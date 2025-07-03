@@ -264,49 +264,53 @@ otherwise calculates from coordinates for compatibility with tests."
                          ;; by blocking proper edge placement. Node boundaries are handled by
                          ;; ultra-safe-draw-char logic instead.
                          ))
-                     (dag-draw-graph-nodes graph))
+                     (dag-draw-graph-nodes graph)))
 
-            ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
-            (ht-each (lambda (node-id node)
-                       (let* ((manual-x (dag-draw-node-x-coord node))
-                              (manual-y (dag-draw-node-y-coord node))
-                              (has-manual-coords (and manual-x manual-y))
-                              (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-                              ;; Prioritize manual coordinates over adjusted coordinates
-                              (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
-                                          (ht-get adjusted-positions node-id)
-                                        (let* ((x (or manual-x 0))
-                                               (y (or manual-y 0))
-                                               (width (dag-draw-node-x-size node))
-                                               (height (dag-draw-node-y-size node))
-                                               (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                                               (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                                               (grid-width-node (dag-draw--world-to-grid-size width scale))
-                                               (grid-height-node (dag-draw--world-to-grid-size height scale))
-                                               (grid-x (- grid-center-x (/ grid-width-node 2)))
-                                               (grid-y (- grid-center-y (/ grid-height-node 2))))
-                                          (list grid-x grid-y grid-width-node grid-height-node))))
-                              (grid-x (nth 0 coords))
-                              (grid-y (nth 1 coords))
-                              (grid-width-node (nth 2 coords))
-                              (grid-height-node (nth 3 coords)))
+        ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
+        ;; FIXED: Moved this logic to proper else branch
+        (ht-each (lambda (node-id node)
+                   (let* ((manual-x (dag-draw-node-x-coord node))
+                          (manual-y (dag-draw-node-y-coord node))
+                          (has-manual-coords (and manual-x manual-y))
+                          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                          ;; Prioritize manual coordinates over adjusted coordinates
+                          (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
+                                      (ht-get adjusted-positions node-id)
+                                    (let* ((x (or manual-x 0))
+                                           (y (or manual-y 0))
+                                           (width (dag-draw-node-x-size node))
+                                           (height (dag-draw-node-y-size node))
+                                           (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
+                                           (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
+                                           (grid-width-node (dag-draw--world-to-grid-size width scale))
+                                           (grid-height-node (dag-draw--world-to-grid-size height scale))
+                                           (grid-x (- grid-center-x (/ grid-width-node 2)))
+                                           (grid-y (- grid-center-y (/ grid-height-node 2))))
+                                      (list grid-x grid-y grid-width-node grid-height-node))))
+                          (grid-x (nth 0 coords))
+                          (grid-y (nth 1 coords))
+                          (grid-width-node (nth 2 coords))
+                          (grid-height-node (nth 3 coords)))
 
-                         ;; Mark all cells within this node's bounding box as occupied
-                         (dotimes (dy grid-height-node)
-                           (dotimes (dx grid-width-node)
-                             (let ((map-x (round (+ grid-x dx)))
-                                   (map-y (round (+ grid-y dy))))
-                               (when (and (>= map-x 0) (< map-x grid-width)
-                                          (>= map-y 0) (< map-y grid-height))
-                                 (aset (aref occupancy-map map-y) map-x t)))))
+                     ;; Mark all cells within this node's bounding box as occupied
+                     ;; DEBUG: Show what coordinates we're working with for troubleshooting
+                     (message "DEBUG OCCUPANCY: node %s, grid-x=%.1f grid-y=%.1f grid-w=%d grid-h=%d grid-bounds=%dx%d"
+                              node-id grid-x grid-y grid-width-node grid-height-node grid-width grid-height)
+                     (dotimes (dy grid-height-node)
+                       (dotimes (dx grid-width-node)
+                         (let ((map-x (round (+ grid-x dx)))
+                               (map-y (round (+ grid-y dy))))
+                           (when (and (>= map-x 0) (< map-x grid-width)
+                                      (>= map-y 0) (< map-y grid-height))
+                             (aset (aref occupancy-map map-y) map-x t)))))
 
-                         ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
-                         ;; by blocking proper edge placement. Node boundaries are handled by
-                         ;; ultra-safe-draw-char logic instead.
-                         ))
-                     (dag-draw-graph-nodes graph))
+                     ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
+                     ;; by blocking proper edge placement. Node boundaries are handled by
+                     ;; ultra-safe-draw-char logic instead.
+                     ))
+                 (dag-draw-graph-nodes graph)))
 
-            occupancy-map)))))
+      occupancy-map)))
 
 ;;; Global Occupancy Map
 

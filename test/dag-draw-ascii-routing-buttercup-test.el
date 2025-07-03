@@ -59,11 +59,12 @@
       ;; Test the coordinate transformation functions
       (let ((world-coord 150)
             (min-coord 100)
-            (scale 2))  ; Note: Function uses global dag-draw-ascii-coordinate-scale
+            (scale 2))  ; Note: scale parameter is ignored, function uses global dag-draw-ascii-coordinate-scale
 
-        ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
-        (let ((grid-coord (dag-draw--world-to-grid-coord world-coord min-coord scale)))
-          (expect grid-coord :to-be-close-to 30.0 1.0))  ; (150-100) * 0.6 = 30 (ASCII-appropriate)
+        ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale variable directly
+        (let ((grid-coord (dag-draw--world-to-grid-coord world-coord min-coord scale))
+              (expected-coord (float (round (* (- world-coord min-coord) dag-draw-ascii-coordinate-scale)))))
+          (expect grid-coord :to-be-close-to expected-coord 0.1))  ; (150-100) * dag-draw-ascii-coordinate-scale, rounded
 
         ;; Test world-to-grid size conversion using unified coordinate scale
         (let ((world-size 80))

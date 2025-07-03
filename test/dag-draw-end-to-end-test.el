@@ -169,7 +169,21 @@
           (expect output :not :to-match "▶◀")     ; Conflicting arrows (current problem)
           (expect output :not :to-match "▲▼")     ; Conflicting vertical arrows
           (expect output :not :to-match "┼┼")     ; Double junctions
-          (expect output :not :to-match "──────") ; Excessive horizontal repetition
+          
+          ;; REMOVED: (expect output :not :to-match "──────") ; Excessive horizontal repetition
+          ;; REASON: This incorrectly rejects legitimate GKNV-compliant node borders.
+          ;; Long node names like "Database Design" or "Integration Testing" require
+          ;; 6+ consecutive ─ characters for proper rectangular borders as specified
+          ;; in GKNV Section 1.2. Instead, check for actual edge overlap problems:
+          
+          ;; Check for problematic edge overlap patterns, NOT legitimate node borders:
+          (expect output :not :to-match " ────── ")         ; 6+ lines floating in space  
+          (expect output :not :to-match "┼──────┼")         ; 6+ lines between junctions
+          (expect output :not :to-match "│──────│")         ; 6+ lines between verticals
+          (expect output :not :to-match "▶──────◀")         ; 6+ lines between conflicting arrows
+          
+          ;; Allow legitimate node borders like ┌────────────┐ and └────────────┘
+          ;; These are correct and should not be flagged as problems
 
           ;; 6.2 FRAGMENTED ROUTING DETECTION
           (expect output :not :to-match "│──")    ; Broken L-connections

@@ -460,17 +460,24 @@ Returns t if point crosses node interior, nil if boundary connection or empty sp
 ;;; Enhanced Junction Character Selection
 
 (defun dag-draw--get-enhanced-junction-char (existing-char new-char position-context)
-  "Simplified junction character selection for ASCII grid.
-Basic GKNV-compliant junction logic without complex enhancement rules."
+  "GKNV Section 5.2 compliant junction character selection.
+Prevents junction characters adjacent to node boundaries per GKNV edge termination rules."
   (cond
    ;; Same character - no change needed
    ((eq existing-char new-char) existing-char)
 
-   ;; Basic junction logic - horizontal and vertical intersection
+   ;; GKNV Section 5.2 COMPLIANCE: NEVER create junctions adjacent to node boundary characters
+   ;; Node boundary characters (┌ ┐ └ ┘) must remain clean - edges should terminate at boundaries
+   ((memq existing-char '(?┌ ?┐ ?└ ?┘))
+    existing-char)  ; Keep the boundary character, don't create junction
+   ((memq new-char '(?┌ ?┐ ?└ ?┘))
+    new-char)       ; Keep the boundary character, don't create junction
+
+   ;; Basic junction logic - ONLY for pure edge line intersections (not near boundaries)
    ((and (eq existing-char ?─) (eq new-char ?│)) ?┼)
    ((and (eq existing-char ?│) (eq new-char ?─)) ?┼)
 
-   ;; Preserve existing junction characters
+   ;; Preserve existing junction characters only if they're not adjacent to boundaries
    ((eq existing-char ?┼) ?┼)
    ((eq new-char ?┼) ?┼)
 
@@ -480,11 +487,23 @@ Basic GKNV-compliant junction logic without complex enhancement rules."
    ;; Keep existing character if new is space  
    ((eq new-char ?\s) existing-char)
 
-   ;; For any other edge character combination, use full junction
-   ((and (memq existing-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))
-         (memq new-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))) ?┼)
+   ;; GKNV COMPLIANCE: For edge combinations involving node boundaries, avoid junctions
+   ;; Instead, prefer the more "structural" character (boundaries over lines)
+   ((and (memq existing-char '(?│ ?─))
+         (memq new-char '(?├ ?┤ ?┬ ?┴)))
+    new-char)  ; Prefer T-junction characters over simple lines
+   ((and (memq existing-char '(?├ ?┤ ?┬ ?┴))
+         (memq new-char '(?│ ?─)))
+    existing-char)  ; Keep T-junction characters over simple lines
 
-   ;; Default to new character
+   ;; For pure edge line combinations (not involving boundaries), allow limited junctions
+   ((and (memq existing-char '(?─ ?│))
+         (memq new-char '(?─ ?│)))
+    (if (eq existing-char new-char)
+        existing-char
+      ?┼))  ; Only create junction for pure horizontal/vertical intersection
+
+   ;; Default: prefer new character to avoid stale states
    (t new-char)))
 
 
@@ -554,9 +573,22 @@ Returns intersection point (x,y) on the node boundary, or nil if no intersection
 Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint node shapes'."
   (let* ((node (dag-draw-get-node graph node-id))
          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-         (node-coords (ht-get adjusted-positions node-id)))
-    (when (and node node-coords)
-      (let* ((node-x (nth 0 node-coords))
+         (node-coords (and adjusted-positions (ht-get adjusted-positions node-id))))
+    (when node
+      ;; If no adjusted coordinates, calculate from manual coordinates
+      (unless node-coords
+        (let* ((manual-x (dag-draw-node-x-coord node))
+               (manual-y (dag-draw-node-y-coord node))
+               (manual-width (dag-draw-node-x-size node))
+               (manual-height (dag-draw-node-y-size node)))
+          (when (and manual-x manual-y manual-width manual-height)
+            (setq node-coords (list (round (dag-draw--world-to-grid-coord manual-x min-x scale))
+                                    (round (dag-draw--world-to-grid-coord manual-y min-y scale))
+                                    (dag-draw--world-to-grid-size manual-width scale)
+                                    (dag-draw--world-to-grid-size manual-height scale))))))
+      
+      (when node-coords
+        (let* ((node-x (nth 0 node-coords))
              (node-y (nth 1 node-coords))
              (node-width (nth 2 node-coords))
              (node-height (nth 3 node-coords))
@@ -582,13 +614,13 @@ Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint
                        (dag-draw--line-intersects-horizontal x1 y1 x2 y2 bottom left right))))
           (when result
             (message "INTERSECTION-FOUND: Node %s intersection at (%d,%d)" node-id (nth 0 result) (nth 1 result)))
-          result)))))
+          result))))))
 
 (defun dag-draw--point-on-node-boundary (graph node-id x y)
   "Check if point (X,Y) is exactly on the boundary of NODE-ID.
 Returns t if point is on the node boundary, nil otherwise."
   (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
-         (node-coords (ht-get adjusted-positions node-id)))
+         (node-coords (and adjusted-positions (ht-get adjusted-positions node-id))))
     (when node-coords
       (let* ((node-x (nth 0 node-coords))
              (node-y (nth 1 node-coords))
