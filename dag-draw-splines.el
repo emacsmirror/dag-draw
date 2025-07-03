@@ -62,24 +62,12 @@
   Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance)."
   (let* ((node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
-         (adjusted-coords (and graph
-                               (dag-draw-graph-adjusted-positions graph)
-                               (ht-get (dag-draw-graph-adjusted-positions graph) node-id)))
-         (x (if adjusted-coords
-                ;; COORDINATE SYSTEM FIX: Convert grid coordinates back to world coordinates
-                ;; Adjusted coords are in grid space, need conversion for spline generation
-                (/ (float (nth 0 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
-              (float (or (dag-draw-node-x-coord node) 0))))
-         (y (if adjusted-coords
-                (/ (float (nth 1 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
-              (float (or (dag-draw-node-y-coord node) 0))))
-         (width (if adjusted-coords
-                    ;; Width and height are also in grid scale, convert back
-                    (/ (float (nth 2 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
-                  (float (dag-draw-node-x-size node))))
-         (height (if adjusted-coords
-                     (/ (float (nth 3 adjusted-coords)) (or dag-draw-ascii-coordinate-scale 0.15))
-                   (float (dag-draw-node-y-size node)))))
+         ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
+         ;; During regeneration, coordinates are temporarily updated to corrected world values
+         (x (float (or (dag-draw-node-x-coord node) 0)))
+         (y (float (or (dag-draw-node-y-coord node) 0)))
+         (width (float (dag-draw-node-x-size node)))
+         (height (float (dag-draw-node-y-size node))))
 
     (cond
      ((eq side 'top)

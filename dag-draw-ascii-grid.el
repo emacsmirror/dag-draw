@@ -43,6 +43,12 @@ SCALE is the grid scale factor.
 SCALE UNIFICATION: Use only dag-draw-ascii-coordinate-scale to eliminate double multiplication."
   (float (round (* (- coord min-coord) dag-draw-ascii-coordinate-scale))))
 
+(defun dag-draw--grid-to-world-coord (grid-coord min-coord scale)
+  "Convert ASCII grid coordinate back to GKNV world coordinate.
+GRID-COORD is the grid coordinate, MIN-COORD is the minimum coordinate for offset,
+SCALE is the grid scale factor. This is the inverse of dag-draw--world-to-grid-coord."
+  (+ (/ grid-coord dag-draw-ascii-coordinate-scale) min-coord))
+
 (defun dag-draw--world-to-grid-size (size scale)
   "Convert GKNV node size to ASCII grid size using UNIFIED scale factor.
 SIZE is the node size in world coordinates, SCALE is the grid scale factor.
@@ -250,14 +256,18 @@ otherwise calculates from coordinates for compatibility with tests."
                               (grid-width-node (nth 2 coords))
                               (grid-height-node (nth 3 coords)))
 
-                         ;; Mark entire node box (INCLUDING borders) as occupied to prevent edge routing through
-                         ;; GKNV compliance: edges should route TO node boundaries, not THROUGH them
+                         ;; GKNV Section 5.2 FIX: Mark only INTERIOR text area as occupied
+                         ;; Boundaries should allow arrow placement per "clips spline to boundaries"
                          (dotimes (dy grid-height-node)
                            (dotimes (dx grid-width-node)
                              (let ((box-x (+ grid-x dx))
-                                   (box-y (+ grid-y dy)))
+                                   (box-y (+ grid-y dy))
+                                   ;; Check if this is interior (not on boundary)
+                                   (is-interior (and (> dx 0) (< dx (1- grid-width-node))
+                                                     (> dy 0) (< dy (1- grid-height-node)))))
                                (when (and (>= box-x 0) (< box-x grid-width)
-                                          (>= box-y 0) (< box-y grid-height))
+                                          (>= box-y 0) (< box-y grid-height)
+                                          is-interior)  ; Only mark interior as occupied
                                  (aset (aref occupancy-map box-y) box-x t)))))
 
                          ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
@@ -292,16 +302,20 @@ otherwise calculates from coordinates for compatibility with tests."
                           (grid-width-node (nth 2 coords))
                           (grid-height-node (nth 3 coords)))
 
-                     ;; Mark all cells within this node's bounding box as occupied
+                     ;; GKNV Section 5.2 FIX: Mark only INTERIOR text area as occupied 
                      ;; DEBUG: Show what coordinates we're working with for troubleshooting
                      (message "DEBUG OCCUPANCY: node %s, grid-x=%.1f grid-y=%.1f grid-w=%d grid-h=%d grid-bounds=%dx%d"
                               node-id grid-x grid-y grid-width-node grid-height-node grid-width grid-height)
                      (dotimes (dy grid-height-node)
                        (dotimes (dx grid-width-node)
                          (let ((map-x (round (+ grid-x dx)))
-                               (map-y (round (+ grid-y dy))))
+                               (map-y (round (+ grid-y dy)))
+                               ;; Check if this is interior (not on boundary)  
+                               (is-interior (and (> dx 0) (< dx (1- grid-width-node))
+                                                 (> dy 0) (< dy (1- grid-height-node)))))
                            (when (and (>= map-x 0) (< map-x grid-width)
-                                      (>= map-y 0) (< map-y grid-height))
+                                      (>= map-y 0) (< map-y grid-height)
+                                      is-interior)  ; Only mark interior as occupied
                              (aset (aref occupancy-map map-y) map-x t)))))
 
                      ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts

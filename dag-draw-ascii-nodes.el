@@ -44,16 +44,19 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
 
 (defun dag-draw--safe-draw-box-char (grid x y char)
   "Draw box character safely, preventing overwrites that create malformed sequences."
-  (let* ((grid-height (length grid))
+  ;; GKNV FIX: Ensure integer coordinates for array access
+  (let* ((int-x (round x))
+         (int-y (round y))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
-    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-      (let ((current-char (aref (aref grid y) x)))
+    (when (and (>= int-x 0) (< int-x grid-width) (>= int-y 0) (< int-y grid-height))
+      (let ((current-char (aref (aref grid int-y) int-x)))
 
         (cond
          ;; Space - always safe to draw any box character
          ((eq current-char ?\s)
-          (aset (aref grid y) x char))
+          (aset (aref grid int-y) int-x char))
 
          ;; Same character - no change needed (prevents double-writes)
          ((eq current-char char) nil)
@@ -64,14 +67,14 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
          ((memq current-char '(?┌ ?┐ ?└ ?┘ ?─ ?│ ?┼))
           ;; ANTI-DUPLICATION: Only overwrite if placing a different character
           (unless (eq current-char char)
-            (aset (aref grid y) x char)))
+            (aset (aref grid int-y) int-x char)))
 
          ;; NEW: Arrow characters have priority - NEVER overwrite them
          ((memq current-char '(?▼ ?▲ ?▶ ?◀))
           nil) ; Keep arrows, don't overwrite with node borders
 
          ;; Default - draw the character
-         (t (aset (aref grid y) x char)))))))
+         (t (aset (aref grid int-y) int-x char)))))))
 
 (defun dag-draw--ascii-draw-box (grid x y width height label)
   "Draw a box with LABEL on ASCII grid at position (X,Y) with given WIDTH and HEIGHT."
@@ -232,9 +235,12 @@ Only moves nodes if there's any collision that would corrupt rendering."
 (defun dag-draw--clean-adjacent-edge-fragments (grid x y)
   "Clean up any edge line fragments adjacent to box corners.
 Prevents trailing garbage like '┐─' by removing edge lines next to corners."
-  (let* ((grid-height (length grid))
+  ;; GKNV FIX: Ensure integer coordinates for array access
+  (let* ((int-x (round x))
+         (int-y (round y))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (corner-char (aref (aref grid y) x)))
+         (corner-char (aref (aref grid int-y) int-x)))
     
     ;; Only clean up if we just drew a corner character
     (when (memq corner-char '(?┌ ?┐ ?└ ?┘))
@@ -242,8 +248,8 @@ Prevents trailing garbage like '┐─' by removing edge lines next to corners."
       (cond
        ;; Top-right and bottom-right corners: clean up trailing horizontal lines to the right
        ((memq corner-char '(?┐ ?┘))
-        (let ((check-x (+ x 1))
-              (check-y y))
+        (let ((check-x (+ int-x 1))
+              (check-y int-y))
           (when (and (>= check-x 0) (< check-x grid-width)
                      (>= check-y 0) (< check-y grid-height))
             (let ((char-at-pos (aref (aref grid check-y) check-x)))
@@ -252,8 +258,8 @@ Prevents trailing garbage like '┐─' by removing edge lines next to corners."
        
        ;; Top-left and bottom-left corners: clean up leading horizontal lines to the left  
        ((memq corner-char '(?┌ ?└))
-        (let ((check-x (- x 1))
-              (check-y y))
+        (let ((check-x (- int-x 1))
+              (check-y int-y))
           (when (and (>= check-x 0) (< check-x grid-width)
                      (>= check-y 0) (< check-y grid-height))
             (let ((char-at-pos (aref (aref grid check-y) check-x)))

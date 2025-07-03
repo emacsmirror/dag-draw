@@ -26,6 +26,7 @@
 (require 'dag-draw-ports)
 (require 'dag-draw-ascii-nodes)
 (require 'dag-draw-ascii-edges)
+(require 'dag-draw-position)
 
 ;;; Customization
 
@@ -150,6 +151,9 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
                (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
+          (message "BOUNDS-DEBUG: original min-x=%.1f min-y=%.1f → adjusted min-x=%.1f min-y=%.1f (collision-buffer=%.1f)" 
+                   min-x min-y adjusted-min-x adjusted-min-y collision-spacing-buffer)
+
           ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
           ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
           (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
@@ -170,19 +174,46 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                 (when (or (> required-grid-width grid-width) (> required-grid-height grid-height))
                   (setq grid (dag-draw--create-ascii-grid required-grid-width required-grid-height))))))
 
-          ;; GHOST NODE FIX: Disable spline regeneration to prevent coordinate system mixing
-          ;; The spline-to-grid conversion handles collision-adjusted positions correctly
-          ;; (dag-draw--regenerate-splines-after-collision graph)
+          ;; COORDINATE NORMALIZATION FIX: Normalize coordinates after collision detection
+          ;; This prevents negative coordinate issues while preserving collision adjustments
+          (dag-draw-normalize-coordinates graph)
+          
+          ;; DEBUG: Show normalized coordinates after collision detection
+          (message "NORMALIZED COORDINATES (post-collision):")
+          (ht-each (lambda (node-id node)
+                     (message "  Node %s: (%.1f,%.1f)"
+                              node-id 
+                              (or (dag-draw-node-x-coord node) 0)
+                              (or (dag-draw-node-y-coord node) 0)))
+                   (dag-draw-graph-nodes graph))
 
-          ;; COORDINATE SYSTEM FIX: Update spline coordinates to match final node positions
-          ;; The splines were generated in GKNV world coordinates, but nodes are now in ASCII grid coordinates
-          (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
+          ;; COORDINATE SYSTEM FIX: Recalculate bounds after normalization
+          ;; This ensures spline conversion uses the correct coordinate system
+          (let* ((normalized-bounds (dag-draw-get-graph-bounds graph))
+                 (normalized-min-x (nth 0 normalized-bounds))
+                 (normalized-min-y (nth 1 normalized-bounds))
+                 (normalized-max-x (nth 2 normalized-bounds))
+                 (normalized-max-y (nth 3 normalized-bounds)))
+            
+            ;; DEBUG: Show bounds after normalization  
+            (message "BOUNDS AFTER NORMALIZATION: min-x=%.1f min-y=%.1f max-x=%.1f max-y=%.1f" 
+                     normalized-min-x normalized-min-y normalized-max-x normalized-max-y)
 
-          ;; Draw edges FIRST using spline data when available - now uses final positions
-          (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+            ;; COORDINATE SYSTEM FIX: Re-enable spline regeneration after collision detection
+            ;; This ensures arrows point to actual node positions, not pre-collision positions
+            (dag-draw--regenerate-splines-after-collision graph)
 
-          ;; Draw nodes LAST to ensure box integrity - uses same final positions
-          (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
+            ;; COORDINATE SYSTEM FIX: Use normalized bounds for spline conversion and edge drawing
+            ;; This ensures spline coordinates and edge drawing use the same coordinate system
+            (message "COORD-DEBUG: Converting splines with normalized bounds min-x=%.1f min-y=%.1f scale=%.3f" normalized-min-x normalized-min-y scale)
+            (dag-draw--convert-splines-to-grid-coordinates graph normalized-min-x normalized-min-y scale)
+
+            ;; GKNV Section 5.2 FIX: Draw nodes FIRST so arrows can properly integrate with boundaries
+            (dag-draw--ascii-draw-nodes graph grid normalized-min-x normalized-min-y scale)
+
+            ;; Draw edges LAST with arrows that can now terminate ON actual node boundaries
+            (message "COORD-DEBUG: Drawing edges with normalized bounds min-x=%.1f min-y=%.1f scale=%.3f" normalized-min-x normalized-min-y scale)
+            (dag-draw--ascii-draw-edges graph grid normalized-min-x normalized-min-y scale))
 
           ;; Post-process junction characters to improve visual connections
           (dag-draw--post-process-junction-characters grid)
@@ -256,9 +287,18 @@ This ensures splines connect nodes at their final positions after collision dete
                    (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
                           (adjusted-x (nth 0 coords))
                           (adjusted-y (nth 1 coords))
-                          ;; Convert back to world coordinates for spline generation
-                          (world-x (+ adjusted-x (/ (nth 2 coords) 2.0)))  ; Use center
-                          (world-y (+ adjusted-y (/ (nth 3 coords) 2.0))))
+                          ;; COORDINATE SYSTEM FIX: Convert grid coordinates back to world coordinates
+                          ;; adjusted coords are in grid space, need to convert to world space for spline generation
+                          (grid-center-x (+ adjusted-x (/ (nth 2 coords) 2.0)))
+                          (grid-center-y (+ adjusted-y (/ (nth 3 coords) 2.0)))
+                          ;; COORDINATE SYSTEM FIX: Calculate bounds from adjusted positions, not original nodes
+                          ;; This ensures the coordinate conversion uses the correct reference frame
+                          (bounds (dag-draw--calculate-adjusted-bounds graph adjusted-positions))
+                          (min-x (nth 0 bounds))
+                          (min-y (nth 1 bounds))
+                          (scale (or dag-draw-ascii-coordinate-scale 0.15))
+                          (world-x (dag-draw--grid-to-world-coord grid-center-x min-x scale))
+                          (world-y (dag-draw--grid-to-world-coord grid-center-y min-y scale)))
                      (when node
                        ;; Save original coordinates
                        (ht-set! original-coords node-id
@@ -283,6 +323,38 @@ This ensures splines connect nodes at their final positions after collision dete
                        (setf (dag-draw-node-y-coord node) (nth 1 original-coord-pair)))))
                  original-coords)))))
 
+(defun dag-draw--calculate-adjusted-bounds (graph adjusted-positions)
+  "Calculate bounds from adjusted grid positions instead of original world coordinates.
+This provides the correct reference frame for converting adjusted grid coords back to world coords."
+  (if (= (ht-size adjusted-positions) 0)
+      ;; Empty - return default bounds  
+      (list 0 0 100 100)
+    (let ((min-x most-positive-fixnum)
+          (min-y most-positive-fixnum)
+          (max-x most-negative-fixnum)
+          (max-y most-negative-fixnum))
+      
+      (ht-each (lambda (node-id coords)
+                 (let* ((grid-x (nth 0 coords))
+                        (grid-y (nth 1 coords))
+                        (grid-width (nth 2 coords))
+                        (grid-height (nth 3 coords))
+                        ;; Calculate grid bounds
+                        (left grid-x)
+                        (right (+ grid-x grid-width))
+                        (top grid-y)
+                        (bottom (+ grid-y grid-height)))
+                   
+                   (setq min-x (min min-x left))
+                   (setq max-x (max max-x right))
+                   (setq min-y (min min-y top))
+                   (setq max-y (max max-y bottom))))
+               adjusted-positions)
+      
+      ;; Convert grid bounds back to world bounds using the coordinate scale
+      (let ((scale (or dag-draw-ascii-coordinate-scale 0.15)))
+        (list (/ min-x scale) (/ min-y scale) (/ max-x scale) (/ max-y scale))))))
+
 (defun dag-draw--convert-splines-to-grid-coordinates (graph min-x min-y scale)
   "Convert spline coordinates from GKNV world coordinates to ASCII grid coordinates.
 This ensures splines and final node positions use the same coordinate system."
@@ -290,12 +362,20 @@ This ensures splines and final node positions use the same coordinate system."
     (let ((spline-points (dag-draw-edge-spline-points edge)))
       (when spline-points
         ;; Convert each spline point from world coordinates to grid coordinates
-        (let ((converted-points
-               (mapcar (lambda (point)
-                         (dag-draw-point-create
-                          :x (dag-draw--world-to-grid-coord (dag-draw-point-x point) min-x scale)
-                          :y (dag-draw--world-to-grid-coord (dag-draw-point-y point) min-y scale)))
-                       spline-points)))
+        (let* ((start-point (car spline-points))
+               (end-point (car (last spline-points)))
+               (converted-points
+                (mapcar (lambda (point)
+                          (dag-draw-point-create
+                           :x (dag-draw--world-to-grid-coord (dag-draw-point-x point) min-x scale)
+                           :y (dag-draw--world-to-grid-coord (dag-draw-point-y point) min-y scale)))
+                        spline-points)))
+          (message "SPLINE-CONVERT: Edge %s->%s world (%.1f,%.1f)->(%.1f,%.1f) → grid (%.1f,%.1f)->(%.1f,%.1f)"
+                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                   (dag-draw-point-x start-point) (dag-draw-point-y start-point)
+                   (dag-draw-point-x end-point) (dag-draw-point-y end-point)
+                   (dag-draw-point-x (car converted-points)) (dag-draw-point-y (car converted-points))
+                   (dag-draw-point-x (car (last converted-points))) (dag-draw-point-y (car (last converted-points))))
           ;; Update the edge with converted spline points
           (setf (dag-draw-edge-spline-points edge) converted-points))))))
 
@@ -404,10 +484,13 @@ This ensures splines and final node positions use the same coordinate system."
       (let ((x (+ start-x i)))
         (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
           ;; Enhanced collision detection - can overwrite edges but respect nodes
-          (let ((current-char (aref (aref grid y) x)))
-            (when (and (not (aref (aref occupancy-map y) x))  ; Not in a node
+          ;; GKNV FIX: Ensure integer coordinates for array access
+          (let* ((int-x (round x))
+                 (int-y (round y))
+                 (current-char (aref (aref grid int-y) int-x)))
+            (when (and (not (aref (aref occupancy-map int-y) int-x))  ; Not in a node
                        (memq current-char '(?\s ?│)))         ; Can overwrite space or vertical line
-              (aset (aref grid y) x ?─))))))))
+              (aset (aref grid int-y) int-x ?─))))))))
 
 (defun dag-draw--draw-enhanced-vertical-segment (grid x y1 y2 occupancy-map)
   "Draw vertical segment with enhanced spline smoothing and intelligent collision handling."
@@ -421,10 +504,13 @@ This ensures splines and final node positions use the same coordinate system."
       (let ((y (+ start-y i)))
         (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
           ;; Enhanced collision detection - can overwrite edges but respect nodes
-          (let ((current-char (aref (aref grid y) x)))
-            (when (and (not (aref (aref occupancy-map y) x))  ; Not in a node
+          ;; GKNV FIX: Ensure integer coordinates for array access
+          (let* ((int-x (round x))
+                 (int-y (round y))
+                 (current-char (aref (aref grid int-y) int-x)))
+            (when (and (not (aref (aref occupancy-map int-y) int-x))  ; Not in a node
                        (memq current-char '(?\s ?─)))         ; Can overwrite space or horizontal line
-              (dag-draw--ultra-safe-draw-char grid x y ?│ occupancy-map))))))))
+              (dag-draw--ultra-safe-draw-char grid int-x int-y ?│ occupancy-map))))))))
 
 (defun dag-draw--draw-enhanced-diagonal-segment (grid x1 y1 x2 y2 occupancy-map)
   "Draw diagonal segment with enhanced smooth approximation using intelligent path selection."
@@ -484,14 +570,17 @@ This ensures splines and final node positions use the same coordinate system."
 
         (when (and (>= curr-x 0) (< curr-x grid-width)
                    (>= curr-y 0) (< curr-y grid-height))
-          (let ((current-char (aref (aref grid curr-y) curr-x)))
-            (when (and (not (aref (aref occupancy-map curr-y) curr-x))
+          ;; GKNV FIX: Ensure integer coordinates for array access
+          (let* ((int-curr-x (round curr-x))
+                 (int-curr-y (round curr-y))
+                 (current-char (aref (aref grid int-curr-y) int-curr-x)))
+            (when (and (not (aref (aref occupancy-map int-curr-y) int-curr-x))
                        (memq current-char '(?\s)))
               ;; Use appropriate line character based on local direction
               (let ((char (if (= i 0) ?│   ; Start with vertical
                             (if (= i steps) ?│  ; End with vertical
                               (dag-draw--choose-diagonal-char dx dy)))))
-                (aset (aref grid curr-y) curr-x char)))))))))
+                (aset (aref grid int-curr-y) int-curr-x char)))))))))
 
 (defun dag-draw--choose-diagonal-char (dx dy)
   "Choose appropriate character for diagonal direction."
@@ -504,22 +593,29 @@ This ensures splines and final node positions use the same coordinate system."
 
 (defun dag-draw--add-enhanced-corner-char (grid corner-x corner-y from-x from-y to-x to-y occupancy-map)
   "Add appropriate corner character at path junction with enhanced detection."
-  (let* ((grid-height (length grid))
+  ;; GKNV FIX: Ensure integer coordinates for array access
+  (let* ((int-corner-x (round corner-x))
+         (int-corner-y (round corner-y))
+         (int-from-x (round from-x))
+         (int-from-y (round from-y))
+         (int-to-x (round to-x))
+         (int-to-y (round to-y))
+         (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
-    (when (and (>= corner-x 0) (< corner-x grid-width)
-               (>= corner-y 0) (< corner-y grid-height)
-               (not (aref (aref occupancy-map corner-y) corner-x)))
+    (when (and (>= int-corner-x 0) (< int-corner-x grid-width)
+               (>= int-corner-y 0) (< int-corner-y grid-height)
+               (not (aref (aref occupancy-map int-corner-y) int-corner-x)))
 
       ;; Determine corner character based on incoming and outgoing directions
-      (let* ((from-dx (- corner-x from-x))
-             (from-dy (- corner-y from-y))
-             (to-dx (- to-x corner-x))
-             (to-dy (- to-y corner-y))
+      (let* ((from-dx (- int-corner-x int-from-x))
+             (from-dy (- int-corner-y int-from-y))
+             (to-dx (- int-to-x int-corner-x))
+             (to-dy (- int-to-y int-corner-y))
              (corner-char (dag-draw--select-corner-character from-dx from-dy to-dx to-dy)))
 
         (when corner-char
-          (aset (aref grid corner-y) corner-x corner-char))))))
+          (aset (aref grid int-corner-y) int-corner-x corner-char))))))
 
 (defun dag-draw--select-corner-character (from-dx from-dy to-dx to-dy)
   "Select appropriate corner character based on entry and exit directions."
