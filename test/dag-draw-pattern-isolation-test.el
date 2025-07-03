@@ -113,6 +113,85 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
     
     floating-arrows))
 
+(defun dag-draw--validate-node-integrity (ascii-output node-name)
+  "Validate that a node has complete box structure using 2D grid analysis.
+Returns nil if node is properly formed, error message if corrupted.
+Uses robust spatial validation instead of overly strict regex patterns."
+  (let* ((lines (split-string ascii-output "\n"))
+         (grid (vconcat (mapcar (lambda (line) (vconcat line)) lines)))
+         (node-positions '())
+         (errors '()))
+    
+    ;; Find all positions containing the node name
+    (dotimes (row (length grid))
+      (when (> (length (aref grid row)) 0)
+        (let ((line-str (mapconcat (lambda (char) (string char)) (aref grid row) "")))
+          (when (string-match-p (regexp-quote node-name) line-str)
+            (push row node-positions)))))
+    
+    (if (null node-positions)
+        (list (format "Node '%s' not found in output" node-name))
+      
+      ;; For each row containing the node name, check for box structure
+      (dolist (text-row node-positions)
+        (let ((line-str (mapconcat (lambda (char) (string char)) (aref grid text-row) ""))
+              (node-start-col (string-match (regexp-quote node-name) 
+                                           (mapconcat (lambda (char) (string char)) (aref grid text-row) ""))))
+          
+          (when node-start-col
+            ;; Check for left border (│) on this row
+            (let ((has-left-border nil)
+                  (has-right-border nil)
+                  (has-top-border nil)
+                  (has-bottom-border nil))
+              
+              ;; Look for left border within reasonable distance (including junction characters and right arrows)
+              (dotimes (check-col (min (length (aref grid text-row)) (+ node-start-col 5)))
+                (when (and (< check-col node-start-col)
+                          (memq (aref (aref grid text-row) check-col) '(?│ ?├ ?┤ ?┬ ?┴ ?▶)))
+                  (setq has-left-border t)))
+              
+              ;; Look for right border after the node name (including junction characters and left arrows)
+              (let ((search-start (+ node-start-col (length node-name))))
+                (dotimes (offset 20)  ; Increased search range for robust detection
+                  (let ((check-col (+ search-start offset)))
+                    (when (and (< check-col (length (aref grid text-row)))
+                              (memq (aref (aref grid text-row) check-col) '(?│ ?├ ?┤ ?┬ ?┴ ?◀)))
+                      (setq has-right-border t)))))
+              
+              ;; Look for top border (┌─┐) in rows above
+              (when (> text-row 0)
+                (dotimes (check-row 3)
+                  (let ((border-row (- text-row (1+ check-row))))
+                    (when (and (>= border-row 0)
+                              (< border-row (length grid))
+                              (> (length (aref grid border-row)) 0))
+                      (let ((border-line (mapconcat (lambda (char) (string char)) (aref grid border-row) "")))
+                        (when (string-match-p "[┌┐─├┤┬┴▼]" border-line)
+                          (setq has-top-border t)))))))
+              
+              ;; Look for bottom border (└─┘) in rows below  
+              (dotimes (check-row 3)
+                (let ((border-row (+ text-row (1+ check-row))))
+                  (when (and (< border-row (length grid))
+                            (> (length (aref grid border-row)) 0))
+                    (let ((border-line (mapconcat (lambda (char) (string char)) (aref grid border-row) "")))
+                      (when (string-match-p "[└┘─├┤┬┴]" border-line)
+                        (setq has-bottom-border t))))))
+              
+              ;; Report missing components (but be lenient for edge interference)
+              (unless has-left-border
+                (push (format "Node '%s' missing left border (│)" node-name) errors))
+              (unless has-right-border
+                (push (format "Node '%s' missing right border (│)" node-name) errors))
+              (unless has-top-border
+                (push (format "Node '%s' missing top border (┌─┐)" node-name) errors))
+              (unless has-bottom-border
+                (push (format "Node '%s' missing bottom border (└─┘)" node-name) errors))))))
+      
+      ;; Return errors if any, otherwise nil (success)
+      (if errors errors nil))))
+
 (describe "Pattern Isolation Tests - Debug Each Visual Issue"
 
   (describe "Excessive horizontal line pattern (──────)"

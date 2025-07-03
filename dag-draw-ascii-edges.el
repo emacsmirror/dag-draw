@@ -175,15 +175,16 @@
       (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
         (let ((current-char (aref (aref grid y) x)))
 
-          ;; GKNV-COMPLIANT ARROW PLACEMENT: Arrows are allowed on node boundaries
+          ;; GKNV Section 5.2 COMPLIANT ARROW PLACEMENT: Arrows must terminate ON node boundaries
           (cond
            ;; Case 1: Empty space - always safe to place arrow
            ((eq current-char ?\s)
             (aset (aref grid y) x arrow-char)
             (push position-key dag-draw--arrow-positions))
 
-           ;; Case 2: Plain edge characters - safe to replace with arrow (GKNV boundary connections)
-           ((memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘))
+           ;; Case 2: GKNV Section 5.2 FIX - Arrows REPLACE boundary characters (terminate ON boundaries)
+           ;; Plain edge characters AND node boundaries - safe to replace with arrow
+           ((memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤))
             (aset (aref grid y) x arrow-char)
             (push position-key dag-draw--arrow-positions))
 
@@ -1078,21 +1079,16 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
                       ((and (= dx 0) (< dy 0)) ?▲)  ; Pure vertical upward
                       ((and (= dy 0) (> dx 0)) ?▶)  ; Pure horizontal rightward
                       ((and (= dy 0) (< dx 0)) ?◀)  ; Pure horizontal leftward
-                      ;; For diagonal cases, trust coordinate direction over port-side
+                      ;; GKNV Section 5.2 FIX: For ambiguous cases, RESPECT port-side for boundary termination
+                      ((eq port-side 'top) ?▼)      ; Arrow pointing down INTO top side
+                      ((eq port-side 'bottom) ?▼)   ; Arrow pointing down INTO bottom side (DAG: downward flow)
+                      ((eq port-side 'left) ?▶)     ; Arrow pointing right INTO left side
+                      ((eq port-side 'right) ?◀)    ; Arrow pointing left INTO right side
+                      ;; For remaining diagonal cases, use coordinate direction as fallback
                       ((> (abs dy) (abs dx))
                        (if (> dy 0) ?▼ ?▲))    ; Primarily vertical
                       ((> (abs dx) (abs dy))
-                       ;; ARROW DIRECTION FIX: For primarily horizontal edges, use port-side as hint
-                       ;; Port-side 'left means arrow goes rightward (INTO left side)
-                       (cond ((eq port-side 'left) ?▶)   ; Arrow pointing right into left side
-                             ((eq port-side 'right) ?◀)  ; Arrow pointing left into right side
-                             ((> dx 0) ?▶)               ; Fallback to coordinate direction
-                             (t ?◀)))                    ; Fallback to coordinate direction
-                      ;; FALLBACK: Use port side only for unclear cases
-                      ((eq port-side 'top) ?▼)
-                      ((eq port-side 'bottom) ?▲)
-                      ((eq port-side 'left) ?▶)
-                      ((eq port-side 'right) ?◀)
+                       (if (> dx 0) ?▶ ?◀))    ; Primarily horizontal
                       (t ?▶))))                      ; Final default
 
       ;; Draw arrow at endpoint with ultra-safe collision detection
