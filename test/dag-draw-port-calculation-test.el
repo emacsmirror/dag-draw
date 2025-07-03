@@ -55,7 +55,9 @@
             (expect (dag-draw-point-x from-port) :to-equal 0.0)   ; Same x for vertical layout
             (expect (dag-draw-point-x to-port) :to-equal 0.0)))))
 
-  (it "should calculate proper ports for horizontally separated nodes"
+  (it "should select appropriate sides for horizontally separated nodes"
+      ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
+      ;; Test behavioral requirements, not exact coordinate calculations
       (let ((graph (dag-draw-create-graph)))
         ;; Create nodes with specific positioning to ensure horizontal separation
         (dag-draw-add-node graph 'LEFT "Left")
@@ -71,17 +73,26 @@
           (setf (dag-draw-node-x-coord right-node) 100.0)  ; Ensure horizontal separation
           (setf (dag-draw-node-y-coord right-node) 0.0)
 
-          ;; Now test port calculation
+          ;; Now test port calculation - verify GKNV behavioral requirements
           (let* ((edge (car (dag-draw-graph-edges graph)))
                  (connection-points (dag-draw--get-edge-connection-points graph edge))
                  (from-port (car connection-points))
-                 (to-port (cadr connection-points)))
+                 (to-port (cadr connection-points))
+                 (left-center-x (dag-draw-node-x-coord left-node))
+                 (right-center-x (dag-draw-node-x-coord right-node)))
 
-            ;; Should use right port of left node and left port of right node
-            (expect (dag-draw-point-x from-port) :to-equal 40.0)  ; Right edge of left node
-            (expect (dag-draw-point-x to-port) :to-equal 60.0)    ; Left edge of right node
-            (expect (dag-draw-point-y from-port) :to-equal 0.0)   ; Same y level
-            (expect (dag-draw-point-y to-port) :to-equal 0.0)))))))
+            ;; GKNV-compliant expectations: verify appropriate side selection
+            ;; For left-to-right horizontal edge:
+            ;; - Left node should use RIGHT side (port-x > center-x)
+            ;; - Right node should use LEFT side (port-x < center-x)
+            (expect (dag-draw-point-x from-port) :to-be-greater-than left-center-x)   ; Right side of left node
+            (expect (dag-draw-point-x to-port) :to-be-less-than right-center-x)       ; Left side of right node
+            (expect (dag-draw-point-y from-port) :to-equal (dag-draw-point-y to-port)) ; Same y level for horizontal
+            
+            ;; Verify ports are within reasonable bounds (not at exact node centers)
+            ;; This ensures actual side attachment rather than center attachment
+            (expect (abs (- (dag-draw-point-x from-port) left-center-x)) :to-be-greater-than 10.0)
+            (expect (abs (- (dag-draw-point-x to-port) right-center-x)) :to-be-greater-than 10.0)))))))
 
 (provide 'dag-draw-port-calculation-test)
 

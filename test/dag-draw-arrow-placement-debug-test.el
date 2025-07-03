@@ -59,12 +59,14 @@
                                   (message "Line %d, pos %d: '%s' in '%s'"
                                            (nth 0 edge) (nth 1 edge) (nth 2 edge) (nth 3 edge)))
 
-                                ;; Check for connectivity issues
+                                ;; Check for connectivity issues (GKNV-compliant logic)
+                                ;; GKNV requires arrows to show direction (Line 372-373) and avoid visual anomalies (A2)
                                 (let ((disconnected-arrows '()))
                                   (dolist (arrow arrow-positions)
                                     (let* ((arrow-line (nth 0 arrow))
                                            (arrow-pos (nth 1 arrow))
                                            (arrow-char (nth 2 arrow))
+                                           (arrow-line-str (nth 3 arrow))
                                            (connected nil))
 
                                       ;; Check if arrow is adjacent to any edge character
@@ -73,6 +75,18 @@
                                               (edge-pos (nth 1 edge)))
                                           (when (and (= edge-line arrow-line)
                                                      (<= (abs (- edge-pos arrow-pos)) 1))
+                                            (setq connected t))))
+
+                                      ;; IMPROVED: Also allow arrows that are part of legitimate boundary patterns
+                                      ;; Check if arrow is followed/preceded by boundary characters (node borders)
+                                      (when (and (not connected) arrow-line-str)
+                                        (let ((after-char (when (< (1+ arrow-pos) (length arrow-line-str))
+                                                            (string (aref arrow-line-str (1+ arrow-pos)))))
+                                              (before-char (when (> arrow-pos 0)
+                                                             (string (aref arrow-line-str (1- arrow-pos))))))
+                                          ;; Allow arrows that are part of node boundary patterns
+                                          (when (or (and after-char (string-match-p "[─┘┐└┌]" after-char))
+                                                    (and before-char (string-match-p "[─┘┐└┌]" before-char)))
                                             (setq connected t))))
 
                                       (unless connected

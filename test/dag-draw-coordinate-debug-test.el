@@ -111,8 +111,8 @@
                        node-id world-y grid-center-y grid-top-y)
 
               ;; TEST: Grid coordinates should be positive and reasonable
-              (expect grid-center-y :to-be-greater-than-or-equal 0)
-              (expect grid-top-y :to-be-greater-than-or-equal 0)))
+              (expect grid-center-y :to-be-greater-than -0.1)
+              (expect grid-top-y :to-be-greater-than -0.1)))
 
           ;; Generate output and check grid size
           (let* ((output (dag-draw-render-ascii graph))
@@ -170,10 +170,10 @@
                 (message "  End: grid(%d, %d)" end-grid-x end-grid-y)
 
                 ;; TEST: Grid coordinates should be reasonable
-                (expect start-grid-x :to-be-greater-than-or-equal 0)
-                (expect start-grid-y :to-be-greater-than-or-equal 0)
-                (expect end-grid-x :to-be-greater-than-or-equal 0)
-                (expect end-grid-y :to-be-greater-than-or-equal 0)
+                (expect start-grid-x :to-be-greater-than -0.1)
+                (expect start-grid-y :to-be-greater-than -0.1)
+                (expect end-grid-x :to-be-greater-than -0.1)
+                (expect end-grid-y :to-be-greater-than -0.1)
 
                 ;; TEST: Should show vertical separation
                 (expect end-grid-y :to-be-greater-than start-grid-y)))

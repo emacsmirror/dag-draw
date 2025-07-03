@@ -128,22 +128,23 @@
     (it "should convert world coordinates to grid coordinates"
       ;; Test the coordinate transformation used in ASCII rendering
       (let ((world-point (dag-draw-point-create :x 100 :y 50))
-            (min-x 0) (min-y 0) (scale 2))  ; Note: Uses global coordinate scale
+            (min-x 0) (min-y 0) (scale 2))  ; Note: scale parameter not used, dag-draw-ascii-coordinate-scale is used
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
-          (expect (dag-draw-point-x grid-point) :to-equal 60.0)  ; 100 * 0.6 = 60
-          (expect (dag-draw-point-y grid-point) :to-equal 30.0)))) ; 50 * 0.6 = 30
+          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.15) with rounding
+          ;; GKNV-compliant scaling for ASCII constraints (72 units/inch → ~5 chars/inch = 0.15 factor)
+          (expect (dag-draw-point-x grid-point) :to-equal 15.0)  ; round(100 * 0.15) = round(15.0) = 15
+          (expect (dag-draw-point-y grid-point) :to-equal 8.0))))  ; round(50 * 0.15) = round(7.5) = 8
     
     (it "should handle coordinate offsets correctly"
       (let ((world-point (dag-draw-point-create :x 150 :y 100))
-            (min-x 50) (min-y 25) (scale 2))  ; Note: Uses global coordinate scale
+            (min-x 50) (min-y 25) (scale 2))  ; Note: scale parameter not used, dag-draw-ascii-coordinate-scale is used
         
         (let ((grid-point (dag-draw--world-point-to-grid world-point min-x min-y scale)))
-          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.6)
-          ;; (150-50) * 0.6 = 60, (100-25) * 0.6 = 45
-          (expect (dag-draw-point-x grid-point) :to-equal 60.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 45.0)))))
+          ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.15) with rounding
+          ;; GKNV-compliant offset calculation: round((150-50) * 0.15) = round(15.0) = 15, round((100-25) * 0.15) = round(11.25) = 11
+          (expect (dag-draw-point-x grid-point) :to-equal 15.0)
+          (expect (dag-draw-point-y grid-point) :to-equal 11.0)))))
 
   (describe "Integration with edge routing"
     
