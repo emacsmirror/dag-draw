@@ -17,6 +17,7 @@
 
 (require 'dash)
 (require 'ht)
+(require 'cl-lib)
 (require 'dag-draw)
 (require 'dag-draw-core)
 
@@ -141,74 +142,162 @@ Returns a vector where index i contains list of nodes at rank i."
 
 ;;; Weighted Median Heuristic
 
-(defun dag-draw--calculate-median-position (graph node-id adjacent-rank-nodes)
-  "Calculate median position for a node based on adjacent rank."
-  (let ((adjacent-positions '()))
+(defun dag-draw--calculate-median-position (graph node-id adjacent-rank-nodes &optional size-aware)
+  "Calculate median position for a node based on adjacent rank.
+If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
+  (let ((adjacent-positions '())
+        (adjacent-sizes '()))
 
     ;; Collect positions of adjacent nodes
     (dolist (edge (dag-draw-get-edges-from graph node-id))
       (let* ((target (dag-draw-edge-to-node edge))
             (pos (cl-position target adjacent-rank-nodes)))
         (when pos
-          (push pos adjacent-positions))))
+          (push pos adjacent-positions)
+          (when size-aware
+            (let ((target-node (dag-draw-get-node graph target)))
+              (push (list :width (dag-draw-node-x-size target-node)
+                         :height (dag-draw-node-y-size target-node))
+                    adjacent-sizes))))))
 
     (dolist (edge (dag-draw-get-edges-to graph node-id))
       (let* ((source (dag-draw-edge-from-node edge))
             (pos (cl-position source adjacent-rank-nodes)))
         (when pos
-          (push pos adjacent-positions))))
+          (push pos adjacent-positions)
+          (when size-aware
+            (let ((source-node (dag-draw-get-node graph source)))
+              (push (list :width (dag-draw-node-x-size source-node)
+                         :height (dag-draw-node-y-size source-node))
+                    adjacent-sizes))))))
 
     (if (null adjacent-positions)
         -1.0  ; Special value for nodes with no adjacent connections
-      (dag-draw--weighted-median adjacent-positions))))
+      (if size-aware
+          (dag-draw--weighted-median adjacent-positions (reverse adjacent-sizes))
+        (dag-draw--weighted-median adjacent-positions)))))
 
-(defun dag-draw--weighted-median (positions)
-  "Calculate weighted median of positions.
+(defun dag-draw--weighted-median (positions &optional node-sizes)
+  "Calculate weighted median of positions with optional size-aware spacing.
+This implements the biased median described in the GKNV paper, enhanced with
+size-aware adjustments to prevent overlaps when NODE-SIZES is provided."
+  (if (null positions)
+      0.0
+    (if (null node-sizes)
+        ;; Traditional median calculation
+        (let ((sorted-pos (sort positions #'<))
+              (len (length positions)))
+          (cond
+           ;; Single position
+           ((= len 1)
+            (float (car sorted-pos)))
+
+           ;; Two positions - average
+           ((= len 2)
+            (/ (+ (car sorted-pos) (cadr sorted-pos)) 2.0))
+
+           ;; Odd number - true median
+           ((cl-oddp len)
+            (float (nth (/ len 2) sorted-pos)))
+
+           ;; Even number - weighted average of two middle elements
+           (t
+            (let* ((mid (/ len 2))
+                   (left-pos (nth (1- mid) sorted-pos))
+                   (right-pos (nth mid sorted-pos))
+                   (left-extent (- left-pos (car sorted-pos)))
+                   (right-extent (- (car (last sorted-pos)) right-pos)))
+
+              ;; Bias toward side with more spread
+              (if (= (+ left-extent right-extent) 0)
+                  (/ (+ left-pos right-pos) 2.0)
+                (/ (+ (* right-pos left-extent) (* left-pos right-extent))
+                   (+ left-extent right-extent)))))))
+      ;; Size-aware median calculation
+      (dag-draw--size-aware-weighted-median positions node-sizes))))
+
+(defun dag-draw--basic-weighted-median (positions)
+  "Calculate basic weighted median without size considerations.
 This implements the biased median described in the GKNV paper."
-  (when (null positions)
-    (return-from dag-draw--weighted-median 0.0))
+  (if (null positions)
+      0.0
+    (let ((sorted-pos (sort positions #'<))
+          (len (length positions)))
+      (cond
+       ;; Single position
+       ((= len 1)
+        (float (car sorted-pos)))
 
-  (let ((sorted-pos (sort positions #'<))
-        (len (length positions)))
+       ;; Two positions - average
+       ((= len 2)
+        (/ (+ (car sorted-pos) (cadr sorted-pos)) 2.0))
 
-    (cond
-     ;; Single position
-     ((= len 1)
-      (float (car sorted-pos)))
+       ;; Odd number - true median
+       ((cl-oddp len)
+        (float (nth (/ len 2) sorted-pos)))
 
-     ;; Two positions - average
-     ((= len 2)
-      (/ (+ (car sorted-pos) (cadr sorted-pos)) 2.0))
+       ;; Even number - weighted average of two middle elements
+       (t
+        (let* ((mid (/ len 2))
+               (left-pos (nth (1- mid) sorted-pos))
+               (right-pos (nth mid sorted-pos))
+               (left-extent (- left-pos (car sorted-pos)))
+               (right-extent (- (car (last sorted-pos)) right-pos)))
 
-     ;; Odd number - true median
-     ((oddp len)
-      (float (nth (/ len 2) sorted-pos)))
+          ;; Bias toward side with more spread
+          (if (= (+ left-extent right-extent) 0)
+              (/ (+ left-pos right-pos) 2.0)
+            (/ (+ (* right-pos left-extent) (* left-pos right-extent))
+               (+ left-extent right-extent)))))))))
 
-     ;; Even number - weighted average of two middle elements
-     (t
-      (let* ((mid (/ len 2))
-             (left-pos (nth (1- mid) sorted-pos))
-             (right-pos (nth mid sorted-pos))
-             (left-extent (- left-pos (car sorted-pos)))
-             (right-extent (- (car (last sorted-pos)) right-pos)))
+(defun dag-draw--size-aware-weighted-median (positions node-sizes)
+  "Calculate size-aware weighted median that prevents overlaps.
+POSITIONS is list of position values, NODE-SIZES is list of size plists."
+  (if (or (= (length positions) 1) (null node-sizes))
+      ;; Fall back to basic median if no size info or single position
+      (dag-draw--basic-weighted-median positions)
+    ;; Create position-size pairs and sort by position
+  (let* ((pos-size-pairs (cl-mapcar (lambda (pos size)
+                                     (list pos (plist-get size :width) (plist-get size :height)))
+                                   positions node-sizes))
+         (sorted-pairs (sort pos-size-pairs (lambda (a b) (< (car a) (car b)))))
+         (adjusted-positions '()))
 
-        ;; Bias toward side with more spread
-        (if (= (+ left-extent right-extent) 0)
-            (/ (+ left-pos right-pos) 2.0)
-          (/ (+ (* right-pos left-extent) (* left-pos right-extent))
-             (+ left-extent right-extent))))))))
+    ;; Calculate spacing between nodes to prevent overlaps
+    (let ((current-pos (caar sorted-pairs))
+          (current-pair (car sorted-pairs)))
+      (push current-pos adjusted-positions)
+
+      (dolist (pair (cdr sorted-pairs))
+        (let* ((desired-pos (car pair))
+               (node-width (cadr pair))
+               (prev-width (cadr current-pair))
+               ;; Minimum separation needed to prevent overlap
+               (min-separation (+ (/ prev-width 2.0) (/ node-width 2.0) 2.0))) ; +2 for buffer
+
+          ;; Adjust position if it would cause overlap
+          (let ((min-allowed-pos (+ current-pos min-separation)))
+            (setq current-pos (max desired-pos min-allowed-pos))
+            (setq current-pair pair)
+            (push current-pos adjusted-positions))))
+
+      ;; Calculate median of adjusted positions
+      (let ((final-positions (reverse adjusted-positions)))
+        ;; Call basic median to avoid infinite recursion
+        (dag-draw--basic-weighted-median final-positions))))))
 
 ;;; Node Ordering Within Ranks
 
-(defun dag-draw--order-rank-by-median (graph rank-nodes adjacent-rank-nodes direction)
+(defun dag-draw--order-rank-by-median (graph rank-nodes adjacent-rank-nodes direction &optional size-aware)
   "Order nodes in a rank using weighted median heuristic.
-DIRECTION is 'down or 'up indicating sweep direction."
+DIRECTION is 'down or 'up indicating sweep direction.
+If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
   (let ((nodes-with-medians '()))
 
     ;; Calculate median for each node
     (dolist (node-id rank-nodes)
       (let ((median (dag-draw--calculate-median-position
-                     graph node-id adjacent-rank-nodes)))
+                     graph node-id adjacent-rank-nodes size-aware)))
         (push (cons node-id median) nodes-with-medians)))
 
     ;; Sort by median position
@@ -234,36 +323,38 @@ DIRECTION is 'down or 'up indicating sweep direction."
         (improved t)
         (total-improvement 0))
 
-    (while improved
-      (setq improved nil)
+    ;; Only try transpose if we have multiple nodes
+    (when (> (length rank-nodes) 1)
+      (while improved
+        (setq improved nil)
 
-      ;; Try swapping each adjacent pair
-      (dotimes (i (1- (length rank-nodes)))
-        (let ((node1 (nth i rank-nodes))
-              (node2 (nth (1+ i) rank-nodes)))
+        ;; Try swapping each adjacent pair
+        (dotimes (i (1- (length rank-nodes)))
+          (let ((node1 (nth i rank-nodes))
+                (node2 (nth (1+ i) rank-nodes)))
 
-          ;; Calculate crossings before swap
-          (let ((before-crossings (dag-draw--calculate-local-crossings
-                                  graph ranks rank-idx i)))
+            ;; Calculate crossings before swap
+            (let ((before-crossings (dag-draw--calculate-local-crossings
+                                    graph ranks rank-idx i)))
 
-            ;; Perform swap
-            (setf (nth i rank-nodes) node2)
-            (setf (nth (1+ i) rank-nodes) node1)
+              ;; Perform swap
+              (setf (nth i rank-nodes) node2)
+              (setf (nth (1+ i) rank-nodes) node1)
 
-            ;; Calculate crossings after swap
-            (let ((after-crossings (dag-draw--calculate-local-crossings
-                                   graph ranks rank-idx i)))
+              ;; Calculate crossings after swap
+              (let ((after-crossings (dag-draw--calculate-local-crossings
+                                     graph ranks rank-idx i)))
 
-              (if (< after-crossings before-crossings)
-                  ;; Keep the swap
-                  (progn
-                    (setq improved t)
-                    (setq total-improvement (+ total-improvement
-                                              (- before-crossings after-crossings))))
-                ;; Revert the swap
-                (progn
-                  (setf (nth i rank-nodes) node1)
-                  (setf (nth (1+ i) rank-nodes) node2)))))))
+                (let ((improvement (- before-crossings after-crossings)))
+                  (if (> improvement 0)  ; Any positive improvement
+                      ;; Keep the swap
+                      (progn
+                        (setq improved t)
+                        (setq total-improvement (+ total-improvement improvement)))
+                    ;; Revert the swap
+                    (progn
+                      (setf (nth i rank-nodes) node1)
+                      (setf (nth (1+ i) rank-nodes) node2)))))))))
 
       ;; Update the ranks array
       (setf (aref ranks rank-idx) rank-nodes))
@@ -318,15 +409,16 @@ This is the second pass of the GKNV algorithm with enhanced convergence detectio
 (defun dag-draw--crossing-reduction-with-convergence (graph ranks)
   "Enhanced crossing reduction with sophisticated convergence detection.
 Returns hash table with convergence information."
-  (let* ((max-iterations 20)                    ; Increased from 8
-         (convergence-threshold 3)              ; Iterations without improvement
-         (oscillation-window 6)                 ; Window for oscillation detection
-         (best-ranks (copy-sequence ranks))
-         (best-crossings most-positive-fixnum)
-         (iterations-without-improvement 0)
-         (crossings-history '())
-         (ranks-history '())
-         (result (ht-create)))
+  (cl-block dag-draw--crossing-reduction-with-convergence
+    (let* ((max-iterations 20)
+           (convergence-threshold 5)
+           (oscillation-window 8)
+           (best-ranks (copy-sequence ranks))
+           (best-crossings most-positive-fixnum)
+           (iterations-without-improvement 0)
+           (crossings-history '())
+           (ranks-history '())
+           (result (ht-create)))
 
     ;; Initial ordering
     (dag-draw--initialize-ordering graph ranks)
@@ -354,17 +446,19 @@ Returns hash table with convergence information."
                          graph
                          (aref ranks (1+ r))
                          (aref ranks r)
-                         'down))))
+                         'down
+                         nil))))
 
             ;; Backward pass (bottom to top)
-            (loop for r from (- (length ranks) 2) downto 0 do
-                  (when (> (length (aref ranks r)) 1)
-                    (setf (aref ranks r)
-                          (dag-draw--order-rank-by-median
-                           graph
-                           (aref ranks r)
-                           (aref ranks (1+ r))
-                           'up)))))
+            (cl-loop for r from (- (length ranks) 2) downto 0 do
+              (when (> (length (aref ranks r)) 1)
+                (setf (aref ranks r)
+                      (dag-draw--order-rank-by-median
+                       graph
+                       (aref ranks r)
+                       (aref ranks (1+ r))
+                       'up
+                       nil)))))
 
           ;; Apply local transposition
           (dotimes (r (length ranks))
@@ -393,6 +487,10 @@ Returns hash table with convergence information."
 
             (setq iteration (1+ iteration))))
 
+      ;; Check for iteration limit reached
+      (when (>= iteration max-iterations)
+        (message "Reached iteration limit (%d), stopping" max-iterations))
+
       ;; Store results
       (ht-set! result 'best-ranks best-ranks)
       (ht-set! result 'final-crossings best-crossings)
@@ -400,7 +498,7 @@ Returns hash table with convergence information."
       (ht-set! result 'converged converged)
       (ht-set! result 'crossings-history (reverse crossings-history)))
 
-    result)))
+    result))))
 
 (defun dag-draw--check-convergence (crossings-history ranks-history
                                    iterations-without-improvement

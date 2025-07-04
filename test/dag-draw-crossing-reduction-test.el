@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-order-simple)
+(require 'dag-draw-order)
 
 (describe "GKNV crossing reduction algorithm"
   (describe "crossing count calculation"

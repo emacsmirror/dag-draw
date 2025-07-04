@@ -142,12 +142,15 @@ Auto-sizes the node based on label length using 2 rows × 20 characters constrai
 (defun dag-draw-add-edge (graph from-node to-node &optional weight label attributes)
   "Add an edge from FROM-NODE to TO-NODE in GRAPH.
 Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
-  (let ((edge (dag-draw-edge-create
-               :from-node from-node
-               :to-node to-node
-               :weight (or weight 1)
-               :label label
-               :attributes (or attributes (ht-create)))))
+  (let* ((attrs (or attributes (ht-create)))
+         (min-length (or (and attrs (ht-get attrs 'min-length)) 1))
+         (edge (dag-draw-edge-create
+                :from-node from-node
+                :to-node to-node
+                :weight (or weight 1)
+                :min-length min-length
+                :label label
+                :attributes attrs)))
     (push edge (dag-draw-graph-edges graph))
     edge))
 
@@ -187,7 +190,7 @@ Returns a string representation of the rendered graph."
 
 ;; Load algorithm modules when needed
 (autoload 'dag-draw-rank-graph "dag-draw-rank" "Assign ranks to graph nodes." nil)
-(autoload 'dag-draw-order-vertices "dag-draw-order-simple" "Order vertices within ranks." nil)
+(autoload 'dag-draw-order-vertices "dag-draw-order" "Order vertices within ranks." nil)
 (autoload 'dag-draw-position-nodes "dag-draw-position" "Assign coordinates to nodes." nil)
 (autoload 'dag-draw-generate-splines "dag-draw-splines" "Generate edge splines." nil)
 (autoload 'dag-draw-render-svg "dag-draw-render" "Render graph as SVG." nil)

@@ -195,11 +195,16 @@
           (expect output :not :to-match "┐─┼")    ; Corner-line-junction combinations
           (expect output :not :to-match "─────────────────│──┌─────────") ; Complex fragmentation (current problem)
 
-          ;; 6.3 NODE BOUNDARY CORRUPTION
+          ;; 6.3 NODE BOUNDARY CORRUPTION - Use 2D grid analysis instead of flawed regex
           (expect output :not :to-match "┼│")     ; Junction inside box border
           (expect output :not :to-match "│┼│")    ; Junction surrounded by borders
           (expect output :not :to-match "┘─┼")    ; Corner-line-junction pattern
-          (expect output :not :to-match "│.*[─┼].*│") ; Edge characters inside node text areas
+          ;; PROPER VALIDATION: Use 2D grid analysis to detect actual boundary violations
+          ;; The regex "│.*[─┼].*│" incorrectly flags legitimate node boundaries like "│ Node │"
+          (let ((boundary-violations (dag-draw--validate-boundary-violations output)))
+            (when boundary-violations
+              (message "Boundary violations detected: %s" boundary-violations))
+            (expect boundary-violations :to-be nil)) ; No actual edge characters inside node text areas
 
           ;; 6.4 FLOATING ELEMENTS DETECTION - Use 2D grid analysis for accurate detection
           ;; GKNV Section 5.1.1 & 5.2: Arrows should be properly connected to edges or node boundaries

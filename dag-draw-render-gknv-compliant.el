@@ -1,0 +1,254 @@
+;;; dag-draw-render-gknv-compliant.el --- GKNV-compliant ASCII rendering -*- lexical-binding: t -*-
+
+;; This file implements proper GKNV-compliant ASCII rendering that respects
+;; the 4-pass algorithm and doesn't violate coordinate system authority.
+
+(require 'dag-draw-core)
+(require 'dag-draw-ascii-grid)
+(require 'dag-draw-ascii-nodes)
+(require 'dag-draw-ascii-edges)
+
+(defun dag-draw-render-ascii-gknv-compliant (graph)
+  "GKNV-compliant ASCII rendering: pure coordinate conversion without regeneration.
+This function respects the GKNV 4-pass algorithm and performs only coordinate conversion."
+  
+  ;; GKNV COMPLIANCE: Ensure 4-pass algorithm has completed
+  (unless (and (dag-draw-graph-edges graph)
+               (dag-draw-edge-spline-points (car (dag-draw-graph-edges graph))))
+    ;; Run GKNV algorithm ONCE if not already done
+    (dag-draw-layout-graph graph))
+
+  ;; Handle empty graphs
+  (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
+      "(Empty Graph)"
+    
+    ;; PURE COORDINATE CONVERSION: No coordinate system changes, no regeneration
+    (dag-draw--convert-gknv-to-ascii-grid graph)))
+
+(defun dag-draw--convert-gknv-to-ascii-grid (graph)
+  "Pure conversion of GKNV final coordinates to ASCII grid.
+Does NOT modify graph coordinates or regenerate splines."
+  
+  (let* (;; Step 1: Calculate conversion parameters from GKNV final coordinates
+         (bounds (dag-draw-get-graph-bounds graph))
+         (min-x (nth 0 bounds))
+         (min-y (nth 1 bounds))
+         (max-x (nth 2 bounds))
+         (max-y (nth 3 bounds))
+         (scale dag-draw-ascii-coordinate-scale)
+         
+         ;; Step 2: Calculate grid size needed for GKNV coordinates
+         (width (- max-x min-x))
+         (height (- max-y min-y))
+         (grid-width (max 20 (+ 10 (ceiling (* width scale)))))
+         (grid-height (max 10 (+ 5 (ceiling (* height scale)))))
+         
+         ;; Step 3: Create ASCII grid
+         (grid (dag-draw--create-ascii-grid grid-width grid-height)))
+    
+    (message "\n=== GKNV-COMPLIANT ASCII CONVERSION ===")
+    (message "GKNV bounds: (%.1f,%.1f) to (%.1f,%.1f)" min-x min-y max-x max-y)
+    (message "ASCII grid: %dx%d, scale=%.3f" grid-width grid-height scale)
+    
+    ;; Step 4: Draw nodes using GKNV final coordinates
+    (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
+    
+    ;; Step 5: Draw edges using GKNV final splines
+    (dag-draw--draw-edges-gknv-compliant graph grid min-x min-y scale)
+    
+    ;; Step 6: Convert grid to string
+    (dag-draw--ascii-grid-to-string grid)))
+
+(defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
+  "Draw nodes using GKNV final coordinates without modification."
+  
+  (ht-each (lambda (node-id node)
+             (let* (;; Use GKNV final coordinates directly
+                    (world-x (dag-draw-node-x-coord node))
+                    (world-y (dag-draw-node-y-coord node))
+                    (world-width (dag-draw-node-x-size node))
+                    (world-height (dag-draw-node-y-size node))
+                    (node-label (dag-draw-node-label node))
+                    
+                    ;; Convert to grid coordinates
+                    (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
+                    (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
+                    (grid-width (dag-draw--world-to-grid-size world-width scale))
+                    (grid-height (dag-draw--world-to-grid-size world-height scale))
+                    
+                    ;; Calculate grid position (top-left corner)
+                    (grid-x (round (- grid-center-x (/ grid-width 2))))
+                    (grid-y (round (- grid-center-y (/ grid-height 2)))))
+               
+               (message "GKNV-NODE: %s world(%.1f,%.1f) → grid(%d,%d) size(%dx%d)"
+                        node-id world-x world-y grid-x grid-y grid-width grid-height)
+               
+               ;; Draw node box at calculated position
+               (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
+           (dag-draw-graph-nodes graph)))
+
+(defun dag-draw--draw-edges-gknv-compliant (graph grid min-x min-y scale)
+  "Draw edges using GKNV final splines without regeneration."
+  
+  (dolist (edge (dag-draw-graph-edges graph))
+    (let ((spline-points (dag-draw-edge-spline-points edge)))
+      (when spline-points
+        (let* ((start-point (car spline-points))
+               (end-point (car (last spline-points)))
+               
+               ;; Convert GKNV spline endpoints to grid coordinates
+               (start-world-x (dag-draw-point-x start-point))
+               (start-world-y (dag-draw-point-y start-point))
+               (end-world-x (dag-draw-point-x end-point))
+               (end-world-y (dag-draw-point-y end-point))
+               
+               (start-grid-x (round (dag-draw--world-to-grid-coord start-world-x min-x scale)))
+               (start-grid-y (round (dag-draw--world-to-grid-coord start-world-y min-y scale)))
+               (end-grid-x (round (dag-draw--world-to-grid-coord end-world-x min-x scale)))
+               (end-grid-y (round (dag-draw--world-to-grid-coord end-world-y min-y scale))))
+          
+          (message "GKNV-EDGE: %s→%s world(%.1f,%.1f)→(%.1f,%.1f) grid(%d,%d)→(%d,%d)"
+                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                   start-world-x start-world-y end-world-x end-world-y
+                   start-grid-x start-grid-y end-grid-x end-grid-y)
+          
+          ;; Draw edge using proper port-based connection
+          (dag-draw--draw-edge-with-proper-ports graph edge grid start-grid-x start-grid-y 
+                                                 end-grid-x end-grid-y min-x min-y scale))))))
+
+(defun dag-draw--draw-edge-with-proper-ports (graph edge grid start-x start-y end-x end-y min-x min-y scale)
+  "Draw edge with ports calculated from GKNV node boundaries."
+  
+  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+         
+         ;; Calculate actual node boundaries in grid coordinates
+         (from-world-x (dag-draw-node-x-coord from-node))
+         (from-world-y (dag-draw-node-y-coord from-node))
+         (from-world-width (dag-draw-node-x-size from-node))
+         (from-world-height (dag-draw-node-y-size from-node))
+         
+         (to-world-x (dag-draw-node-x-coord to-node))
+         (to-world-y (dag-draw-node-y-coord to-node))
+         (to-world-width (dag-draw-node-x-size to-node))
+         (to-world-height (dag-draw-node-y-size to-node))
+         
+         ;; Convert to grid boundaries
+         (from-grid-center-x (dag-draw--world-to-grid-coord from-world-x min-x scale))
+         (from-grid-center-y (dag-draw--world-to-grid-coord from-world-y min-y scale))
+         (from-grid-width (dag-draw--world-to-grid-size from-world-width scale))
+         (from-grid-height (dag-draw--world-to-grid-size from-world-height scale))
+         
+         (to-grid-center-x (dag-draw--world-to-grid-coord to-world-x min-x scale))
+         (to-grid-center-y (dag-draw--world-to-grid-coord to-world-y min-y scale))
+         (to-grid-width (dag-draw--world-to-grid-size to-world-width scale))
+         (to-grid-height (dag-draw--world-to-grid-size to-world-height scale))
+         
+         ;; Calculate proper ports on node boundaries
+         (from-port (dag-draw--calculate-boundary-port from-grid-center-x from-grid-center-y 
+                                                       from-grid-width from-grid-height 'bottom))
+         (to-port (dag-draw--calculate-boundary-port to-grid-center-x to-grid-center-y 
+                                                     to-grid-width to-grid-height 'top)))
+    
+    (message "GKNV-PORTS: %s port(%d,%d) → %s port(%d,%d)"
+             (dag-draw-edge-from-node edge) (nth 0 from-port) (nth 1 from-port)
+             (dag-draw-edge-to-node edge) (nth 0 to-port) (nth 1 to-port))
+    
+    ;; Draw simple line between proper ports
+    (dag-draw--draw-simple-line grid (nth 0 from-port) (nth 1 from-port) 
+                                (nth 0 to-port) (nth 1 to-port))))
+
+(defun dag-draw--calculate-boundary-port (center-x center-y width height side)
+  "Calculate port position on node boundary for given side."
+  (let ((left (round (- center-x (/ width 2))))
+        (right (round (+ center-x (/ width 2))))
+        (top (round (- center-y (/ height 2))))
+        (bottom (round (+ center-y (/ height 2)))))
+    
+    (cond
+     ((eq side 'top) (list (round center-x) top))
+     ((eq side 'bottom) (list (round center-x) bottom))
+     ((eq side 'left) (list left (round center-y)))
+     ((eq side 'right) (list right (round center-y)))
+     (t (list (round center-x) (round center-y))))))
+
+(defun dag-draw--draw-node-box (grid x y width height label)
+  "Draw a node box with label at specified grid position."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+    
+    ;; Only draw if within grid bounds
+    (when (and (>= x 0) (>= y 0) 
+               (< (+ x width) grid-width)
+               (< (+ y height) grid-height))
+      
+      ;; Draw top border
+      (dotimes (i width)
+        (dag-draw--set-char grid (+ x i) y 
+                           (cond ((= i 0) ?┌)
+                                 ((= i (1- width)) ?┐)
+                                 (t ?─))))
+      
+      ;; Draw middle rows with label
+      (dotimes (row (- height 2))
+        (let ((actual-row (+ y row 1)))
+          ;; Left border
+          (dag-draw--set-char grid x actual-row ?│)
+          ;; Content area
+          (dotimes (col (- width 2))
+            (let ((char-pos (+ x col 1)))
+              (if (and (= row 0) (< col (length label)))
+                  (dag-draw--set-char grid char-pos actual-row (aref label col))
+                (dag-draw--set-char grid char-pos actual-row ?\s))))
+          ;; Right border
+          (dag-draw--set-char grid (+ x width -1) actual-row ?│)))
+      
+      ;; Draw bottom border
+      (dotimes (i width)
+        (dag-draw--set-char grid (+ x i) (+ y height -1)
+                           (cond ((= i 0) ?└)
+                                 ((= i (1- width)) ?┘)
+                                 (t ?─)))))))
+
+(defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
+  "Draw a simple line from (x1,y1) to (x2,y2) with arrow."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+    
+    ;; Draw vertical line first
+    (if (not (= y1 y2))
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                (dag-draw--set-char grid x1 y ?│))))))
+    
+    ;; Draw horizontal line
+    (if (not (= x1 x2))
+        (let ((start-x (min x1 x2))
+              (end-x (max x1 x2)))
+          (dotimes (i (1+ (- end-x start-x)))
+            (let ((x (+ start-x i)))
+              (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+                (dag-draw--set-char grid x y2 ?─))))))
+    
+    ;; Add arrow at end point
+    (when (and (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
+      (let ((arrow-char (cond ((> y2 y1) ?▼)  ; Down arrow
+                              ((< y2 y1) ?▲)  ; Up arrow
+                              ((> x2 x1) ?▶)  ; Right arrow
+                              ((< x2 x1) ?◀)  ; Left arrow
+                              (t ?●))))       ; Point
+        (dag-draw--set-char grid x2 y2 arrow-char)))))
+
+(defun dag-draw--set-char (grid x y char)
+  "Safely set character in grid at position (x,y)."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+      (aset (aref grid y) x char))))
+
+(provide 'dag-draw-render-gknv-compliant)
+
+;;; dag-draw-render-gknv-compliant.el ends here

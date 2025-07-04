@@ -79,23 +79,58 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
 ;;; Main Rendering Functions
 
 (defun dag-draw-render-ascii (graph)
-  "Render GRAPH as ASCII art with box-drawing characters."
-  ;; GHOST NODE FIX: Only run layout if graph hasn't been laid out yet
-  ;; Check if splines exist to determine if layout has been done
+  "GKNV-compliant ASCII rendering: pure coordinate conversion without regeneration.
+This function respects the GKNV 4-pass algorithm and performs only coordinate conversion."
+  ;; GKNV COMPLIANCE: Ensure 4-pass algorithm has completed
   (unless (and (dag-draw-graph-edges graph)
                (dag-draw-edge-spline-points (car (dag-draw-graph-edges graph))))
-    ;; GKNV COMPLIANCE FIX: Ensure all 4 passes are executed before rendering
-    ;; The layout algorithm must be called to generate splines (Pass 4)
+    ;; Run GKNV algorithm ONCE if not already done
     (dag-draw-layout-graph graph))
 
-  ;; Handle empty graphs explicitly
+  ;; Handle empty graphs
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
-    ;; ASCII COORDINATE CONTEXT: Create normalized coordinate system for ASCII rendering only
-    (let* ((ascii-context (dag-draw--create-ascii-coordinate-context graph))
+    ;; PURE COORDINATE CONVERSION: No coordinate system changes, no regeneration
+    (dag-draw--convert-gknv-to-ascii-grid graph)))
+
+(defun dag-draw--convert-gknv-to-ascii-grid (graph)
+  "Pure conversion of GKNV final coordinates to ASCII grid.
+Does NOT modify graph coordinates or regenerate splines."
+
+  (let* (;; Step 1: Calculate conversion parameters from GKNV final coordinates
+         (bounds (dag-draw-get-graph-bounds graph))
+         (min-x (nth 0 bounds))
+         (min-y (nth 1 bounds))
+         (max-x (nth 2 bounds))
+         (max-y (nth 3 bounds))
+         (scale dag-draw-ascii-coordinate-scale)
+
+         ;; Step 2: Calculate grid size needed for GKNV coordinates
+         (width (- max-x min-x))
+         (height (- max-y min-y))
+         (grid-width (max 20 (+ 10 (ceiling (* width scale)))))
+         (grid-height (max 10 (+ 5 (ceiling (* height scale)))))
+
+         ;; Step 3: Create ASCII grid
+         (grid (dag-draw--create-ascii-grid grid-width grid-height)))
+
+    (message "\n=== GKNV-COMPLIANT ASCII CONVERSION ===")
+    (message "GKNV bounds: (%.1f,%.1f) to (%.1f,%.1f)" min-x min-y max-x max-y)
+    (message "ASCII grid: %dx%d, scale=%.3f" grid-width grid-height scale)
+
+    ;; Step 4: Draw nodes using GKNV final coordinates
+    (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
+
+    ;; Step 5: Draw edges using GKNV final splines
+    (dag-draw--draw-edges-gknv-compliant graph grid min-x min-y scale)
+
+    ;; Step 6: Convert grid to string
+    (dag-draw--ascii-grid-to-string grid))
+
+(defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
            (ascii-bounds (dag-draw--ascii-get-bounds ascii-context))
            (min-x (nth 0 ascii-bounds))  ; Always 0
-           (min-y (nth 1 ascii-bounds))  ; Always 0 
+           (min-y (nth 1 ascii-bounds))  ; Always 0
            (max-x (nth 2 ascii-bounds))
            (max-y (nth 3 ascii-bounds)))
 
@@ -153,7 +188,7 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
                (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-          (message "BOUNDS-DEBUG: original min-x=%.1f min-y=%.1f → adjusted min-x=%.1f min-y=%.1f (collision-buffer=%.1f)" 
+          (message "BOUNDS-DEBUG: original min-x=%.1f min-y=%.1f → adjusted min-x=%.1f min-y=%.1f (collision-buffer=%.1f)"
                    min-x min-y adjusted-min-x adjusted-min-y collision-spacing-buffer)
 
           ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
@@ -165,7 +200,7 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                  (final-bounds (dag-draw--calculate-final-bounds adjusted-positions)))
             (when final-bounds
               (let* ((final-min-x (nth 0 final-bounds))
-                     (final-min-y (nth 1 final-bounds))  
+                     (final-min-y (nth 1 final-bounds))
                      (final-max-x (nth 2 final-bounds))
                      (final-max-y (nth 3 final-bounds))
                      (final-width (- final-max-x final-min-x))
@@ -179,23 +214,53 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
           ;; ASCII COORDINATE CONTEXT: Temporarily normalize graph coordinates for ASCII rendering
           ;; This replaces the old normalization approach with a cleaner ASCII-specific layer
           (let ((original-coords (dag-draw--ascii-normalize-graph-coordinates graph ascii-context)))
-            
+
             ;; COORDINATE SYSTEM FIX: Re-enable spline regeneration after ASCII coordinate normalization
             ;; This ensures arrows point to actual node positions in ASCII coordinate space
             (dag-draw--regenerate-splines-after-collision graph)
 
-            ;; COORDINATE SYSTEM UNIFICATION: Use ASCII context for consistent coordinate system
-            ;; This ensures both splines and nodes use the same normalized coordinate space
-            (message "ASCII-COORD-DEBUG: Converting splines with ASCII context min-x=%.1f min-y=%.1f scale=%.3f" min-x min-y scale)
-            (dag-draw--convert-splines-to-grid-coordinates graph min-x min-y scale)
+            ;; COORDINATE SYSTEM UNIFICATION: Use collision-adjusted coordinates for consistency
+            ;; This ensures both splines and nodes use the same collision-adjusted coordinate space
+            (message "ASCII-COORD-DEBUG: Converting splines with collision-adjusted min-x=%.1f min-y=%.1f scale=%.3f" adjusted-min-x adjusted-min-y scale)
+            (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
+
+            ;; GRID SIZING FIX: Recalculate grid size after spline coordinate conversion
+            ;; Splines are now in grid coordinates and may exceed the original grid bounds
+            (let* ((max-spline-x 0)
+                   (max-spline-y 0))
+              ;; Find maximum grid coordinates from converted splines
+              (dolist (edge (dag-draw-graph-edges graph))
+                (let ((spline-points (dag-draw-edge-spline-points edge)))
+                  (when spline-points
+                    (dolist (point spline-points)
+                      ;; Splines are now in grid coordinates after conversion
+                      (let ((grid-x (dag-draw-point-x point))
+                            (grid-y (dag-draw-point-y point)))
+                        (setq max-spline-x (max max-spline-x (ceiling grid-x)))
+                        (setq max-spline-y (max max-spline-y (ceiling grid-y))))))))
+
+              ;; Debug output (optional - can be removed for production)
+              (when (> max-spline-y grid-height)
+                (message "GRID-SIZE-DEBUG: Splines exceed grid bounds - expanding from %dx%d (max spline: %d,%d)"
+                         grid-width grid-height max-spline-x max-spline-y))
+
+              ;; Resize grid if splines exceed current bounds
+              (let ((required-width (max grid-width (+ max-spline-x 5)))
+                    (required-height (max grid-height (+ max-spline-y 5))))
+                (when (or (> required-width grid-width) (> required-height grid-height))
+                  (message "GRID-RESIZE: Expanding grid from %dx%d to %dx%d for splines"
+                           grid-width grid-height required-width required-height)
+                  (setq grid (dag-draw--create-ascii-grid required-width required-height))
+                  (setq grid-width required-width)
+                  (setq grid-height required-height))))
 
             ;; GKNV Section 5.2 FIX: Draw nodes FIRST so arrows can properly integrate with boundaries
-            (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
+            (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
 
             ;; Draw edges LAST with arrows that can now terminate ON actual node boundaries
-            (message "ASCII-COORD-DEBUG: Drawing edges with ASCII context min-x=%.1f min-y=%.1f scale=%.3f" min-x min-y scale)
-            (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
-            
+            (message "ASCII-COORD-DEBUG: Drawing edges with collision-adjusted min-x=%.1f min-y=%.1f scale=%.3f" adjusted-min-x adjusted-min-y scale)
+            (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+
             ;; ASCII COORDINATE CONTEXT: Restore original coordinates to avoid affecting other rendering
             (dag-draw--ascii-restore-graph-coordinates graph original-coords))
 
@@ -203,7 +268,7 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
           (dag-draw--post-process-junction-characters grid)
 
           ;; Convert grid to string
-          (dag-draw--ascii-grid-to-string grid))))))
+          (dag-draw--ascii-grid-to-string grid))))
 
 (defun dag-draw--pre-calculate-final-node-positions (graph grid min-x min-y scale)
   "PHASE 2 FIX: Pre-calculate final node positions with collision detection.
@@ -311,13 +376,13 @@ This ensures splines connect nodes at their final positions after collision dete
   "Calculate bounds from adjusted grid positions instead of original world coordinates.
 This provides the correct reference frame for converting adjusted grid coords back to world coords."
   (if (= (ht-size adjusted-positions) 0)
-      ;; Empty - return default bounds  
+      ;; Empty - return default bounds
       (list 0 0 100 100)
     (let ((min-x most-positive-fixnum)
           (min-y most-positive-fixnum)
           (max-x most-negative-fixnum)
           (max-y most-negative-fixnum))
-      
+
       (ht-each (lambda (node-id coords)
                  (let* ((grid-x (nth 0 coords))
                         (grid-y (nth 1 coords))
@@ -328,13 +393,13 @@ This provides the correct reference frame for converting adjusted grid coords ba
                         (right (+ grid-x grid-width))
                         (top grid-y)
                         (bottom (+ grid-y grid-height)))
-                   
+
                    (setq min-x (min min-x left))
                    (setq max-x (max max-x right))
                    (setq min-y (min min-y top))
                    (setq max-y (max max-y bottom))))
                adjusted-positions)
-      
+
       ;; Convert grid bounds back to world bounds using the coordinate scale
       (let ((scale (or dag-draw-ascii-coordinate-scale 0.15)))
         (list (/ min-x scale) (/ min-y scale) (/ max-x scale) (/ max-y scale))))))

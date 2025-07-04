@@ -101,10 +101,11 @@ This layer isolates ASCII coordinate normalization from other rendering paths."
     (ht-set! context 'original-bounds raw-bounds)
     
     ;; Calculate ASCII-safe bounds (guaranteed non-negative)
+    ;; COORDINATE EXPLOSION FIX: Use original dimensions without doubling offset
     (ht-set! context 'ascii-bounds 
              (list 0 0 
-                   (+ (- max-x min-x) (* 2 offset-x))
-                   (+ (- max-y min-y) (* 2 offset-y))))
+                   (- max-x min-x)  ; Original width preserved
+                   (- max-y min-y))) ; Original height preserved
     
     ;; Debug output
     (message "ASCII-CONTEXT: offset-x=%.1f offset-y=%.1f" offset-x offset-y)
@@ -345,9 +346,10 @@ otherwise calculates from coordinates for compatibility with tests."
                            (dotimes (dx grid-width-node)
                              (let ((box-x (+ grid-x dx))
                                    (box-y (+ grid-y dy))
-                                   ;; Check if this is interior (not on boundary)
-                                   (is-interior (and (> dx 0) (< dx (1- grid-width-node))
-                                                     (> dy 0) (< dy (1- grid-height-node)))))
+                                   ;; GKNV Section 5.2 COMPLIANCE: Only mark interior as occupied
+                                   ;; Allow arrow placement on boundaries: top/bottom/left/right edges are NOT occupied
+                                   (is-interior (and (> dx 0) (< dx (1- grid-width-node))   ; Not left/right edge
+                                                     (> dy 0) (< dy (1- grid-height-node))))) ; Not top/bottom edge
                                (when (and (>= box-x 0) (< box-x grid-width)
                                           (>= box-y 0) (< box-y grid-height)
                                           is-interior)  ; Only mark interior as occupied
@@ -393,9 +395,10 @@ otherwise calculates from coordinates for compatibility with tests."
                        (dotimes (dx grid-width-node)
                          (let ((map-x (round (+ grid-x dx)))
                                (map-y (round (+ grid-y dy)))
-                               ;; Check if this is interior (not on boundary)  
-                               (is-interior (and (> dx 0) (< dx (1- grid-width-node))
-                                                 (> dy 0) (< dy (1- grid-height-node)))))
+                               ;; GKNV Section 5.2 COMPLIANCE: Only mark interior as occupied
+                               ;; Allow arrow placement on boundaries: top/bottom/left/right edges are NOT occupied
+                               (is-interior (and (> dx 0) (< dx (1- grid-width-node))   ; Not left/right edge
+                                                 (> dy 0) (< dy (1- grid-height-node))))) ; Not top/bottom edge
                            (when (and (>= map-x 0) (< map-x grid-width)
                                       (>= map-y 0) (< map-y grid-height)
                                       is-interior)  ; Only mark interior as occupied

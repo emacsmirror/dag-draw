@@ -12,7 +12,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-rank)
-(require 'dag-draw-order-simple)
+(require 'dag-draw-order)
 (require 'dag-draw-position)
 
 (describe
