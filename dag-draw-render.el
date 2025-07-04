@@ -91,11 +91,13 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
   ;; Handle empty graphs explicitly
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
-    (let* ((bounds (dag-draw-get-graph-bounds graph))
-           (min-x (nth 0 bounds))
-           (min-y (nth 1 bounds))
-           (max-x (nth 2 bounds))
-           (max-y (nth 3 bounds)))
+    ;; ASCII COORDINATE CONTEXT: Create normalized coordinate system for ASCII rendering only
+    (let* ((ascii-context (dag-draw--create-ascii-coordinate-context graph))
+           (ascii-bounds (dag-draw--ascii-get-bounds ascii-context))
+           (min-x (nth 0 ascii-bounds))  ; Always 0
+           (min-y (nth 1 ascii-bounds))  ; Always 0 
+           (max-x (nth 2 ascii-bounds))
+           (max-y (nth 3 ascii-bounds)))
 
 
       (let* (;; PHASE 1 FIX: Use unified coordinate scale throughout system
@@ -174,46 +176,28 @@ ADJUSTED-POSITIONS is a hash table mapping node-id to (x y width height)."
                 (when (or (> required-grid-width grid-width) (> required-grid-height grid-height))
                   (setq grid (dag-draw--create-ascii-grid required-grid-width required-grid-height))))))
 
-          ;; COORDINATE NORMALIZATION FIX: Normalize coordinates after collision detection
-          ;; This prevents negative coordinate issues while preserving collision adjustments
-          (dag-draw-normalize-coordinates graph)
-          
-          ;; DEBUG: Show normalized coordinates after collision detection
-          (message "NORMALIZED COORDINATES (post-collision):")
-          (ht-each (lambda (node-id node)
-                     (message "  Node %s: (%.1f,%.1f)"
-                              node-id 
-                              (or (dag-draw-node-x-coord node) 0)
-                              (or (dag-draw-node-y-coord node) 0)))
-                   (dag-draw-graph-nodes graph))
-
-          ;; COORDINATE SYSTEM FIX: Recalculate bounds after normalization
-          ;; This ensures spline conversion uses the correct coordinate system
-          (let* ((normalized-bounds (dag-draw-get-graph-bounds graph))
-                 (normalized-min-x (nth 0 normalized-bounds))
-                 (normalized-min-y (nth 1 normalized-bounds))
-                 (normalized-max-x (nth 2 normalized-bounds))
-                 (normalized-max-y (nth 3 normalized-bounds)))
+          ;; ASCII COORDINATE CONTEXT: Temporarily normalize graph coordinates for ASCII rendering
+          ;; This replaces the old normalization approach with a cleaner ASCII-specific layer
+          (let ((original-coords (dag-draw--ascii-normalize-graph-coordinates graph ascii-context)))
             
-            ;; DEBUG: Show bounds after normalization  
-            (message "BOUNDS AFTER NORMALIZATION: min-x=%.1f min-y=%.1f max-x=%.1f max-y=%.1f" 
-                     normalized-min-x normalized-min-y normalized-max-x normalized-max-y)
-
-            ;; COORDINATE SYSTEM FIX: Re-enable spline regeneration after collision detection
-            ;; This ensures arrows point to actual node positions, not pre-collision positions
+            ;; COORDINATE SYSTEM FIX: Re-enable spline regeneration after ASCII coordinate normalization
+            ;; This ensures arrows point to actual node positions in ASCII coordinate space
             (dag-draw--regenerate-splines-after-collision graph)
 
-            ;; COORDINATE SYSTEM FIX: Use normalized bounds for spline conversion and edge drawing
-            ;; This ensures spline coordinates and edge drawing use the same coordinate system
-            (message "COORD-DEBUG: Converting splines with normalized bounds min-x=%.1f min-y=%.1f scale=%.3f" normalized-min-x normalized-min-y scale)
-            (dag-draw--convert-splines-to-grid-coordinates graph normalized-min-x normalized-min-y scale)
+            ;; COORDINATE SYSTEM UNIFICATION: Use ASCII context for consistent coordinate system
+            ;; This ensures both splines and nodes use the same normalized coordinate space
+            (message "ASCII-COORD-DEBUG: Converting splines with ASCII context min-x=%.1f min-y=%.1f scale=%.3f" min-x min-y scale)
+            (dag-draw--convert-splines-to-grid-coordinates graph min-x min-y scale)
 
             ;; GKNV Section 5.2 FIX: Draw nodes FIRST so arrows can properly integrate with boundaries
-            (dag-draw--ascii-draw-nodes graph grid normalized-min-x normalized-min-y scale)
+            (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
 
             ;; Draw edges LAST with arrows that can now terminate ON actual node boundaries
-            (message "COORD-DEBUG: Drawing edges with normalized bounds min-x=%.1f min-y=%.1f scale=%.3f" normalized-min-x normalized-min-y scale)
-            (dag-draw--ascii-draw-edges graph grid normalized-min-x normalized-min-y scale))
+            (message "ASCII-COORD-DEBUG: Drawing edges with ASCII context min-x=%.1f min-y=%.1f scale=%.3f" min-x min-y scale)
+            (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
+            
+            ;; ASCII COORDINATE CONTEXT: Restore original coordinates to avoid affecting other rendering
+            (dag-draw--ascii-restore-graph-coordinates graph original-coords))
 
           ;; Post-process junction characters to improve visual connections
           (dag-draw--post-process-junction-characters grid)

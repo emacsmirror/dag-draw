@@ -80,6 +80,89 @@ MATHEMATICAL UNIFICATION FIX: Use same scale as coordinate conversion to elimina
              (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
         (dag-draw-point-create :x grid-x :y grid-y)))))
 
+;;; ASCII Coordinate Context Layer
+
+(defun dag-draw--create-ascii-coordinate-context (graph)
+  "Create a normalized coordinate context specifically for ASCII rendering.
+This layer isolates ASCII coordinate normalization from other rendering paths."
+  (let* ((raw-bounds (dag-draw-get-graph-bounds graph))
+         (min-x (nth 0 raw-bounds))
+         (min-y (nth 1 raw-bounds))
+         (max-x (nth 2 raw-bounds))
+         (max-y (nth 3 raw-bounds))
+         ;; Calculate offsets to make coordinates non-negative
+         (offset-x (if (< min-x 0) (- min-x) 0))
+         (offset-y (if (< min-y 0) (- min-y) 0))
+         (context (ht-create)))
+    
+    ;; Store the normalization offsets for coordinate conversion
+    (ht-set! context 'offset-x offset-x)
+    (ht-set! context 'offset-y offset-y)
+    (ht-set! context 'original-bounds raw-bounds)
+    
+    ;; Calculate ASCII-safe bounds (guaranteed non-negative)
+    (ht-set! context 'ascii-bounds 
+             (list 0 0 
+                   (+ (- max-x min-x) (* 2 offset-x))
+                   (+ (- max-y min-y) (* 2 offset-y))))
+    
+    ;; Debug output
+    (message "ASCII-CONTEXT: offset-x=%.1f offset-y=%.1f" offset-x offset-y)
+    (message "ASCII-CONTEXT: original bounds (%.1f,%.1f,%.1f,%.1f) → ascii bounds (%.1f,%.1f,%.1f,%.1f)"
+             min-x min-y max-x max-y
+             0.0 0.0 (nth 2 (ht-get context 'ascii-bounds)) (nth 3 (ht-get context 'ascii-bounds)))
+    
+    context))
+
+(defun dag-draw--ascii-world-to-grid (world-x world-y context scale)
+  "Convert world coordinates to ASCII grid using normalized context.
+This ensures all ASCII grid coordinates are non-negative."
+  (let ((offset-x (ht-get context 'offset-x))
+        (offset-y (ht-get context 'offset-y)))
+    (list (dag-draw--world-to-grid-coord (+ world-x offset-x) 0 scale)
+          (dag-draw--world-to-grid-coord (+ world-y offset-y) 0 scale))))
+
+(defun dag-draw--ascii-get-node-position (node context scale)
+  "Get node position in ASCII coordinate system.
+Returns (x y) in ASCII grid coordinates."
+  (let ((world-x (or (dag-draw-node-x-coord node) 0))
+        (world-y (or (dag-draw-node-y-coord node) 0)))
+    (dag-draw--ascii-world-to-grid world-x world-y context scale)))
+
+(defun dag-draw--ascii-get-bounds (context)
+  "Get ASCII bounds from context.
+Returns (min-x min-y max-x max-y) where min-x and min-y are always 0."
+  (ht-get context 'ascii-bounds))
+
+(defun dag-draw--ascii-normalize-graph-coordinates (graph context)
+  "Temporarily normalize graph node coordinates to ASCII coordinate system.
+Returns original coordinates for restoration."
+  (let ((original-coords (ht-create))
+        (offset-x (ht-get context 'offset-x))
+        (offset-y (ht-get context 'offset-y)))
+    
+    ;; Save original coordinates and apply ASCII normalization
+    (ht-each (lambda (node-id node)
+               (let ((orig-x (dag-draw-node-x-coord node))
+                     (orig-y (dag-draw-node-y-coord node)))
+                 ;; Save original coordinates
+                 (ht-set! original-coords node-id (list orig-x orig-y))
+                 ;; Apply ASCII normalization
+                 (setf (dag-draw-node-x-coord node) (+ orig-x offset-x))
+                 (setf (dag-draw-node-y-coord node) (+ orig-y offset-y))))
+             (dag-draw-graph-nodes graph))
+    
+    original-coords))
+
+(defun dag-draw--ascii-restore-graph-coordinates (graph original-coords)
+  "Restore original graph coordinates from ASCII normalization."
+  (ht-each (lambda (node-id coords)
+             (let ((node (ht-get (dag-draw-graph-nodes graph) node-id)))
+               (when node
+                 (setf (dag-draw-node-x-coord node) (nth 0 coords))
+                 (setf (dag-draw-node-y-coord node) (nth 1 coords)))))
+           original-coords))
+
 ;;; ASCII Grid Creation
 
 (defun dag-draw--create-ascii-grid (width height)

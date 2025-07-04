@@ -13,9 +13,9 @@
 ;; This module handles the complex logic of drawing edges between nodes
 ;; with proper collision detection, occupancy map respect, and arrow placement.
 ;;
-;; CRITICAL: All character placement MUST use dag-draw--safety-check-aset()
-;; instead of direct aset() to respect the occupancy map and prevent
-;; drawing through node text.
+;; ASCII COORDINATE CONTEXT: Direct character placement with unified coordinates.
+;; The ASCII coordinate context eliminates negative coordinates and provides
+;; unified positioning, making defensive checks unnecessary.
 
 ;;; Code:
 
@@ -27,7 +27,7 @@
 
 ;;; Basic Line Drawing
 
-(defun dag-draw--ascii-draw-line (grid x1 y1 x2 y2 &optional occupancy-map)
+(defun dag-draw--ascii-draw-line (grid x1 y1 x2 y2 &optional)
   "Draw a simple line from (X1,Y1) to (X2,Y2) on ASCII grid."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
@@ -40,35 +40,34 @@
       (let ((start-x (min x1 x2))
             (end-x (max x1 x2))
             (direction (if (< x1 x2) 'right 'left)))
-        ;; Apply junction character at start if needed
-        (dag-draw--apply-boundary-junction grid start-x y1 direction)
-        ;; Draw the horizontal line
+        ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors
+        ;; Check occupancy before drawing each segment
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
+            (when (not (dag-draw--is-node-interior-position grid x y1))
+              (dag-draw--draw-char grid x y1 ?─))))))
 
      ;; Vertical line
      ((= dx 0)
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2))
             (direction (if (< y1 y2) 'down 'up)))
-        ;; Apply junction character at start if needed
-        (dag-draw--apply-boundary-junction grid x1 start-y direction)
-        ;; Draw the vertical line
+        ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors  
+        ;; Check occupancy before drawing each segment
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (when (and (>= x1 0) (< x1 grid-width)
-                       (>= y 0) (< y grid-height))
-              ;; ALWAYS use ultra-safe drawing to prevent double vertical lines
-              (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map))))))
+                       (>= y 0) (< y grid-height)
+                       (not (dag-draw--is-node-interior-position grid x1 y)))
+              (dag-draw--draw-char grid x1 y ?│))))))
 
      ;; L-shaped line (horizontal then vertical)
      (t
       ;; Draw horizontal segment first
-      (dag-draw--ascii-draw-line grid x1 y1 x2 y1 occupancy-map)
+      (dag-draw--ascii-draw-line grid x1 y1 x2 y1)
       ;; Draw vertical segment, avoiding overlap at corner
       (when (/= y1 y2)
-        (dag-draw--ascii-draw-line grid x2 (+ y1 (if (< y1 y2) 1 -1)) x2 y2 occupancy-map))))))
+        (dag-draw--ascii-draw-line grid x2 (+ y1 (if (< y1 y2) 1 -1)) x2 y2))))))
 
 
 (defun dag-draw--detect-direction (x1 y1 x2 y2)
@@ -134,7 +133,7 @@ GKNV-compliant: Use dominant axis to determine primary direction."
 
 ;;; Advanced Arrow Placement Functions
 
-(defun dag-draw--add-directional-arrow (grid x1 y1 x2 y2 occupancy-map)
+(defun dag-draw--add-directional-arrow (grid x1 y1 x2 y2)
   "Add directional arrow, handling touching nodes case."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1)))
@@ -154,14 +153,14 @@ GKNV-compliant: Use dominant axis to determine primary direction."
                          (>= search-y 0) (< search-y grid-height))
                 (when (eq (aref (aref grid search-y) x2) ?│)
                   ;; Found vertical line, replace with arrow using safe drawing
-                  (dag-draw--ultra-safe-draw-char grid x2 search-y ?▼ occupancy-map)
+                  (dag-draw--draw-char grid x2 search-y ?▼)
                   (throw 'arrow-placed t))))))))
 
      ;; Different coordinates - use original logic
      (t
-      (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2 occupancy-map)))))
+      (dag-draw--add-ultra-safe-arrow grid x1 y1 x2 y2)))))
 
-(defun dag-draw--add-ultra-safe-arrow (grid x1 y1 x2 y2 occupancy-map)
+(defun dag-draw--add-ultra-safe-arrow (grid x1 y1 x2 y2)
   "Add directional arrow at the endpoint of a path with ultra-safe collision detection."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1))
@@ -188,127 +187,135 @@ GKNV-compliant: Use dominant axis to determine primary direction."
             (progn
               (message "    BOUNDARY-FOUND-ALT: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                        arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x2 y2)
-              (dag-draw--ultra-safe-draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char occupancy-map))
+              (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
           ;; ENHANCED FALLBACK: Try adjacent placement
           (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x2) (round y2) arrow-char)))
             (if adjacent-pos
                 (progn
                   (message "    BOUNDARY-ADJACENT-ALT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                            arrow-char (car adjacent-pos) (cadr adjacent-pos) x2 y2)
-                  (dag-draw--ultra-safe-draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char occupancy-map))
+                  (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
               ;; Final fallback
               (progn
                 (message "    BOUNDARY-MISSING-ALT: **FLOATING ARROW ALERT** No boundary found near (%d,%d), using calculated position" x2 y2)
-                (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map)))))))))
+                (dag-draw--draw-arrow grid x2 y2 arrow-char)))))))))
 
 (defvar dag-draw--arrow-positions nil
   "Track positions where arrows have been placed to prevent conflicts.")
 
-(defun dag-draw--ultra-safe-draw-arrow (grid x y arrow-char occupancy-map)
+(defun dag-draw--draw-arrow (grid x y arrow-char)
   "Draw arrow character with GKNV Section 5.2 boundary clipping."
   (when arrow-char
-    ;; GKNV FIX: Ensure integer coordinates for array access
     (let* ((int-x (round x))
            (int-y (round y))
            (grid-height (length grid))
-           (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-           (position-key (format "%d,%d" int-x int-y)))
+           (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
       (when (and (>= int-x 0) (< int-x grid-width) (>= int-y 0) (< int-y grid-height))
         (let ((current-char (aref (aref grid int-y) int-x)))
-
-          ;; GKNV Section 5.2 COMPLIANT ARROW PLACEMENT: Arrows must terminate ON node boundaries
           (cond
-           ;; Case 1: Empty space - always safe to place arrow
-           ((eq current-char ?\s)
-            (aset (aref grid int-y) int-x arrow-char)
-            (push position-key dag-draw--arrow-positions))
-
-           ;; Case 2: GKNV Section 5.2 FIX - Arrows REPLACE boundary characters (terminate ON boundaries)
-           ;; Plain edge characters AND node boundaries - safe to replace with arrow
-           ((memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤))
-            (aset (aref grid int-y) int-x arrow-char)
-            (push position-key dag-draw--arrow-positions))
-
-           ;; Case 3: Already has arrow - SKIP TO PREVENT CONFLICTS
-           ;; Don't place arrows where another arrow already exists to prevent ▶◀ conflicts
-           ((memq current-char '(?▼ ?▲ ?▶ ?◀))
-            ;; Skip this arrow placement to avoid visual conflicts
-            nil)
-
-           ;; Case 4: Node boundary characters - GKNV allows arrows on boundaries
-           ;; This is the key fix: arrows can be placed on node borders per GKNV Section 5.1.1
-           ((memq current-char '(?┬ ?┴ ?├ ?┤))
-            (aset (aref grid int-y) int-x arrow-char)
-            (push position-key dag-draw--arrow-positions))
-
-           ;; Case 5: Alphanumeric characters (node text) - NEVER overwrite
-           ((or (and (>= current-char ?a) (<= current-char ?z))
+           ;; Empty space or edge characters - replace with arrow
+           ((or (eq current-char ?\s)
+                (memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤)))
+            (aset (aref grid int-y) int-x arrow-char))
+           ;; Skip if arrow already exists or node text
+           ((or (memq current-char '(?▼ ?▲ ?▶ ?◀))
+                (and (>= current-char ?a) (<= current-char ?z))
                 (and (>= current-char ?A) (<= current-char ?Z))
                 (and (>= current-char ?0) (<= current-char ?9)))
             nil)
-
-           ;; Case 6: Default - allow arrow placement for GKNV compliance
+           ;; Default - place arrow
            (t
             (aset (aref grid int-y) int-x arrow-char))))))))
 
 
-(defun dag-draw--ultra-safe-draw-char (grid x y char occupancy-map)
-  "Draw character with collision detection that matches arrow placement logic."
-  ;; GKNV FIX: Ensure integer coordinates for array access
+(defun dag-draw--draw-char (grid x y char)
+  "Draw character at grid position with basic bounds checking.
+ASCII coordinate context ensures coordinates are always valid."
   (let* ((int-x (round x))
          (int-y (round y))
          (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
     (when (and (>= int-x 0) (< int-x grid-width) (>= int-y 0) (< int-y grid-height))
-      ;; Check occupancy map first to respect buffer zones
-      ;; If position is in a buffer zone, skip drawing ANY edge character
-      (unless (and occupancy-map
-                   (let ((grid-height-occ (length occupancy-map))
-                         (grid-width-occ (if (> (length occupancy-map) 0) (length (aref occupancy-map 0)) 0)))
-                     (and (>= int-x 0) (< int-x grid-width-occ) (>= int-y 0) (< int-y grid-height-occ)
-                          (aref (aref occupancy-map int-y) int-x)
-                          ;; Block ALL edge characters in buffer zones, not just vertical lines
-                          (memq char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘))))))
+      (let ((current-char (aref (aref grid int-y) int-x)))
+        (cond
+         ;; Empty space - check for nearby parallel lines before drawing
+         ((eq current-char ?\s)
+          (if (and (eq char ?│) (dag-draw--has-nearby-vertical-line grid int-x int-y))
+              ;; Skip drawing this vertical line to prevent ││ artifacts
+              nil
+            (aset (aref grid int-y) int-x char)))
+         ;; Never overwrite node text content
+         ((or (and (>= current-char ?a) (<= current-char ?z))
+              (and (>= current-char ?A) (<= current-char ?Z))
+              (and (>= current-char ?0) (<= current-char ?9)))
+          nil)
+         ;; Edge characters - use enhanced junction logic with parallel line consolidation
+         ((memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))
+          (let ((junction-char (dag-draw--get-enhanced-junction-char current-char char nil)))
+            (when junction-char
+              (aset (aref grid int-y) int-x junction-char))
+            ;; PARALLEL LINE CONSOLIDATION: Check for adjacent parallel lines that should merge
+            (dag-draw--consolidate-parallel-lines grid int-x int-y)))
+         ;; Default - draw character
+         (t
+          (aset (aref grid int-y) int-x char)))))))
 
-      (catch 'ultra-safe-exit
-        (let ((current-char (aref (aref grid int-y) int-x)))
-          (cond
-           ;; Case 1: Empty space - always safe to place
-           ((eq current-char ?\s)
-            (aset (aref grid int-y) int-x char)
-            t)
-           ;; Case 2: NEVER overwrite box corner characters - they define node boundaries
-           ((memq current-char '(?┌ ?┐ ?└ ?┘))
-            nil)
-           ;; Case 2.5: NEVER draw edge lines adjacent to box corners (prevents trailing garbage)
-           ((dag-draw--position-adjacent-to-box-corner grid x y)
-            nil)
-           ;; Case 2.6: NEVER draw vertical lines adjacent to vertical node boundaries OR inside boxes
-           ((and (eq char ?│)
-                 (or (dag-draw--position-adjacent-to-vertical-boundary grid x y)
-                     (dag-draw--position-inside-or-touching-node-box grid x y)))
-            nil)
-           ;; Case 3: Enhanced junction and line combinations using smart character selection
-           ((and (eq current-char ?│) (eq char ?│))
-            ;; NEVER place vertical line on existing vertical line
-            nil)
-           ((memq current-char '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))
-            ;; Use enhanced junction logic for any edge character combination
-            (let ((enhanced-char (dag-draw--get-enhanced-junction-char current-char char nil)))
-              (when enhanced-char
-                (aset (aref grid int-y) int-x enhanced-char)
-                t)))
-           ;; Case 4: Never overwrite node text content
-           ((or (and (>= current-char ?a) (<= current-char ?z))
-                (and (>= current-char ?A) (<= current-char ?Z))
-                (and (>= current-char ?0) (<= current-char ?9)))
-            nil)
-           ;; Case 6: Default - allow placement in empty space only
-           (t
-            (aset (aref grid int-y) int-x char)
-            t)))))))
+(defun dag-draw--is-node-interior-position (grid x y)
+  "Check if position (X,Y) is inside a node's interior area.
+Returns t if position is in node interior, nil if boundary or empty space.
+GKNV Section 5.2: Edges should not route through node text areas."
+  (when dag-draw--global-occupancy-map
+    (let* ((grid-height (length dag-draw--global-occupancy-map))
+           (grid-width (if (> grid-height 0) (length (aref dag-draw--global-occupancy-map 0)) 0)))
+      (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+        ;; Check if position is marked as occupied in occupancy map
+        (aref (aref dag-draw--global-occupancy-map y) x)))))
+
+(defun dag-draw--has-nearby-vertical-line (grid x y)
+  "Check if there's a vertical line nearby that would create ││ artifacts."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (nearby-found nil))
+    
+    ;; Check within 2 positions left and right for existing vertical lines
+    (dotimes (dx 5) ; Check positions -2 to +2
+      (let ((check-x (+ x (- dx 2))))
+        (when (and (>= check-x 0) (< check-x grid-width) (not nearby-found))
+          (let ((check-char (aref (aref grid y) check-x)))
+            (when (eq check-char ?│)
+              (setq nearby-found t))))))
+    
+    nearby-found))
+
+(defun dag-draw--consolidate-parallel-lines (grid x y)
+  "Consolidate parallel lines to prevent ││ artifacts.
+Detects when vertical lines are adjacent and merges them into proper routing."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (current-char (aref (aref grid y) x)))
+    
+    ;; Only process vertical lines
+    (when (eq current-char ?│)
+      ;; Check for adjacent vertical lines that should be consolidated
+      (let ((adjacent-positions '()))
+        ;; Check left and right adjacent positions
+        (dolist (dx '(-1 1))
+          (let ((check-x (+ x dx)))
+            (when (and (>= check-x 0) (< check-x grid-width))
+              (let ((adjacent-char (aref (aref grid y) check-x)))
+                (when (eq adjacent-char ?│)
+                  (push check-x adjacent-positions))))))
+        
+        ;; If we have adjacent vertical lines, consolidate them
+        (when adjacent-positions
+          ;; Simple consolidation: remove one of the parallel lines
+          ;; Keep the leftmost vertical line, remove others
+          (let ((positions (sort (cons x adjacent-positions) '<)))
+            (dolist (pos (cdr positions))
+              (when (and (>= pos 0) (< pos grid-width))
+                (aset (aref grid y) pos ?\s)))))))))
 
 ;;; Safe Character Placement - CRITICAL BUG FIX
 
@@ -404,8 +411,7 @@ Returns separate counts for each violation type."
                   ;; Check if this point would cross occupied areas
                   (when (and (>= check-x 0) (< check-x grid-width)
                              (>= check-y 0) (< check-y grid-height)
-                             occupancy-map
-                             (< check-y (length occupancy-map))
+                                                         (< check-y (length))
                              (< check-x (length (aref occupancy-map check-y)))
                              (aref (aref occupancy-map check-y) check-x))
                     ;; Classify the violation type
@@ -527,9 +533,20 @@ Prevents junction characters adjacent to node boundaries per GKNV edge terminati
    ((memq new-char '(?┌ ?┐ ?└ ?┘))
     new-char)       ; Keep the boundary character, don't create junction
 
-   ;; Basic junction logic - ONLY for pure edge line intersections (not near boundaries)
-   ((and (eq existing-char ?─) (eq new-char ?│)) ?┼)
-   ((and (eq existing-char ?│) (eq new-char ?─)) ?┼)
+   ;; GKNV Section 5.2 COMPLIANCE: Allow proper line merging but prevent boundary artifacts
+   ;; Same line types should merge into single lines (prevents ││ artifacts)
+   ((and (eq existing-char ?│) (eq new-char ?│))
+    ?│)  ; Merge parallel vertical lines
+   ((and (eq existing-char ?─) (eq new-char ?─))
+    ?─)  ; Merge parallel horizontal lines
+   
+   ;; Only create junctions for legitimate line crossings (not boundary-adjacent)
+   ((and (eq existing-char ?─) (eq new-char ?│))
+    ;; Check if this junction would be adjacent to node boundary - if so, keep existing
+    (if position-context ?┼ existing-char))
+   ((and (eq existing-char ?│) (eq new-char ?─))
+    ;; Check if this junction would be adjacent to node boundary - if so, keep existing  
+    (if position-context ?┼ existing-char))
 
    ;; Preserve existing junction characters only if they're not adjacent to boundaries
    ((eq existing-char ?┼) ?┼)
@@ -684,7 +701,7 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
           (edge-usage-map (dag-draw--create-edge-usage-map grid)))  ; Track edge positions
       (dolist (edge (dag-draw-graph-edges graph))
         ;; Use GKNV-compliant edge drawing with collision awareness
-        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map)
+        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale)
         ;; Add this edge to drawn splines for future collision avoidance
         (push edge drawn-splines)))))
 
@@ -901,7 +918,7 @@ GKNV FIX: Handles edges that start/end on node boundaries by preventing inward e
 
 ;;; GKNV-Compliant Boundary-Aware Edge Drawing
 
-(defun dag-draw--ascii-draw-boundary-aware-path-with-arrow (graph grid x1 y1 x2 y2 occupancy-map port-side min-x min-y scale)
+(defun dag-draw--ascii-draw-boundary-aware-path-with-arrow (graph grid x1 y1 x2 y2 port-side min-x min-y scale)
   "Draw path that respects node boundaries per GKNV Section 5.2.
 This function ensures edges never extend beyond node boundaries by checking each segment."
   (let* ((grid-height (length grid))
@@ -919,12 +936,12 @@ This function ensures edges never extend beyond node boundaries by checking each
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with boundary awareness
-        (dag-draw--draw-boundary-aware-l-path graph grid x1 y1 x2 y2 occupancy-map routing-direction min-x min-y scale))
+        (dag-draw--draw-boundary-aware-l-path graph grid x1 y1 x2 y2 routing-direction min-x min-y scale))
 
       ;; Add port-based directional arrow at the endpoint
-      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 occupancy-map port-side))))
+      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))
 
-(defun dag-draw--draw-boundary-aware-l-path (graph grid x1 y1 x2 y2 occupancy-map direction min-x min-y scale)
+(defun dag-draw--draw-boundary-aware-l-path (graph grid x1 y1 x2 y2 direction min-x min-y scale)
   "Draw L-shaped path that never extends beyond node boundaries.
 Implements GKNV Section 5.2 boundary clipping by checking each segment against node boundaries."
   (let* ((grid-height (length grid))
@@ -933,20 +950,20 @@ Implements GKNV Section 5.2 boundary clipping by checking each segment against n
     (cond
      ;; Pure vertical line
      ((eq direction 'vertical-only)
-      (dag-draw--draw-boundary-clipped-vertical-line graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale))
+      (dag-draw--draw-boundary-clipped-vertical-line graph grid x1 y1 x2 y2 min-x min-y scale))
 
      ;; Pure horizontal line
      ((eq direction 'horizontal-only)
-      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale))
+      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y2 min-x min-y scale))
 
      ;; L-shaped path - horizontal first, then vertical
      ((eq direction 'horizontal-first)
       ;; Draw horizontal segment from (x1,y1) to (x2,y1) with boundary clipping
-      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y1 occupancy-map min-x min-y scale)
+      (dag-draw--draw-boundary-clipped-horizontal-line graph grid x1 y1 x2 y1 min-x min-y scale)
       ;; Draw vertical segment from (x2,y1) to (x2,y2) with boundary clipping
-      (dag-draw--draw-boundary-clipped-vertical-line graph grid x2 y1 x2 y2 occupancy-map min-x min-y scale)))))
+      (dag-draw--draw-boundary-clipped-vertical-line graph grid x2 y1 x2 y2 min-x min-y scale)))))
 
-(defun dag-draw--draw-boundary-clipped-horizontal-line (graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale)
+(defun dag-draw--draw-boundary-clipped-horizontal-line (graph grid x1 y1 x2 y2 min-x min-y scale)
   "Draw horizontal line segment that stops at node boundaries.
 GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary exit."
   (let* ((start-x (min x1 x2))
@@ -963,10 +980,10 @@ GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary 
           ;; RESTORE DAG EDGE DRAWING: Allow full horizontal lines for proper DAG connectivity
           ;; Only avoid drawing through node interiors, but allow full edge lines
           (unless (dag-draw--position-inside-any-node graph current-x y min-x min-y scale)
-            (dag-draw--ultra-safe-draw-char grid current-x y ?─ occupancy-map)))
+            (dag-draw--draw-char grid current-x y ?─)))
         (setq current-x (+ current-x direction))))))
 
-(defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 occupancy-map min-x min-y scale)
+(defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 min-x min-y scale)
   "Draw vertical line segment that stops at node boundaries."
   (let* ((start-y (min y1 y2))
          (end-y (max y1 y2))
@@ -979,7 +996,7 @@ GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary 
                    (>= y 0) (< y (length grid)))
           ;; GKNV boundary check: Don't draw if this position is inside a node
           (unless (dag-draw--position-inside-any-node graph x y min-x min-y scale)
-            (dag-draw--ultra-safe-draw-char grid x y ?│ occupancy-map)))))))
+            (dag-draw--draw-char grid x y ?│)))))))
 
 (defun dag-draw--position-inside-any-node (graph x y min-x min-y scale)
   "Check if position (X,Y) is inside any node interior (not including boundary).
@@ -1002,10 +1019,10 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
 
 ;;; Enhanced Edge Drawing Functions
 
-(defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale occupancy-map)
+(defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale)
   "Draw orthogonal edge with comprehensive collision avoidance."
   ;; COORDINATE SYSTEM FIX: Use regenerated spline endpoints when available
-  (let ((connection-points 
+  (let ((connection-points
          (if (dag-draw-edge-spline-points edge)
              ;; Extract endpoints from regenerated splines (post-collision coordinates)
              (let* ((spline-points (dag-draw-edge-spline-points edge))
@@ -1050,7 +1067,7 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
 
               ;; Draw the boundary-clipped edge using GKNV-compliant boundary-aware drawing
               (dag-draw--ascii-draw-boundary-aware-path-with-arrow
-               graph grid clipped-from-x clipped-from-y clipped-to-x clipped-to-y occupancy-map target-port-side min-x min-y scale))))
+               graph grid clipped-from-x clipped-from-y clipped-to-x clipped-to-y target-port-side min-x min-y scale))))
       ;; CRITICAL FIX: Still try to draw something even if connection points fail
       (progn
         ;; DEBUG: Log fallback usage
@@ -1059,10 +1076,10 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
                  (if connection-points (format "%d points" (length connection-points)) "nil"))
         ;; Fallback to node center connections
         ;; Fallback: use node centers as connection points
-        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map)))))
+        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale)))))
 
 
-(defun dag-draw--ascii-draw-ultra-safe-path-with-port-arrow (grid x1 y1 x2 y2 occupancy-map port-side)
+(defun dag-draw--ascii-draw-ultra-safe-path-with-port-arrow (grid x1 y1 x2 y2 port-side)
   "Draw path with absolute safety and port-based arrow direction."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
@@ -1079,12 +1096,12 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with appropriate direction
-        (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 occupancy-map routing-direction))
+        (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 routing-direction))
 
       ;; Add port-based directional arrow at the endpoint
-      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 occupancy-map port-side))))
+      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))
 
-(defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 occupancy-map direction)
+(defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 direction)
   "Draw L-shaped path with ultra-conservative safety checks."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
@@ -1096,7 +1113,7 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map)))))
+            (dag-draw--draw-char grid x1 y ?│)))))
 
      ;; Pure horizontal line - GKNV spline conversion
      ((eq direction 'horizontal-only)
@@ -1105,7 +1122,7 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
         ;; Draw continuous horizontal line as GKNV spline requires
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
+            (dag-draw--draw-char grid x y1 ?─)))))
 
      ;; L-shaped path: horizontal first - GKNV spline conversion
      ((eq direction 'horizontal-first)
@@ -1114,13 +1131,13 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map))))
+            (dag-draw--draw-char grid x y1 ?─))))
       ;; Vertical segment: y1 to y2 at x2
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map))))
+            (dag-draw--draw-char grid x2 y ?│))))
       ;; Add corner character at junction point (x2, y1)
       (let ((corner-char (cond
                           ((and (< x1 x2) (< y1 y2)) ?┐)  ; Right then down
@@ -1128,7 +1145,7 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
                           ((and (> x1 x2) (< y1 y2)) ?┌)  ; Left then down
                           ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
                           (t ?┼))))                         ; Fallback intersection
-        (dag-draw--ultra-safe-draw-char grid x2 y1 corner-char occupancy-map)))
+        (dag-draw--draw-char grid x2 y1 corner-char)))
 
      ;; L-shaped path: vertical first (default fallback)
      (t
@@ -1137,13 +1154,13 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map))))
+            (dag-draw--draw-char grid x1 y ?│))))
       ;; Horizontal segment: x1 to x2 at y2 as continuous GKNV spline
       (let ((start-x (min x1 x2))
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y2 ?─ occupancy-map))))
+            (dag-draw--draw-char grid x y2 ?─))))
       ;; Add corner character at junction point (x1, y2)
       (let ((corner-char (cond
                           ((and (< y1 y2) (< x1 x2)) ?┌)  ; Down then right
@@ -1151,7 +1168,7 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
                           ((and (> y1 y2) (< x1 x2)) ?└)  ; Up then right
                           ((and (> y1 y2) (> x1 x2)) ?┘)  ; Up then left
                           (t ?┼))))                         ; Fallback intersection
-        (dag-draw--ultra-safe-draw-char grid x1 y2 corner-char occupancy-map))))))
+        (dag-draw--draw-char grid x1 y2 corner-char))))))
 
 (defun dag-draw--find-actual-boundary-position (grid target-x target-y arrow-char)
   "Find actual node boundary character near TARGET position for GKNV Section 5.2 compliance.
@@ -1234,7 +1251,7 @@ This ensures arrows don't float in space per GKNV Section 5.2."
                      (>= adj-y 0) (< adj-y grid-height))
             adjacent-pos))))))
 
-(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 occupancy-map port-side)
+(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 port-side)
   "Add directional arrow based on actual coordinate direction, with port-side as secondary."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1))
@@ -1270,21 +1287,21 @@ This ensures arrows don't float in space per GKNV Section 5.2."
             (message "    BOUNDARY-FOUND: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                      arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x2 y2)
             ;; Place arrow ON actual boundary per GKNV Section 5.2
-            (dag-draw--ultra-safe-draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char occupancy-map))
+            (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
         ;; ENHANCED FALLBACK: Try to place arrow adjacent to nearest boundary
         (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x2) (round y2) arrow-char)))
           (if adjacent-pos
               (progn
                 (message "    BOUNDARY-ADJACENT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                          arrow-char (car adjacent-pos) (cadr adjacent-pos) x2 y2)
-                (dag-draw--ultra-safe-draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char occupancy-map))
+                (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
             ;; Final fallback: use calculated position only if no boundaries found anywhere
             (progn
               (message "    BOUNDARY-MISSING: No boundary found near (%d,%d), using calculated position" x2 y2)
-              (dag-draw--ultra-safe-draw-arrow grid x2 y2 arrow-char occupancy-map))))))))
+              (dag-draw--draw-arrow grid x2 y2 arrow-char))))))))
 
 
-(defun dag-draw--draw-gknv-continuous-horizontal-line (grid start-x end-x y occupancy-map)
+(defun dag-draw--draw-gknv-continuous-horizontal-line (grid start-x end-x y)
   "Draw continuous horizontal line per GKNV spline algorithm.
 GKNV Section 5.2: Splines are continuous curves, not broken segments."
   (let ((start-pos (min start-x end-x))
@@ -1292,7 +1309,7 @@ GKNV Section 5.2: Splines are continuous curves, not broken segments."
     ;; Draw continuous horizontal line as GKNV algorithm requires
     (dotimes (i (1+ (- end-pos start-pos)))
       (let ((x (+ start-pos i)))
-        (dag-draw--ultra-safe-draw-char grid x y ?─ occupancy-map)))))
+        (dag-draw--draw-char grid x y ?─)))))
 
 (defun dag-draw--determine-port-side-from-coordinates (x1 y1 x2 y2)
   "Determine port side based on coordinate direction for GKNV Section 5.1.1."
@@ -1304,7 +1321,7 @@ GKNV Section 5.2: Splines are continuous curves, not broken segments."
      (t
       (if (> dy 0) 'bottom 'top)))))
 
-(defun dag-draw--ascii-draw-spline-path (graph edge grid min-x min-y scale occupancy-map)
+(defun dag-draw--ascii-draw-spline-path (graph edge grid min-x min-y scale)
   "Draw spline path with proper GKNV Section 5.2 coordinate transformation.
 Implements GKNV Pass 4: Convert B-spline control points to ASCII grid coordinates."
   (let ((spline-points (dag-draw-edge-spline-points edge)))
@@ -1318,11 +1335,11 @@ Implements GKNV Pass 4: Convert B-spline control points to ASCII grid coordinate
     (if (and spline-points (>= (length spline-points) 2))
         (progn
           ;; GKNV Section 5.2: Transform spline control points to ASCII grid
-          (dag-draw--draw-gknv-spline-to-ascii graph edge spline-points grid min-x min-y scale occupancy-map))
+          (dag-draw--draw-gknv-spline-to-ascii graph edge spline-points grid min-x min-y scale))
       ;; Fallback to orthogonal if no spline data
-      (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale occupancy-map))))
+      (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale))))
 
-(defun dag-draw--draw-gknv-spline-to-ascii (graph edge spline-points grid min-x min-y scale occupancy-map)
+(defun dag-draw--draw-gknv-spline-to-ascii (graph edge spline-points grid min-x min-y scale)
   "Convert GKNV B-spline control points to clean separated ASCII path.
 GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
   (let* ((connection-points (dag-draw--get-edge-connection-points graph edge min-x min-y scale))
@@ -1371,7 +1388,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
           ;; Multi-edge distribution working correctly - debug output removed
 
           ;; Spline path analysis
-          ;; (let ((validation-issues (dag-draw--validate-spline-segments edge spline-points grid occupancy-map)))
+          ;; (let ((validation-issues (dag-draw--validate-spline-segments edge spline-points grid)))
           ;;   ;; Store validation results for decision making
           ;;   (when validation-issues
           ;;     (message "VALIDATION: Edge %s->%s has %d boundary violations"
@@ -1381,7 +1398,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
 
           ;; Segment safety analysis - disabled to avoid scope issues
           ;; (when (dag-draw--is-research-api-edge edge)
-          ;;   (let ((safe-segments (dag-draw--find-safe-spline-segments edge spline-points grid occupancy-map)))
+          ;;   (let ((safe-segments (dag-draw--find-safe-spline-segments edge spline-points grid)))
           ;;     (message "SEGMENT-ANALYSIS: Research->API has %d total segments" (length safe-segments))
           ;;     (let ((safe-count 0)
           ;;           (unsafe-count 0))
@@ -1395,12 +1412,12 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
           (if (and spline-points (>= (length spline-points) 2))
               ;; Use actual spline path with coordinate conversion
               (dag-draw--draw-converted-spline-segments
-               graph edge spline-points clipped-start-x clipped-start-y clipped-end-x clipped-end-y grid min-x min-y occupancy-map target-port-side)
+               graph edge spline-points clipped-start-x clipped-start-y clipped-end-x clipped-end-y grid min-x min-y target-port-side)
             ;; Fallback to straight line if no valid spline data
             (dag-draw--ascii-draw-ultra-safe-path-with-port-arrow
-             grid clipped-start-x adjusted-start-y clipped-end-x clipped-end-y occupancy-map target-port-side)))))))
+             grid clipped-start-x adjusted-start-y clipped-end-x clipped-end-y target-port-side)))))))
 
-(defun dag-draw--draw-converted-spline-segments (graph edge spline-points start-x start-y end-x end-y grid min-x min-y occupancy-map target-port-side)
+(defun dag-draw--draw-converted-spline-segments (graph edge spline-points start-x start-y end-x end-y grid min-x min-y target-port-side)
   "Draw spline path with proper world→grid coordinate conversion.
 Converts spline points from world coordinates to grid coordinates before drawing."
   (let ((converted-points '())
@@ -1455,7 +1472,7 @@ Converts spline points from world coordinates to grid coordinates before drawing
     ;; (let* ((converted-spline-points (mapcar (lambda (point-pair)
     ;;                                          (dag-draw-point-create :x (nth 0 point-pair) :y (nth 1 point-pair)))
     ;;                                        converted-points))
-    ;;        (validation-issues (dag-draw--validate-spline-segments edge converted-spline-points grid occupancy-map)))
+    ;;        (validation-issues (dag-draw--validate-spline-segments edge converted-spline-points grid)))
     ;;   ;; Store validation results for later decision making
     ;;   (setq spline-validation-failed (> (length validation-issues) 0)))
     (setq spline-validation-failed nil)  ; Temporarily assume no validation failures
@@ -1463,13 +1480,13 @@ Converts spline points from world coordinates to grid coordinates before drawing
     ;; CORRECTED: Use sophisticated spline drawing since validation shows all segments are safe
     (if spline-validation-failed
         (progn
-          (dag-draw--draw-ultra-safe-l-path grid start-x start-y end-x end-y occupancy-map 'horizontal-first))
+          (dag-draw--draw-ultra-safe-l-path grid start-x start-y end-x end-y 'horizontal-first))
       ;; All segments safe - draw sophisticated multi-turn splines!
       (progn
-        (dag-draw--draw-sophisticated-spline-path grid converted-points occupancy-map)))
+        (dag-draw--draw-sophisticated-spline-path grid converted-points)))
     ;; Add proper arrow at endpoint
     (message "  ADDING ARROW: (%d,%d) -> (%d,%d) port-side=%s" start-x start-y end-x end-y target-port-side)
-    (dag-draw--add-port-based-arrow grid start-x start-y end-x end-y occupancy-map target-port-side)))
+    (dag-draw--add-port-based-arrow grid start-x start-y end-x end-y target-port-side)))
 
 (defun dag-draw--collapse-spline-coordinates (converted-points)
   "Collapse consecutive identical grid coordinates into meaningful segments.
@@ -1521,7 +1538,7 @@ Returns list of (start-x start-y end-x end-y) segments with duplicate coordinate
 
       (reverse segments))))
 
-(defun dag-draw--draw-sophisticated-spline-path (grid converted-points occupancy-map)
+(defun dag-draw--draw-sophisticated-spline-path (grid converted-points)
   "Draw spline path using simplified GKNV-compliant approach."
   ;; Use simple L-shaped routing for ASCII compatibility
   (when (>= (length converted-points) 2)
@@ -1531,7 +1548,7 @@ Returns list of (start-x start-y end-x end-y) segments with duplicate coordinate
            (y1 (nth 1 start-point))
            (x2 (nth 0 end-point))
            (y2 (nth 1 end-point)))
-      (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2 occupancy-map))))
+      (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2))))
 
 
 
@@ -1543,7 +1560,7 @@ Returns list of (start-x start-y end-x end-y) segments with duplicate coordinate
 ;;; Occupancy checking functions
 
 
-(defun dag-draw--draw-continuous-path-segment (grid x1 y1 x2 y2 occupancy-map)
+(defun dag-draw--draw-continuous-path-segment (grid x1 y1 x2 y2)
   "Draw a continuous path segment ensuring no gaps or floating characters.
 Uses orthogonal routing (horizontal then vertical) for clean ASCII representation."
   (let* ((grid-height (length grid))
@@ -1558,7 +1575,7 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map)))))
+            (dag-draw--draw-char grid x y1 ?─)))))
 
      ;; Pure vertical line
      ((= dx 0)
@@ -1566,7 +1583,7 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x1 y ?│ occupancy-map)))))
+            (dag-draw--draw-char grid x1 y ?│)))))
 
      ;; L-shaped path: horizontal first, then vertical
      (t
@@ -1575,14 +1592,14 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
-            (dag-draw--ultra-safe-draw-char grid x y1 ?─ occupancy-map))))
+            (dag-draw--draw-char grid x y1 ?─))))
 
       ;; Vertical segment: y1 to y2 at x2
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
-            (dag-draw--ultra-safe-draw-char grid x2 y ?│ occupancy-map))))
+            (dag-draw--draw-char grid x2 y ?│))))
 
       ;; Corner character at junction
       (let ((corner-char (cond
@@ -1591,9 +1608,9 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
                           ((and (> x1 x2) (< y1 y2)) ?┌)  ; Left then down
                           ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
                           (t ?┼))))                         ; Fallback
-        (dag-draw--ultra-safe-draw-char grid x2 y1 corner-char occupancy-map))))))
+        (dag-draw--draw-char grid x2 y1 corner-char))))))
 
-(defun dag-draw--add-precise-endpoint-arrow (graph edge grid x y occupancy-map)
+(defun dag-draw--add-precise-endpoint-arrow (graph edge grid x y)
   "Add arrow at precise endpoint based on edge direction and target node port side.
 Implements GKNV Section 5.2 boundary clipping - arrow must be exactly on node boundary."
   (let* ((to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
@@ -1604,7 +1621,7 @@ Implements GKNV Section 5.2 boundary clipping - arrow must be exactly on node bo
          (arrow-char (dag-draw--get-arrow-char direction)))
 
     ;; GKNV Section 5.2: Ensure arrow is clipped to node boundary
-    (dag-draw--place-boundary-clipped-arrow graph edge grid x y arrow-char occupancy-map)))
+    (dag-draw--place-boundary-clipped-arrow graph edge grid x y arrow-char)))
 
 (defun dag-draw--detect-edge-direction (from-node to-node &optional graph)
   "Detect direction of edge from FROM-NODE to TO-NODE for proper arrow selection.
@@ -1647,7 +1664,7 @@ COORDINATE SYSTEM FIX: Uses adjusted-positions when available to match port calc
      (t
       (if (> dx 0) 'right 'left)))))
 
-(defun dag-draw--place-boundary-clipped-arrow (graph edge grid x y arrow-char occupancy-map)
+(defun dag-draw--place-boundary-clipped-arrow (graph edge grid x y arrow-char)
   "Place arrow with GKNV Section 5.2 boundary clipping compliance.
 Ensures arrow appears exactly on node boundary, not floating in space."
   ;; ENHANCED GKNV Section 5.2 FIX: Use comprehensive boundary search for ALL arrow placements
@@ -1657,14 +1674,14 @@ Ensures arrow appears exactly on node boundary, not floating in space."
           (message "    BOUNDARY-FOUND-CLIP: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                    arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x y)
           ;; Place arrow ON actual boundary per GKNV Section 5.2
-          (dag-draw--ultra-safe-draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char occupancy-map))
+          (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
       ;; ENHANCED FALLBACK: Try adjacent placement
       (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x) (round y) arrow-char)))
         (if adjacent-pos
             (progn
               (message "    BOUNDARY-ADJACENT-CLIP: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                        arrow-char (car adjacent-pos) (cadr adjacent-pos) x y)
-              (dag-draw--ultra-safe-draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char occupancy-map))
+              (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
           ;; Legacy fallback - only if no boundaries found anywhere
           (let* ((grid-height (length grid))
                  (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
@@ -1827,7 +1844,7 @@ Returns t if position appears to be inside a complete node box structure."
 ;;; Boundary Port Calculation
 
 
-(defun dag-draw--safe-draw-l-path (grid x1 y1 x2 y2 occupancy-map)
+(defun dag-draw--safe-draw-l-path (grid x1 y1 x2 y2)
   "Draw L-shaped path using safe character placement.
 Uses horizontal-first routing to minimize node text intersection."
   ;; Only draw if the points are different
@@ -1837,18 +1854,18 @@ Uses horizontal-first routing to minimize node text intersection."
       (let ((start-x (min x1 x2))
             (end-x (max x1 x2)))
         (dotimes (i (1+ (- end-x start-x)))
-          (dag-draw--ultra-safe-draw-char grid (+ start-x i) y1 ?─ occupancy-map))))
+          (dag-draw--draw-char grid (+ start-x i) y1 ?─))))
 
     ;; Draw vertical line from corner to end
     (when (/= y1 y2)
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2)))
         (dotimes (i (1+ (- end-y start-y)))
-          (dag-draw--ultra-safe-draw-char grid x2 (+ start-y i) ?│ occupancy-map))))
+          (dag-draw--draw-char grid x2 (+ start-y i) ?│))))
 
     ;; Place corner junction only if we have both horizontal and vertical segments
     (when (and (/= x1 x2) (/= y1 y2))
-      (dag-draw--ultra-safe-draw-char grid x2 y1 ?┼ occupancy-map))))
+      (dag-draw--draw-char grid x2 y1 ?┼))))
 
 (provide 'dag-draw-ascii-edges)
 
