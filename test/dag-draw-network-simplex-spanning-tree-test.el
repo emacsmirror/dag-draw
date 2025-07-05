@@ -14,9 +14,11 @@
 (require 'dag-draw-core)
 (require 'dag-draw-rank)
 
-(describe "Network Simplex Spanning Tree Construction"
-  (describe "feasible spanning tree creation"
-    (it "should create spanning tree for simple 3-node graph"
+(describe
+ "Network Simplex Spanning Tree Construction"
+ (describe
+  "feasible spanning tree creation"
+  (it "should create spanning tree for simple 3-node graph"
       ;; RED phase: This test will fail because feasible spanning tree doesn't exist yet
       (let ((graph (dag-draw-create-graph)))
         ;; Create simple graph: A -> B -> C
@@ -39,7 +41,7 @@
             (expect root :to-be-truthy)
             (expect (dag-draw-spanning-tree-get-parent spanning-tree root) :to-be nil)))))
 
-    (it "should create feasible ranking from spanning tree"
+  (it "should create feasible ranking from spanning tree"
       ;; RED phase: This test will fail because ranking from spanning tree doesn't exist yet
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "A")
@@ -58,9 +60,9 @@
 
             ;; Ranking should respect edge constraints (rank(target) >= rank(source) + min-length)
             (expect (>= (ht-get ranking 'b) (+ (ht-get ranking 'a) 1)) :to-be t)
-            (expect (>= (ht-get ranking 'c) (+ (ht-get ranking 'b) 1)) :to-be t))))
+            (expect (>= (ht-get ranking 'c) (+ (ht-get ranking 'b) 1)) :to-be t)))))
 
-    (it "should handle disconnected components"
+  (it "should handle disconnected components"
       ;; RED phase: This test will fail because multi-component spanning tree doesn't exist yet
       (let ((graph (dag-draw-create-graph)))
         ;; Component 1: A -> B
@@ -80,7 +82,7 @@
 
           ;; Should have multiple roots (one per component)
           (let ((roots (dag-draw-spanning-tree-roots spanning-tree)))
-            (expect (length roots) :to-equal 2))))))))
+            (expect (length roots) :to-equal 2)))))))
 
 (provide 'dag-draw-network-simplex-spanning-tree-test)
 

@@ -27,7 +27,6 @@
 (require 'dag-draw-ascii-nodes)
 (require 'dag-draw-ascii-edges)
 (require 'dag-draw-position)
-(require 'dag-draw-render-gknv-compliant)
 
 ;;; Customization
 
@@ -128,33 +127,34 @@ Does NOT modify graph coordinates or regenerate splines."
     ;; Step 6: Convert grid to string
     (dag-draw--ascii-grid-to-string grid)))
 
-;; (defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
-;;   "Draw nodes using GKNV final coordinates without modification."
+(defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
+  "Draw nodes using GKNV final coordinates without modification."
 
-;;   (ht-each (lambda (node-id node)
-;;              (let* (;; Use GKNV final coordinates directly
-;;                     (world-x (dag-draw-node-x-coord node))
-;;                     (world-y (dag-draw-node-y-coord node))
-;;                     (world-width (dag-draw-node-x-size node))
-;;                     (world-height (dag-draw-node-y-size node))
-;;                     (node-label (dag-draw-node-label node))
+  (ht-each (lambda (node-id node)
+             (let* (;; Use GKNV final coordinates directly
+                    (world-x (dag-draw-node-x-coord node))
+                    (world-y (dag-draw-node-y-coord node))
+                    (world-width (dag-draw-node-x-size node))
+                    (world-height (dag-draw-node-y-size node))
+                    (node-label (dag-draw-node-label node))
 
-;;                     ;; Convert to grid coordinates
-;;                     (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
-;;                     (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
-;;                     (grid-width (dag-draw--world-to-grid-size world-width scale))
-;;                     (grid-height (dag-draw--world-to-grid-size world-height scale))
+                    ;; Convert to grid coordinates
+                    (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
+                    (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
+                    (grid-width (dag-draw--world-to-grid-size world-width scale))
+                    (grid-height (dag-draw--world-to-grid-size world-height scale))
 
-;;                     ;; Calculate grid position (top-left corner)
-;;                     (grid-x (round (- grid-center-x (/ grid-width 2))))
-;;                     (grid-y (round (- grid-center-y (/ grid-height 2)))))
+                    ;; Calculate grid position (top-left corner)
+                    (grid-x (round (- grid-center-x (/ grid-width 2))))
+                    (grid-y (round (- grid-center-y (/ grid-height 2)))))
 
-;;                (message "GKNV-NODE: %s world(%.1f,%.1f) → grid(%d,%d) size(%dx%d)"
-;;                         node-id world-x world-y grid-x grid-y grid-width grid-height)
+               (message "GKNV-NODE: %s world(%.1f,%.1f) → grid(%d,%d) size(%dx%d)"
+                        node-id world-x world-y grid-x grid-y grid-width grid-height)
 
-;;                ;; Draw node box at calculated position
-;;                (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
-;;            (dag-draw-graph-nodes graph)))
+               ;; Draw node box at calculated position
+               (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
+           (dag-draw-graph-nodes graph)))
+
 
 (defun dag-draw--draw-edges-gknv-compliant (graph grid min-x min-y scale)
   "Draw edges using GKNV final splines without regeneration."
@@ -317,6 +317,7 @@ Does NOT modify graph coordinates or regenerate splines."
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
       (aset (aref grid y) x char))))
+
 
 (defun dag-draw--pre-calculate-final-node-positions (graph grid min-x min-y scale)
   "PHASE 2 FIX: Pre-calculate final node positions with collision detection.
