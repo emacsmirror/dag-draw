@@ -156,13 +156,73 @@ Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
 
 ;;;###autoload
 (defun dag-draw-layout-graph (graph)
-  "Apply the GKNV layout algorithm to GRAPH.
-This performs all four passes: ranking, ordering, positioning, and spline generation."
+  "Apply the GKNV layout algorithm to GRAPH with ASCII resolution preprocessing.
+This performs ASCII resolution adjustment followed by the four GKNV passes:
+ranking, ordering, positioning, and spline generation."
+  ;; NEW: Ensure ASCII resolution before GKNV passes
+  (dag-draw--ensure-ascii-resolution graph)
+  
+  ;; Original GKNV 4-pass algorithm (unchanged)
   (dag-draw-rank-graph graph)
   (dag-draw-order-vertices graph)
   (dag-draw-position-nodes graph)
   (dag-draw-generate-splines graph)
   graph)
+
+;;; ASCII Resolution Preprocessing
+
+(defun dag-draw--estimate-ascii-scale (graph)
+  "Estimate the scale factor that will be used for ASCII conversion.
+Returns the actual scale factor used for world-coordinates → ASCII-grid conversion."
+  ;; Currently uses a fixed scale factor, but this function allows for future
+  ;; dynamic scaling based on graph size and complexity
+  dag-draw-ascii-coordinate-scale)
+
+(defun dag-draw--estimate-graph-width (graph)
+  "Estimate the world coordinate width the graph will occupy after layout.
+Used for ASCII resolution calculations before GKNV passes run."
+  (let ((node-count (ht-size (dag-draw-graph-nodes graph)))
+        (node-separation (dag-draw-graph-node-separation graph))
+        (avg-node-width 80))  ; Average node width in world coordinates
+    
+    ;; Rough estimate: nodes + separations
+    ;; This is conservative - actual GKNV positioning may be more compact
+    (+ (* node-count avg-node-width)
+       (* (max 0 (1- node-count)) node-separation))))
+
+(defun dag-draw--calculate-min-ascii-routing-space ()
+  "Calculate minimum ASCII characters needed for clean edge routing.
+Based on empirical analysis of hollow routing requirements."
+  (list 
+   :min-horizontal 6    ; Min chars between nodes for clean edge routing
+   :min-vertical 2      ; Min rows between ranks for edge separation
+   :port-offset 2))     ; Space needed for port positioning variety
+
+(defun dag-draw--adjust-separations-for-ascii (graph)
+  "Adjust nodesep/ranksep to ensure sufficient ASCII resolution.
+Called BEFORE GKNV passes to ensure clean edge routing space."
+  (let* ((scale (dag-draw--estimate-ascii-scale graph))
+         (requirements (dag-draw--calculate-min-ascii-routing-space))
+         (min-world-nodesep (/ (float (plist-get requirements :min-horizontal)) scale))
+         (min-world-ranksep (/ (float (plist-get requirements :min-vertical)) scale)))
+    
+    ;; Increase separations if needed for ASCII resolution
+    (when (< (dag-draw-graph-node-separation graph) min-world-nodesep)
+      (message "ASCII-RESOLUTION: Increasing nodesep from %.1f to %.1f for scale %.3f" 
+               (dag-draw-graph-node-separation graph) min-world-nodesep scale)
+      (setf (dag-draw-graph-node-separation graph) min-world-nodesep))
+    
+    (when (< (dag-draw-graph-rank-separation graph) min-world-ranksep)
+      (message "ASCII-RESOLUTION: Increasing ranksep from %.1f to %.1f for scale %.3f"
+               (dag-draw-graph-rank-separation graph) min-world-ranksep scale)
+      (setf (dag-draw-graph-rank-separation graph) min-world-ranksep))))
+
+(defun dag-draw--ensure-ascii-resolution (graph)
+  "Ensure ASCII grid will have sufficient resolution for edge routing.
+Must be called BEFORE dag-draw-layout-graph to adjust parameters."
+  (dag-draw--adjust-separations-for-ascii graph)
+  (message "ASCII-RESOLUTION: Graph prepared for scale %.3f" 
+           (dag-draw--estimate-ascii-scale graph)))
 
 ;;;###autoload
 (defun dag-draw-render-graph (graph &optional format)
