@@ -157,13 +157,15 @@ Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
 ;;;###autoload
 (defun dag-draw-layout-graph (graph)
   "Apply the GKNV layout algorithm to GRAPH with ASCII resolution preprocessing.
-This performs ASCII resolution adjustment followed by the four GKNV passes:
-ranking, ordering, positioning, and spline generation."
-  ;; NEW: Ensure ASCII resolution before GKNV passes
+This performs the four GKNV passes with ASCII resolution after ranking:
+ranking, ASCII resolution adjustment, ordering, positioning, and spline generation."
+  ;; GKNV Pass 1: Rank assignment
+  (dag-draw-rank-graph graph)
+  
+  ;; ASCII resolution preprocessing (moved after ranking for dynamic analysis)
   (dag-draw--ensure-ascii-resolution graph)
   
-  ;; Original GKNV 4-pass algorithm (unchanged)
-  (dag-draw-rank-graph graph)
+  ;; GKNV Passes 2-4: ordering, positioning, and spline generation
   (dag-draw-order-vertices graph)
   (dag-draw-position-nodes graph)
   (dag-draw-generate-splines graph)
@@ -190,19 +192,31 @@ Used for ASCII resolution calculations before GKNV passes run."
     (+ (* node-count avg-node-width)
        (* (max 0 (1- node-count)) node-separation))))
 
-(defun dag-draw--calculate-min-ascii-routing-space ()
+(defun dag-draw--calculate-min-ascii-routing-space (&optional graph)
   "Calculate minimum ASCII characters needed for clean edge routing.
-Based on empirical analysis of hollow routing requirements."
-  (list 
-   :min-horizontal 6    ; Min chars between nodes for clean edge routing
-   :min-vertical 8      ; Min rows between ranks for hollow routing
-   :port-offset 2))     ; Space needed for port positioning variety
+If GRAPH is provided, uses dynamic analysis of edge patterns for optimal spacing.
+Otherwise uses safe defaults for hollow routing requirements."
+  (let ((min-vertical (if graph
+                          ;; Dynamic calculation based on graph structure
+                          (progn
+                            (require 'dag-draw-quality)
+                            (let ((dynamic-spacing (dag-draw--calculate-max-required-rank-separation graph)))
+                              (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)" 
+                                       dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph))
+                              (dag-draw--debug-spacing-calculation graph)
+                              dynamic-spacing))
+                        ;; Safe default for hollow routing
+                        4)))
+    (list 
+     :min-horizontal 6    ; Min chars between nodes for clean edge routing
+     :min-vertical min-vertical  ; Dynamic rows between ranks based on edge analysis
+     :port-offset 2)))    ; Space needed for port positioning variety
 
 (defun dag-draw--adjust-separations-for-ascii (graph)
   "Adjust nodesep/ranksep to ensure sufficient ASCII resolution.
 Called BEFORE GKNV passes to ensure clean edge routing space."
   (let* ((scale (dag-draw--estimate-ascii-scale graph))
-         (requirements (dag-draw--calculate-min-ascii-routing-space))
+         (requirements (dag-draw--calculate-min-ascii-routing-space graph))
          (min-world-nodesep (/ (float (plist-get requirements :min-horizontal)) scale))
          (min-world-ranksep (/ (float (plist-get requirements :min-vertical)) scale)))
     
