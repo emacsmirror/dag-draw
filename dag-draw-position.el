@@ -129,21 +129,16 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
             (< order-a order-b)))))
 
 (defun dag-draw--calculate-separation (graph left-node right-node)
-  "Calculate minimum separation between two adjacent nodes with enhanced parallel path detection."
+  "Calculate minimum separation between two adjacent nodes using GKNV formula.
+ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
   (let* ((left (dag-draw-get-node graph left-node))
          (right (dag-draw-get-node graph right-node))
          (left-width (dag-draw-node-x-size left))
          (right-width (dag-draw-node-x-size right))
-         (base-node-sep (dag-draw-graph-node-separation graph))
-         ;; Enhanced separation based on parallel path complexity
-         (parallel-path-bonus (dag-draw--calculate-parallel-path-bonus graph left-node right-node))
-         (edge-density-bonus (dag-draw--calculate-edge-density-bonus graph left-node right-node)))
+         (base-node-sep (dag-draw-graph-node-separation graph)))
     
-    ;; Enhanced separation = base + parallel path bonus + edge density bonus
-    (+ (/ (+ left-width right-width) 2.0) 
-       base-node-sep 
-       parallel-path-bonus 
-       edge-density-bonus)))
+    ;; GKNV formula: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+    (+ (/ (+ left-width right-width) 2.0) base-node-sep)))
 
 (defun dag-draw--calculate-parallel-path-bonus (graph left-node right-node)
   "Calculate bonus separation for nodes with parallel dependency paths.
@@ -300,17 +295,8 @@ for optimal X-coordinate assignment."
   ;; First assign Y coordinates (straightforward)
   (dag-draw--assign-y-coordinates graph)
   
-  ;; Then assign X coordinates using auxiliary graph approach
-  (let ((use-auxiliary-graph nil))  ; Debug heuristic approach first
-    
-    (if use-auxiliary-graph
-        ;; Optimal approach using auxiliary graph
-        (let ((aux-graph (dag-draw--create-auxiliary-graph graph)))
-          (dag-draw--solve-auxiliary-graph aux-graph)
-          (dag-draw--extract-coordinates aux-graph graph))
-      
-      ;; Simple heuristic approach
-      (dag-draw--position-nodes-heuristic graph)))
+  ;; Use GKNV-compliant positioning with proper separation constraints
+  (dag-draw--position-with-separation-constraints graph)
   
   ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
   (dag-draw--ensure-all-nodes-have-coordinates graph)
@@ -397,17 +383,22 @@ Ensures minimum separation between adjacent nodes is maintained."
                      (current-x 0)
                      (min-separation (dag-draw-graph-node-separation graph)))
                  
-                 ;; Assign X coordinates with minimum separation
-                 (dolist (node-id sorted-nodes)
-                   (let ((node (dag-draw-get-node graph node-id)))
+                 ;; Assign X coordinates with GKNV separation constraints  
+                 (dotimes (i (length sorted-nodes))
+                   (let* ((node-id (nth i sorted-nodes))
+                          (node (dag-draw-get-node graph node-id)))
                      (setf (dag-draw-node-x-coord node) current-x)
                      ;; Set Y coordinate based on rank
                      (setf (dag-draw-node-y-coord node) 
                            (* rank (dag-draw-graph-rank-separation graph)))
-                     ;; Advance X position by node width plus minimum separation
-                     (setq current-x (+ current-x 
-                                        (dag-draw-node-x-size node) 
-                                        min-separation))))))
+                     
+                     ;; Calculate GKNV separation to next node
+                     (when (< i (1- (length sorted-nodes)))
+                       (let* ((next-node-id (nth (1+ i) sorted-nodes))
+                              (next-node (dag-draw-get-node graph next-node-id))
+                              ;; GKNV formula: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+                              (separation (dag-draw--calculate-separation graph node-id next-node-id)))
+                         (setq current-x (+ current-x separation))))))))
              rank-to-nodes)))
 
 (defun dag-draw--create-enhanced-auxiliary-graph (graph)

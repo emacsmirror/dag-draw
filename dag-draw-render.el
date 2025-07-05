@@ -118,7 +118,7 @@ Does NOT modify graph coordinates or regenerate splines."
     (message "GKNV bounds: (%.1f,%.1f) to (%.1f,%.1f)" min-x min-y max-x max-y)
     (message "ASCII grid: %dx%d, scale=%.3f" grid-width grid-height scale)
 
-    ;; Step 4: Draw nodes using GKNV final coordinates
+    ;; Step 4: Draw nodes using GKNV final coordinates without modification
     (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
 
     ;; Step 5: Draw edges using GKNV final splines
@@ -154,6 +154,98 @@ Does NOT modify graph coordinates or regenerate splines."
                ;; Draw node box at calculated position
                (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
            (dag-draw-graph-nodes graph)))
+
+(defun dag-draw--draw-nodes-ascii-safe (graph grid min-x min-y scale)
+  "Draw nodes using GKNV coordinates with ASCII collision detection to prevent overlaps."
+  
+  (let ((drawn-nodes '())  ; Track drawn node positions for collision detection
+        (node-positions (ht-create)))  ; Store final positions
+    
+    ;; Sort nodes by rank first, then by X coordinate to ensure consistent placement
+    (let ((sorted-nodes (sort (ht-keys (dag-draw-graph-nodes graph))
+                              (lambda (a b)
+                                (let* ((node-a (dag-draw-get-node graph a))
+                                       (node-b (dag-draw-get-node graph b))
+                                       (rank-a (or (dag-draw-node-rank node-a) 0))
+                                       (rank-b (or (dag-draw-node-rank node-b) 0)))
+                                  (if (= rank-a rank-b)
+                                      ;; Same rank: sort by X coordinate
+                                      (< (or (dag-draw-node-x-coord node-a) 0)
+                                         (or (dag-draw-node-x-coord node-b) 0))
+                                    ;; Different ranks: sort by rank
+                                    (< rank-a rank-b)))))))
+      
+      (dolist (node-id sorted-nodes)
+        (let* ((node (dag-draw-get-node graph node-id))
+               (world-x (dag-draw-node-x-coord node))
+               (world-y (dag-draw-node-y-coord node))
+               (world-width (dag-draw-node-x-size node))
+               (world-height (dag-draw-node-y-size node))
+               (node-label (dag-draw-node-label node))
+
+               ;; Convert to grid coordinates
+               (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
+               (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
+               (grid-width (dag-draw--world-to-grid-size world-width scale))
+               (grid-height (dag-draw--world-to-grid-size world-height scale))
+
+               ;; Calculate initial grid position (top-left corner)
+               (initial-grid-x (round (- grid-center-x (/ grid-width 2))))
+               (initial-grid-y (round (- grid-center-y (/ grid-height 2))))
+               
+               ;; Apply collision detection to prevent overlaps
+               (final-pos (dag-draw--avoid-ascii-collision 
+                           initial-grid-x initial-grid-y 
+                           (round grid-width) (round grid-height) 
+                           drawn-nodes))
+               (final-grid-x (nth 0 final-pos))
+               (final-grid-y (nth 1 final-pos)))
+
+          (message "ASCII-SAFE: %s world(%.1f,%.1f) → initial grid(%d,%d) → final grid(%d,%d) size(%dx%d)"
+                   node-id world-x world-y initial-grid-x initial-grid-y 
+                   final-grid-x final-grid-y (round grid-width) (round grid-height))
+
+          ;; Track this node for future collision detection
+          (push (list final-grid-x final-grid-y 
+                      (+ final-grid-x (round grid-width) -1)
+                      (+ final-grid-y (round grid-height) -1)
+                      node-id) drawn-nodes)
+          
+          ;; Store final position
+          (ht-set! node-positions node-id (list final-grid-x final-grid-y))
+
+          ;; Draw node box at final position
+          (dag-draw--draw-node-box grid final-grid-x final-grid-y 
+                                   (round grid-width) (round grid-height) node-label))))))
+
+(defun dag-draw--avoid-ascii-collision (x y width height drawn-nodes)
+  "Adjust node position to avoid collision with already drawn nodes.
+Returns (adjusted-x adjusted-y) that doesn't overlap with drawn-nodes."
+  
+  (let ((current-rect (list x y (+ x width -1) (+ y height -1)))
+        (min-separation 3))  ; Minimum 3-character separation between nodes
+    
+    ;; Check for collisions with already drawn nodes
+    (dolist (drawn-rect drawn-nodes)
+      (when (dag-draw--ascii-rectangles-overlap current-rect drawn-rect)
+        ;; Collision detected - move to the right with separation
+        (let ((collision-right (nth 2 drawn-rect)))
+          (setq x (+ collision-right min-separation))
+          (setq current-rect (list x y (+ x width -1) (+ y height -1))))))
+    
+    (list x y)))
+
+(defun dag-draw--ascii-rectangles-overlap (rect1 rect2)
+  "Check if two rectangles overlap in ASCII grid space.
+Each rect is (left top right bottom)."
+  (let ((x1-left (nth 0 rect1)) (y1-top (nth 1 rect1))
+        (x1-right (nth 2 rect1)) (y1-bottom (nth 3 rect1))
+        (x2-left (nth 0 rect2)) (y2-top (nth 1 rect2))
+        (x2-right (nth 2 rect2)) (y2-bottom (nth 3 rect2)))
+    
+    ;; Rectangles overlap if they overlap in both X and Y dimensions
+    (and (<= x1-left x2-right) (<= x2-left x1-right)
+         (<= y1-top y2-bottom) (<= y2-top y1-bottom))))
 
 
 (defun dag-draw--draw-edges-gknv-compliant (graph grid min-x min-y scale)
@@ -293,14 +385,14 @@ Does NOT modify graph coordinates or regenerate splines."
               (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
                 (dag-draw--set-char grid x1 y ?│))))))
 
-    ;; Draw horizontal line
-    (if (not (= x1 x2))
-        (let ((start-x (min x1 x2))
-              (end-x (max x1 x2)))
-          (dotimes (i (1+ (- end-x start-x)))
-            (let ((x (+ start-x i)))
-              (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
-                (dag-draw--set-char grid x y2 ?─))))))
+    ;; Draw horizontal lines - now that GKNV positioning prevents node overlaps, we can draw all horizontal connections
+    (when (not (= x1 x2))
+      (let ((start-x (min x1 x2))
+            (end-x (max x1 x2)))
+        (dotimes (i (1+ (- end-x start-x)))
+          (let ((x (+ start-x i)))
+            (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+              (dag-draw--set-char grid x y2 ?─))))))
 
     ;; Add arrow at end point
     (when (and (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
