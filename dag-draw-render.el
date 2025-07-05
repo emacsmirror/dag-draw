@@ -27,6 +27,7 @@
 (require 'dag-draw-ascii-nodes)
 (require 'dag-draw-ascii-edges)
 (require 'dag-draw-position)
+(require 'dag-draw-render-gknv-compliant)
 
 ;;; Customization
 
@@ -125,150 +126,197 @@ Does NOT modify graph coordinates or regenerate splines."
     (dag-draw--draw-edges-gknv-compliant graph grid min-x min-y scale)
 
     ;; Step 6: Convert grid to string
-    (dag-draw--ascii-grid-to-string grid))
+    (dag-draw--ascii-grid-to-string grid)))
 
-(defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
-           (ascii-bounds (dag-draw--ascii-get-bounds ascii-context))
-           (min-x (nth 0 ascii-bounds))  ; Always 0
-           (min-y (nth 1 ascii-bounds))  ; Always 0
-           (max-x (nth 2 ascii-bounds))
-           (max-y (nth 3 ascii-bounds)))
+;; (defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
+;;   "Draw nodes using GKNV final coordinates without modification."
 
+;;   (ht-each (lambda (node-id node)
+;;              (let* (;; Use GKNV final coordinates directly
+;;                     (world-x (dag-draw-node-x-coord node))
+;;                     (world-y (dag-draw-node-y-coord node))
+;;                     (world-width (dag-draw-node-x-size node))
+;;                     (world-height (dag-draw-node-y-size node))
+;;                     (node-label (dag-draw-node-label node))
 
-      (let* (;; PHASE 1 FIX: Use unified coordinate scale throughout system
-             (scale dag-draw-ascii-coordinate-scale)
-             (width-diff (- max-x min-x))
-             (height-diff (- max-y min-y))
-             ;; Calculate maximum node extents to ensure complete boxes fit
-             (max-node-x-extent 0)
-             (max-node-y-extent 0)
-             ;; Adaptive spacing buffer based on graph complexity + collision detection range
-             (node-count (ht-size (dag-draw-graph-nodes graph)))
-             ;; COORDINATE PRESERVATION: Minimal collision buffers for compact output
-             ;; PHASE 1 FIX: Further reduce collision buffers to prevent grid bloat
-             (base-collision-buffer (cond
-                                     ((< node-count 3) 2)    ; Small graphs - minimal buffer
-                                     ((< node-count 5) 3)    ; Medium graphs - small buffer
-                                     (t 4)))                  ; Large graphs - modest buffer (was 8!)
-             ;; Reduce collision movement allowance to preserve coordinate precision
-             (max-collision-movement (cond
-                                      ((< node-count 3) 3)    ; Small graphs - minimal movement
-                                      ((< node-count 5) 4)    ; Medium graphs - small movement (was 8!)
-                                      (t 6)))                  ; Large graphs - controlled movement (was 12!)
-             (collision-spacing-buffer (+ base-collision-buffer max-collision-movement)))                ; Large graphs - generous buffer
+;;                     ;; Convert to grid coordinates
+;;                     (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
+;;                     (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
+;;                     (grid-width (dag-draw--world-to-grid-size world-width scale))
+;;                     (grid-height (dag-draw--world-to-grid-size world-height scale))
 
-        ;; Find maximum node extents
-        (ht-each (lambda (node-id node)
-                   (let ((x-extent (/ (dag-draw-node-x-size node) 2.0))
-                         (y-extent (/ (dag-draw-node-y-size node) 2.0)))
-                     (setq max-node-x-extent (max max-node-x-extent x-extent))
-                     (setq max-node-y-extent (max max-node-y-extent y-extent))))
-                 (dag-draw-graph-nodes graph))
+;;                     ;; Calculate grid position (top-left corner)
+;;                     (grid-x (round (- grid-center-x (/ grid-width 2))))
+;;                     (grid-y (round (- grid-center-y (/ grid-height 2)))))
 
-        (let* (;; Adjust bounds to prevent grid coordinate clipping with collision spacing buffer
-               (adjusted-min-x (- min-x max-node-x-extent collision-spacing-buffer))
-               (adjusted-min-y (- min-y max-node-y-extent collision-spacing-buffer))
-               (adjusted-max-x (+ max-x max-node-x-extent collision-spacing-buffer))
-               (adjusted-max-y (+ max-y max-node-y-extent collision-spacing-buffer))
-               (total-width (- adjusted-max-x adjusted-min-x))
-               (total-height (- adjusted-max-y adjusted-min-y))
-               ;; Handle empty graphs and ensure minimum grid size
-               ;; DYNAMIC GRID SIZING: Compact multiplier for professional output
-               ;; PHASE 1 FIX: Dramatically reduce grid bloat (was causing 108-line output)
-               (dynamic-multiplier (cond
-                                    ((= node-count 1) 1.2)    ; Single node - compact
-                                    ((< node-count 4) 1.4)    ; Small graphs - reasonable
-                                    ((< node-count 8) 1.6)    ; Medium graphs - moderate (was 2.7!)
-                                    (t 1.8)))                  ; Large graphs - controlled (was 3.0!)
-               ;; COLLISION SAFETY: Minimal padding for compact professional output
-               ;; PHASE 1 FIX: Reduce excessive padding that was inflating grid size
-               (extra-width-padding (max 10 (* node-count 2)))  ; Reduced from (* node-count 5)
-               (extra-height-padding (max 5 (ceiling (* node-count 1.5))))  ; Ensure integer
-               (grid-width (max 1 (+ extra-width-padding (ceiling (* (max 1 total-width) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
-               (grid-height (max 1 (+ extra-height-padding (ceiling (* (max 1 total-height) dag-draw-ascii-coordinate-scale dynamic-multiplier)))))
-               (grid (dag-draw--create-ascii-grid grid-width grid-height)))
+;;                (message "GKNV-NODE: %s world(%.1f,%.1f) → grid(%d,%d) size(%dx%d)"
+;;                         node-id world-x world-y grid-x grid-y grid-width grid-height)
 
-          (message "BOUNDS-DEBUG: original min-x=%.1f min-y=%.1f → adjusted min-x=%.1f min-y=%.1f (collision-buffer=%.1f)"
-                   min-x min-y adjusted-min-x adjusted-min-y collision-spacing-buffer)
+;;                ;; Draw node box at calculated position
+;;                (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
+;;            (dag-draw-graph-nodes graph)))
 
-          ;; GKNV COMPLIANCE FIX: Convert GKNV world coordinates to ASCII grid coordinates
-          ;; This is NOT recalculating positions - just converting coordinate systems for ASCII rendering
-          (dag-draw--pre-calculate-final-node-positions graph grid adjusted-min-x adjusted-min-y scale)
+(defun dag-draw--draw-edges-gknv-compliant (graph grid min-x min-y scale)
+  "Draw edges using GKNV final splines without regeneration."
 
-          ;; PHASE 1B FIX: Recalculate grid size after collision detection to accommodate moved nodes
-          (let* ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
-                 (final-bounds (dag-draw--calculate-final-bounds adjusted-positions)))
-            (when final-bounds
-              (let* ((final-min-x (nth 0 final-bounds))
-                     (final-min-y (nth 1 final-bounds))
-                     (final-max-x (nth 2 final-bounds))
-                     (final-max-y (nth 3 final-bounds))
-                     (final-width (- final-max-x final-min-x))
-                     (final-height (- final-max-y final-min-y))
-                     (required-grid-width (max grid-width (+ 10 (ceiling final-width))))
-                     (required-grid-height (max grid-height (+ 5 (ceiling final-height)))))
-                ;; Recreate grid if it needs to be larger to accommodate collision-adjusted positions
-                (when (or (> required-grid-width grid-width) (> required-grid-height grid-height))
-                  (setq grid (dag-draw--create-ascii-grid required-grid-width required-grid-height))))))
+  (dolist (edge (dag-draw-graph-edges graph))
+    (let ((spline-points (dag-draw-edge-spline-points edge)))
+      (when spline-points
+        (let* ((start-point (car spline-points))
+               (end-point (car (last spline-points)))
 
-          ;; ASCII COORDINATE CONTEXT: Temporarily normalize graph coordinates for ASCII rendering
-          ;; This replaces the old normalization approach with a cleaner ASCII-specific layer
-          (let ((original-coords (dag-draw--ascii-normalize-graph-coordinates graph ascii-context)))
+               ;; Convert GKNV spline endpoints to grid coordinates
+               (start-world-x (dag-draw-point-x start-point))
+               (start-world-y (dag-draw-point-y start-point))
+               (end-world-x (dag-draw-point-x end-point))
+               (end-world-y (dag-draw-point-y end-point))
 
-            ;; COORDINATE SYSTEM FIX: Re-enable spline regeneration after ASCII coordinate normalization
-            ;; This ensures arrows point to actual node positions in ASCII coordinate space
-            (dag-draw--regenerate-splines-after-collision graph)
+               (start-grid-x (round (dag-draw--world-to-grid-coord start-world-x min-x scale)))
+               (start-grid-y (round (dag-draw--world-to-grid-coord start-world-y min-y scale)))
+               (end-grid-x (round (dag-draw--world-to-grid-coord end-world-x min-x scale)))
+               (end-grid-y (round (dag-draw--world-to-grid-coord end-world-y min-y scale))))
 
-            ;; COORDINATE SYSTEM UNIFICATION: Use collision-adjusted coordinates for consistency
-            ;; This ensures both splines and nodes use the same collision-adjusted coordinate space
-            (message "ASCII-COORD-DEBUG: Converting splines with collision-adjusted min-x=%.1f min-y=%.1f scale=%.3f" adjusted-min-x adjusted-min-y scale)
-            (dag-draw--convert-splines-to-grid-coordinates graph adjusted-min-x adjusted-min-y scale)
+          (message "GKNV-EDGE: %s→%s world(%.1f,%.1f)→(%.1f,%.1f) grid(%d,%d)→(%d,%d)"
+                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+                   start-world-x start-world-y end-world-x end-world-y
+                   start-grid-x start-grid-y end-grid-x end-grid-y)
 
-            ;; GRID SIZING FIX: Recalculate grid size after spline coordinate conversion
-            ;; Splines are now in grid coordinates and may exceed the original grid bounds
-            (let* ((max-spline-x 0)
-                   (max-spline-y 0))
-              ;; Find maximum grid coordinates from converted splines
-              (dolist (edge (dag-draw-graph-edges graph))
-                (let ((spline-points (dag-draw-edge-spline-points edge)))
-                  (when spline-points
-                    (dolist (point spline-points)
-                      ;; Splines are now in grid coordinates after conversion
-                      (let ((grid-x (dag-draw-point-x point))
-                            (grid-y (dag-draw-point-y point)))
-                        (setq max-spline-x (max max-spline-x (ceiling grid-x)))
-                        (setq max-spline-y (max max-spline-y (ceiling grid-y))))))))
+          ;; Draw edge using proper port-based connection
+          (dag-draw--draw-edge-with-proper-ports graph edge grid start-grid-x start-grid-y
+                                                 end-grid-x end-grid-y min-x min-y scale))))))
 
-              ;; Debug output (optional - can be removed for production)
-              (when (> max-spline-y grid-height)
-                (message "GRID-SIZE-DEBUG: Splines exceed grid bounds - expanding from %dx%d (max spline: %d,%d)"
-                         grid-width grid-height max-spline-x max-spline-y))
+(defun dag-draw--draw-edge-with-proper-ports (graph edge grid start-x start-y end-x end-y min-x min-y scale)
+  "Draw edge with ports calculated from GKNV node boundaries."
 
-              ;; Resize grid if splines exceed current bounds
-              (let ((required-width (max grid-width (+ max-spline-x 5)))
-                    (required-height (max grid-height (+ max-spline-y 5))))
-                (when (or (> required-width grid-width) (> required-height grid-height))
-                  (message "GRID-RESIZE: Expanding grid from %dx%d to %dx%d for splines"
-                           grid-width grid-height required-width required-height)
-                  (setq grid (dag-draw--create-ascii-grid required-width required-height))
-                  (setq grid-width required-width)
-                  (setq grid-height required-height))))
+  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
 
-            ;; GKNV Section 5.2 FIX: Draw nodes FIRST so arrows can properly integrate with boundaries
-            (dag-draw--ascii-draw-nodes graph grid adjusted-min-x adjusted-min-y scale)
+         ;; Calculate actual node boundaries in grid coordinates
+         (from-world-x (dag-draw-node-x-coord from-node))
+         (from-world-y (dag-draw-node-y-coord from-node))
+         (from-world-width (dag-draw-node-x-size from-node))
+         (from-world-height (dag-draw-node-y-size from-node))
 
-            ;; Draw edges LAST with arrows that can now terminate ON actual node boundaries
-            (message "ASCII-COORD-DEBUG: Drawing edges with collision-adjusted min-x=%.1f min-y=%.1f scale=%.3f" adjusted-min-x adjusted-min-y scale)
-            (dag-draw--ascii-draw-edges graph grid adjusted-min-x adjusted-min-y scale)
+         (to-world-x (dag-draw-node-x-coord to-node))
+         (to-world-y (dag-draw-node-y-coord to-node))
+         (to-world-width (dag-draw-node-x-size to-node))
+         (to-world-height (dag-draw-node-y-size to-node))
 
-            ;; ASCII COORDINATE CONTEXT: Restore original coordinates to avoid affecting other rendering
-            (dag-draw--ascii-restore-graph-coordinates graph original-coords))
+         ;; Convert to grid boundaries
+         (from-grid-center-x (dag-draw--world-to-grid-coord from-world-x min-x scale))
+         (from-grid-center-y (dag-draw--world-to-grid-coord from-world-y min-y scale))
+         (from-grid-width (dag-draw--world-to-grid-size from-world-width scale))
+         (from-grid-height (dag-draw--world-to-grid-size from-world-height scale))
 
-          ;; Post-process junction characters to improve visual connections
-          (dag-draw--post-process-junction-characters grid)
+         (to-grid-center-x (dag-draw--world-to-grid-coord to-world-x min-x scale))
+         (to-grid-center-y (dag-draw--world-to-grid-coord to-world-y min-y scale))
+         (to-grid-width (dag-draw--world-to-grid-size to-world-width scale))
+         (to-grid-height (dag-draw--world-to-grid-size to-world-height scale))
 
-          ;; Convert grid to string
-          (dag-draw--ascii-grid-to-string grid))))
+         ;; Calculate proper ports on node boundaries
+         (from-port (dag-draw--calculate-boundary-port from-grid-center-x from-grid-center-y
+                                                       from-grid-width from-grid-height 'bottom))
+         (to-port (dag-draw--calculate-boundary-port to-grid-center-x to-grid-center-y
+                                                     to-grid-width to-grid-height 'top)))
+
+    (message "GKNV-PORTS: %s port(%d,%d) → %s port(%d,%d)"
+             (dag-draw-edge-from-node edge) (nth 0 from-port) (nth 1 from-port)
+             (dag-draw-edge-to-node edge) (nth 0 to-port) (nth 1 to-port))
+
+    ;; Draw simple line between proper ports
+    (dag-draw--draw-simple-line grid (nth 0 from-port) (nth 1 from-port)
+                                (nth 0 to-port) (nth 1 to-port))))
+
+(defun dag-draw--calculate-boundary-port (center-x center-y width height side)
+  "Calculate port position on node boundary for given side."
+  (let ((left (round (- center-x (/ width 2))))
+        (right (round (+ center-x (/ width 2))))
+        (top (round (- center-y (/ height 2))))
+        (bottom (round (+ center-y (/ height 2)))))
+
+    (cond
+     ((eq side 'top) (list (round center-x) top))
+     ((eq side 'bottom) (list (round center-x) bottom))
+     ((eq side 'left) (list left (round center-y)))
+     ((eq side 'right) (list right (round center-y)))
+     (t (list (round center-x) (round center-y))))))
+
+(defun dag-draw--draw-node-box (grid x y width height label)
+  "Draw a node box with label at specified grid position."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+
+    ;; Only draw if within grid bounds
+    (when (and (>= x 0) (>= y 0)
+               (< (+ x width) grid-width)
+               (< (+ y height) grid-height))
+
+      ;; Draw top border
+      (dotimes (i width)
+        (dag-draw--set-char grid (+ x i) y
+                            (cond ((= i 0) ?┌)
+                                  ((= i (1- width)) ?┐)
+                                  (t ?─))))
+
+      ;; Draw middle rows with label
+      (dotimes (row (- height 2))
+        (let ((actual-row (+ y row 1)))
+          ;; Left border
+          (dag-draw--set-char grid x actual-row ?│)
+          ;; Content area
+          (dotimes (col (- width 2))
+            (let ((char-pos (+ x col 1)))
+              (if (and (= row 0) (< col (length label)))
+                  (dag-draw--set-char grid char-pos actual-row (aref label col))
+                (dag-draw--set-char grid char-pos actual-row ?\s))))
+          ;; Right border
+          (dag-draw--set-char grid (+ x width -1) actual-row ?│)))
+
+      ;; Draw bottom border
+      (dotimes (i width)
+        (dag-draw--set-char grid (+ x i) (+ y height -1)
+                            (cond ((= i 0) ?└)
+                                  ((= i (1- width)) ?┘)
+                                  (t ?─)))))))
+
+(defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
+  "Draw a simple line from (x1,y1) to (x2,y2) with arrow."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+
+    ;; Draw vertical line first
+    (if (not (= y1 y2))
+        (let ((start-y (min y1 y2))
+              (end-y (max y1 y2)))
+          (dotimes (i (1+ (- end-y start-y)))
+            (let ((y (+ start-y i)))
+              (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
+                (dag-draw--set-char grid x1 y ?│))))))
+
+    ;; Draw horizontal line
+    (if (not (= x1 x2))
+        (let ((start-x (min x1 x2))
+              (end-x (max x1 x2)))
+          (dotimes (i (1+ (- end-x start-x)))
+            (let ((x (+ start-x i)))
+              (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
+                (dag-draw--set-char grid x y2 ?─))))))
+
+    ;; Add arrow at end point
+    (when (and (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
+      (let ((arrow-char (cond ((> y2 y1) ?▼)  ; Down arrow
+                              ((< y2 y1) ?▲)  ; Up arrow
+                              ((> x2 x1) ?▶)  ; Right arrow
+                              ((< x2 x1) ?◀)  ; Left arrow
+                              (t ?●))))       ; Point
+        (dag-draw--set-char grid x2 y2 arrow-char)))))
+
+(defun dag-draw--set-char (grid x y char)
+  "Safely set character in grid at position (x,y)."
+  (let ((grid-height (length grid))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+    (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
+      (aset (aref grid y) x char))))
 
 (defun dag-draw--pre-calculate-final-node-positions (graph grid min-x min-y scale)
   "PHASE 2 FIX: Pre-calculate final node positions with collision detection.
@@ -502,189 +550,6 @@ This ensures splines and final node positions use the same coordinate system."
           (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy))))))))
     total-length))
 
-(defun dag-draw--detect-enhanced-spline-direction (optimized-points)
-  "Detect final direction of spline path with enhanced accuracy."
-  (when (and optimized-points (>= (length optimized-points) 2))
-    (let* ((last-point (car (last optimized-points)))
-           (second-last-point (car (last optimized-points 2)))
-           ;; For better direction detection, look at more points if available
-           (direction-points (if (>= (length optimized-points) 3)
-                                 (last optimized-points 3)
-                               optimized-points)))
-
-      (if (>= (length direction-points) 2)
-          (let* ((p1 (car (last direction-points 2)))
-                 (p2 (car (last direction-points)))
-                 (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
-                 (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
-            (dag-draw--detect-direction (dag-draw-point-x p1) (dag-draw-point-y p1)
-                                        (dag-draw-point-x p2) (dag-draw-point-y p2)))
-        'right))))
-
-(defun dag-draw--draw-enhanced-horizontal-segment (grid x1 x2 y occupancy-map)
-  "Draw horizontal segment with enhanced spline smoothing and intelligent collision handling."
-  (let* ((x1 (round x1)) (x2 (round x2)) (y (round y))
-         (grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (start-x (min x1 x2))
-         (end-x (max x1 x2)))
-
-    (dotimes (i (1+ (- end-x start-x)))
-      (let ((x (+ start-x i)))
-        (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-          ;; Enhanced collision detection - can overwrite edges but respect nodes
-          ;; GKNV FIX: Ensure integer coordinates for array access
-          (let* ((int-x (round x))
-                 (int-y (round y))
-                 (current-char (aref (aref grid int-y) int-x)))
-            (when (and (not (aref (aref occupancy-map int-y) int-x))  ; Not in a node
-                       (memq current-char '(?\s ?│)))         ; Can overwrite space or vertical line
-              (aset (aref grid int-y) int-x ?─))))))))
-
-(defun dag-draw--draw-enhanced-vertical-segment (grid x y1 y2 occupancy-map)
-  "Draw vertical segment with enhanced spline smoothing and intelligent collision handling."
-  (let* ((x (round x)) (y1 (round y1)) (y2 (round y2))
-         (grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (start-y (min y1 y2))
-         (end-y (max y1 y2)))
-
-    (dotimes (i (1+ (- end-y start-y)))
-      (let ((y (+ start-y i)))
-        (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-          ;; Enhanced collision detection - can overwrite edges but respect nodes
-          ;; GKNV FIX: Ensure integer coordinates for array access
-          (let* ((int-x (round x))
-                 (int-y (round y))
-                 (current-char (aref (aref grid int-y) int-x)))
-            (when (and (not (aref (aref occupancy-map int-y) int-x))  ; Not in a node
-                       (memq current-char '(?\s ?─)))         ; Can overwrite space or horizontal line
-              (dag-draw--ultra-safe-draw-char grid int-x int-y ?│ occupancy-map))))))))
-
-(defun dag-draw--draw-enhanced-diagonal-segment (grid x1 y1 x2 y2 occupancy-map)
-  "Draw diagonal segment with enhanced smooth approximation using intelligent path selection."
-  (let* ((x1 (round x1)) (y1 (round y1)) (x2 (round x2)) (y2 (round y2))
-         (grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (dx (- x2 x1))
-         (dy (- y2 y1))
-         (abs-dx (abs dx))
-         (abs-dy (abs dy)))
-
-    ;; Choose best routing strategy based on diagonal characteristics
-    (cond
-     ;; Nearly horizontal diagonal - use horizontal-first L-shape with corner
-     ((> abs-dx (* 2 abs-dy))
-      (dag-draw--draw-horizontal-first-l-path grid x1 y1 x2 y2 occupancy-map))
-
-     ;; Nearly vertical diagonal - use vertical-first L-shape with corner
-     ((> abs-dy (* 2 abs-dx))
-      (dag-draw--draw-vertical-first-l-path grid x1 y1 x2 y2 occupancy-map))
-
-     ;; Balanced diagonal - use adaptive smooth approximation
-     (t
-      (dag-draw--draw-adaptive-smooth-diagonal grid x1 y1 x2 y2 occupancy-map)))))
-
-(defun dag-draw--draw-horizontal-first-l-path (grid x1 y1 x2 y2 occupancy-map)
-  "Draw L-shaped path: horizontal first, then vertical, with proper corner character."
-  ;; Draw horizontal segment
-  (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y1 occupancy-map)
-  ;; Draw vertical segment
-  (dag-draw--draw-enhanced-vertical-segment grid x2 y1 y2 occupancy-map)
-  ;; Add corner character at junction
-  (dag-draw--add-enhanced-corner-char grid x2 y1 x1 y1 x2 y2 occupancy-map))
-
-(defun dag-draw--draw-vertical-first-l-path (grid x1 y1 x2 y2 occupancy-map)
-  "Draw L-shaped path: vertical first, then horizontal, with proper corner character."
-  ;; Draw vertical segment
-  (dag-draw--draw-enhanced-vertical-segment grid x1 y1 y2 occupancy-map)
-  ;; Draw horizontal segment
-  (dag-draw--draw-enhanced-horizontal-segment grid x1 x2 y2 occupancy-map)
-  ;; Add corner character at junction
-  (dag-draw--add-enhanced-corner-char grid x1 y2 x1 y1 x2 y2 occupancy-map))
-
-(defun dag-draw--draw-adaptive-smooth-diagonal (grid x1 y1 x2 y2 occupancy-map)
-  "Draw smooth diagonal approximation using adaptive stepping."
-  (let* ((dx (- x2 x1))
-         (dy (- y2 y1))
-         (steps (max (abs dx) (abs dy)))
-         (x-step (if (> steps 0) (/ (float dx) steps) 0))
-         (y-step (if (> steps 0) (/ (float dy) steps) 0)))
-
-    (dotimes (i (1+ steps))
-      (let* ((curr-x (round (+ x1 (* i x-step))))
-             (curr-y (round (+ y1 (* i y-step))))
-             (grid-height (length grid))
-             (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-
-        (when (and (>= curr-x 0) (< curr-x grid-width)
-                   (>= curr-y 0) (< curr-y grid-height))
-          ;; GKNV FIX: Ensure integer coordinates for array access
-          (let* ((int-curr-x (round curr-x))
-                 (int-curr-y (round curr-y))
-                 (current-char (aref (aref grid int-curr-y) int-curr-x)))
-            (when (and (not (aref (aref occupancy-map int-curr-y) int-curr-x))
-                       (memq current-char '(?\s)))
-              ;; Use appropriate line character based on local direction
-              (let ((char (if (= i 0) ?│   ; Start with vertical
-                            (if (= i steps) ?│  ; End with vertical
-                              (dag-draw--choose-diagonal-char dx dy)))))
-                (aset (aref grid int-curr-y) int-curr-x char)))))))))
-
-(defun dag-draw--choose-diagonal-char (dx dy)
-  "Choose appropriate character for diagonal direction."
-  (cond
-   ((and (> dx 0) (> dy 0)) ?│)  ; Down-right: prefer vertical
-   ((and (> dx 0) (< dy 0)) ?│)  ; Up-right: prefer vertical
-   ((and (< dx 0) (> dy 0)) ?│)  ; Down-left: prefer vertical
-   ((and (< dx 0) (< dy 0)) ?│)  ; Up-left: prefer vertical
-   (t ?─)))                      ; Default to horizontal
-
-(defun dag-draw--add-enhanced-corner-char (grid corner-x corner-y from-x from-y to-x to-y occupancy-map)
-  "Add appropriate corner character at path junction with enhanced detection."
-  ;; GKNV FIX: Ensure integer coordinates for array access
-  (let* ((int-corner-x (round corner-x))
-         (int-corner-y (round corner-y))
-         (int-from-x (round from-x))
-         (int-from-y (round from-y))
-         (int-to-x (round to-x))
-         (int-to-y (round to-y))
-         (grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
-
-    (when (and (>= int-corner-x 0) (< int-corner-x grid-width)
-               (>= int-corner-y 0) (< int-corner-y grid-height)
-               (not (aref (aref occupancy-map int-corner-y) int-corner-x)))
-
-      ;; Determine corner character based on incoming and outgoing directions
-      (let* ((from-dx (- int-corner-x int-from-x))
-             (from-dy (- int-corner-y int-from-y))
-             (to-dx (- int-to-x int-corner-x))
-             (to-dy (- int-to-y int-corner-y))
-             (corner-char (dag-draw--select-corner-character from-dx from-dy to-dx to-dy)))
-
-        (when corner-char
-          (aset (aref grid int-corner-y) int-corner-x corner-char))))))
-
-(defun dag-draw--select-corner-character (from-dx from-dy to-dx to-dy)
-  "Select appropriate corner character based on entry and exit directions."
-  (cond
-   ;; Horizontal in, vertical out
-   ((and (not (= from-dx 0)) (= from-dy 0) (= to-dx 0) (not (= to-dy 0)))
-    (if (and (> from-dx 0) (> to-dy 0)) ?┐    ; Right in, down out
-      (if (and (> from-dx 0) (< to-dy 0)) ?┘  ; Right in, up out
-        (if (and (< from-dx 0) (> to-dy 0)) ?┌ ; Left in, down out
-          ?└))))                             ; Left in, up out
-
-   ;; Vertical in, horizontal out
-   ((and (= from-dx 0) (not (= from-dy 0)) (not (= to-dx 0)) (= to-dy 0))
-    (if (and (> from-dy 0) (> to-dx 0)) ?└    ; Down in, right out
-      (if (and (> from-dy 0) (< to-dx 0)) ?┘  ; Down in, left out
-        (if (and (< from-dy 0) (> to-dx 0)) ?┌ ; Up in, right out
-          ?┐))))                             ; Up in, left out
-
-   ;; Default: no corner needed
-   (t nil)))
 
 (provide 'dag-draw-render)
 

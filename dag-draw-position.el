@@ -371,34 +371,6 @@ This is a fallback to prevent nil coordinate errors in rendering."
   
   graph)
 
-(defun dag-draw-get-graph-bounds (graph)
-  "Get bounding box of the positioned graph.
-Returns (min-x min-y max-x max-y)."
-  ;; Handle empty graphs explicitly
-  (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
-      '(0 0 100 100)  ; Return default bounds for empty graph
-    (let ((min-x most-positive-fixnum)
-          (min-y most-positive-fixnum)
-          (max-x most-negative-fixnum)
-          (max-y most-negative-fixnum))
-      
-      (ht-each (lambda (node-id node)
-                 (let* ((x (or (dag-draw-node-x-coord node) 0))
-                        (y (or (dag-draw-node-y-coord node) 0))
-                        (width (dag-draw-node-x-size node))
-                        (height (dag-draw-node-y-size node))
-                        (left (- x (/ width 2.0)))
-                        (right (+ x (/ width 2.0)))
-                        (top (- y (/ height 2.0)))
-                        (bottom (+ y (/ height 2.0))))
-                   
-                   (setq min-x (min min-x left))
-                   (setq max-x (max max-x right))
-                   (setq min-y (min min-y top))
-                   (setq max-y (max max-y bottom))))
-               (dag-draw-graph-nodes graph))
-      
-      (list min-x min-y max-x max-y))))
 
 ;;; GKNV Enhanced Coordinate Positioning Implementation
 
