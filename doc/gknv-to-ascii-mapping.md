@@ -177,13 +177,14 @@ This document tracks the mapping between the GKNV paper's algorithmic steps and 
 | `position()` | `dag-draw-position-nodes` | dag-draw-position.el:295-328 | ✅ Complete |
 | Y-coordinate assignment | `dag-draw--assign-y-coordinates` | dag-draw-position.el:27-38 | ✅ Complete |
 
-#### Heuristic Approach
+#### GKNV-Compliant Positioning
 | Paper Step | dag-draw.el Function | File | Status |
 |------------|---------------------|------|--------|
-| `xcoordinate()` | `dag-draw--position-nodes-heuristic` | dag-draw-position.el:212-263 | ✅ Complete |
-| `medianpos()` | Integrated in heuristic | dag-draw-position.el:230-250 | ✅ Complete |
-| `minedge()` | Edge-based positioning | dag-draw-position.el:235-245 | ✅ Complete |
-| `minnode()` | Node-based optimization | dag-draw-position.el:240-250 | ✅ Complete |
+| `xcoordinate()` | `dag-draw--position-with-separation-constraints` | dag-draw-position.el:363-402 | ✅ Complete |
+| Separation constraints | `dag-draw--calculate-separation` | dag-draw-position.el:131-141 | ✅ Complete |
+| `medianpos()` | Integrated in constraint-based positioning | dag-draw-position.el:375-401 | ✅ Complete |
+| `minedge()` | GKNV separation formula enforcement | dag-draw-position.el:399-401 | ✅ Complete |
+| `minnode()` | Node-based constraint optimization | dag-draw-position.el:386-401 | ✅ Complete |
 | `minpath()` | Path straightening | dag-draw-position.el:245-255 | ⚠️ Partial |
 | `packcut()` | Compaction | dag-draw-position.el:250-260 | ⚠️ Partial |
 
@@ -202,7 +203,12 @@ This document tracks the mapping between the GKNV paper's algorithmic steps and 
 | Edge density bonus | `dag-draw--calculate-edge-density-bonus` | dag-draw-position.el:178-192 | ✅ ASCII-specific |
 | Enhanced separation | `dag-draw--calculate-separation` | dag-draw-position.el:131-146 | ✅ Enhanced |
 
-**Status**: ✅ **GOOD MAPPING** - Core positioning implemented, some heuristics need enhancement
+**Status**: ✅ **EXCELLENT MAPPING** - GKNV separation constraints fully implemented and enforced
+
+**RECENT FIX**: 
+- ✅ Fixed separation constraint enforcement using ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+- ✅ Removed post-hoc collision detection that violated GKNV algorithm principles
+- ✅ Restored coordinate consistency across all 4 GKNV passes
 
 **TODO**: 
 - [ ] Complete `minpath()` straightening implementation
@@ -290,6 +296,7 @@ The following components extend beyond the GKNV paper to handle ASCII rendering 
 | Spline optimization | `dag-draw--optimize-spline-sampling` | dag-draw-render.el:507-541 | Performance |
 | Arrow character selection | `dag-draw--get-arrow-char` | dag-draw-ascii-edges.el | ASCII arrows |
 | Coordinate isolation | ASCII coordinate context | dag-draw-render.el:100-128 | Coordinate management |
+| **Long-distance connections** | `dag-draw--draw-simple-line` | dag-draw-render.el:374-406 | **Fixed: Removed 8-char limit** |
 
 ### Quality Assurance
 | ASCII Feature | dag-draw.el Function | File | Status |
@@ -385,6 +392,11 @@ This document should be updated whenever:
 - Added comprehensive documentation for 3 new major function categories
 - Updated implementation status to reflect sophisticated ASCII capabilities
 - Identified missing quality assurance functions as TODOs
+- **2025-01-05 (Session 2)**: Fixed major GKNV compliance issues
+  - Updated Pass 3 positioning to use proper GKNV separation constraints
+  - Documented removal of collision detection that violated GKNV principles
+  - Fixed horizontal line length restriction preventing long-distance connections
+  - Restored coordinate consistency across all 4 GKNV passes
 
 **Last Updated**: 2025-01-05  
-**Next Review**: When implementing missing quality assurance functions or Position Pass enhancements
+**Next Review**: When implementing remaining edge rendering refinements or Position Pass enhancements
