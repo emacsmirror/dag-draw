@@ -57,10 +57,10 @@
       'flat-edge)
      (t 'inter-rank-edge))))
 
-(defun dag-draw--get-node-port (node side &optional graph)
+(defun dag-draw--get-node-port (node side &optional graph edge)
   "Get port coordinates for a node on given side (top, bottom, left, right).
   Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance).
-  Enhanced with flexible port positioning for hollow routing."
+  Enhanced with destination port distribution for hollow routing."
   (let* ((node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
          ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
@@ -69,12 +69,15 @@
          (y (float (or (dag-draw-node-y-coord node) 0)))
          (width (float (dag-draw-node-x-size node)))
          (height (float (dag-draw-node-y-size node)))
-         ;; Enhanced: Flexible port positioning based on relative node positions to avoid shared lines
-         (port-offset (if graph 
-                          ;; Choose port position based on relative position to other nodes in same rank
-                          (dag-draw--calculate-optimal-port-offset node side graph)
-                        ;; Fallback to simple position-based offset
-                        (mod (abs (round x)) 3))))  ; Vary port position based on node location
+         ;; Enhanced: Port distribution for multiple incoming/outgoing edges
+         (port-offset (if (and graph edge)
+                          ;; Distribute ports based on edge position among multiple connections
+                          (dag-draw--calculate-distributed-port-offset node side graph edge)
+                        (if graph 
+                            ;; Fallback: Choose port position based on relative node positions
+                            (dag-draw--calculate-optimal-port-offset node side graph)
+                          ;; Simple fallback when no graph context available
+                          (mod (abs (round x)) 3)))))
 
     (cond
      ((eq side 'top)
@@ -95,6 +98,40 @@
       (dag-draw-point-create :x (+ x (/ width 2.0)) :y y))
      (t
       (dag-draw-point-create :x x :y y)))))
+
+(defun dag-draw--calculate-distributed-port-offset (node side graph edge)
+  "Calculate port offset based on edge distribution to avoid overlap.
+Distributes multiple incoming/outgoing edges across different port positions."
+  (let* ((node-id (dag-draw-node-id node))
+         (relevant-edges (if (eq side 'top)
+                             ;; For top ports, find incoming edges
+                             (dag-draw-get-edges-to graph node-id)
+                           ;; For bottom ports, find outgoing edges
+                           (dag-draw-get-edges-from graph node-id)))
+         (edge-count (length relevant-edges))
+         (edge-index (cl-position edge relevant-edges 
+                                  :test (lambda (e1 e2)
+                                          (and (eq (dag-draw-edge-from-node e1) 
+                                                   (dag-draw-edge-from-node e2))
+                                               (eq (dag-draw-edge-to-node e1) 
+                                                   (dag-draw-edge-to-node e2)))))))
+    
+    ;; Debug output for port distribution (can be removed)
+    ;; (message "PORT-DIST: node=%s side=%s edge-count=%d edge-index=%s" 
+    ;;          node-id side edge-count edge-index)
+    
+    (cond
+     ;; Single edge - use center port
+     ((= edge-count 1) 1)
+     ;; Two edges - distribute left and right
+     ((= edge-count 2)
+      (if (= edge-index 0) 0 2))  ; First edge left, second edge right
+     ;; Three or more edges - distribute across all three positions
+     (t
+      (cond
+       ((= edge-index 0) 0)  ; First edge: left
+       ((= edge-index (1- edge-count)) 2)  ; Last edge: right
+       (t 1))))))  ; Middle edges: center
 
 (defun dag-draw--calculate-optimal-port-offset (node side graph)
   "Calculate optimal port offset to avoid shared boundary lines.
@@ -121,6 +158,24 @@ Considers relative position to other nodes in same rank."
       0)  ; Left side port
      ;; Middle nodes use center port
      (t 1))))  ; Center port
+
+(defun dag-draw--calculate-inter-rank-routing-y (from-node to-node graph)
+  "Calculate Y coordinate for routing in empty space between ranks.
+This ensures hollow routing by placing the horizontal distribution line
+in the empty space above destination nodes, not on their boundaries."
+  (let* ((from-y (dag-draw-node-y-coord from-node))
+         (to-y (dag-draw-node-y-coord to-node))
+         (from-height (dag-draw-node-y-size from-node))
+         (to-height (dag-draw-node-y-size to-node))
+         (rank-sep (dag-draw-graph-rank-separation graph)))
+    
+    ;; Route in the empty space between ranks
+    ;; Use 75% of the way from source bottom to destination top
+    (let* ((source-bottom (+ from-y (/ from-height 2)))
+           (dest-top (- to-y (/ to-height 2)))
+           (inter-rank-space (- dest-top source-bottom))
+           (routing-offset (* 0.75 inter-rank-space)))
+      (+ source-bottom routing-offset))))
 
 
 ;;; Inter-rank edge splines
@@ -153,12 +208,12 @@ Considers relative position to other nodes in same rank."
   "Create downward spline from higher rank to lower rank.
   Uses GKNV Section 5.2 three-stage process: L-array → s-array → bboxes."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
-  (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph))
-         (end-port (dag-draw--get-node-port to-node 'top graph))
+  (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
+         (end-port (dag-draw--get-node-port to-node 'top graph edge))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
          (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region obstacles))
+         (L-array (dag-draw--compute-L-array region obstacles from-node to-node graph edge))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          (splines (dag-draw--compute-s-array L-array start-port end-port))
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -171,12 +226,12 @@ Considers relative position to other nodes in same rank."
   "Create upward spline for reversed edges.
   Uses GKNV Section 5.2 three-stage process: L-array → s-array → bboxes."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
-  (let* ((start-port (dag-draw--get-node-port from-node 'top graph))
-         (end-port (dag-draw--get-node-port to-node 'bottom graph))
+  (let* ((start-port (dag-draw--get-node-port from-node 'top graph edge))
+         (end-port (dag-draw--get-node-port to-node 'bottom graph edge))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
          (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region obstacles))
+         (L-array (dag-draw--compute-L-array region obstacles from-node to-node graph edge))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          (splines (dag-draw--compute-s-array L-array start-port end-port))
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -530,29 +585,36 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 
 ;;; GKNV Section 5.2: Three-Stage Spline Computation Implementation
 
-(defun dag-draw--compute-L-array (region &optional obstacles)
+(defun dag-draw--compute-L-array (region &optional obstacles from-node to-node graph edge)
   "GKNV Stage 1: Compute piecewise linear path inside region.
 This implements the compute_L_array function from GKNV Figure 5-2.
-Enhanced with obstacle avoidance for hollow routing."
+Enhanced with hollow routing that routes through inter-rank empty space."
   (let* ((x-min (dag-draw-box-x-min region))
          (y-min (dag-draw-box-y-min region))
          (x-max (dag-draw-box-x-max region))
          (y-max (dag-draw-box-y-max region)))
     
-    ;; Enhanced: Route around obstacles instead of through center
-    ;; Create path that uses offset routing above/below obstacle zones
-    (if obstacles
-        ;; Obstacle-aware routing: create offset path in empty space
-        (let* ((obstacle-margin 15)  ; Offset from obstacles into empty space
-               (safe-y (- y-min obstacle-margin))  ; Route above obstacles
-               (mid-x (/ (+ x-min x-max) 2)))
+    ;; Enhanced: Route through inter-rank empty space for hollow routing
+    (if (and obstacles from-node to-node graph)
+        ;; Hollow routing: create path through empty space between ranks
+        (let* ((inter-rank-y (dag-draw--calculate-inter-rank-routing-y from-node to-node graph))
+               ;; Use actual port coordinates for consistent routing with edge distribution
+               (start-port (dag-draw--get-node-port from-node 'bottom graph edge))
+               (end-port (dag-draw--get-node-port to-node 'top graph edge))
+               (start-x (dag-draw-point-x start-port))
+               (start-y (dag-draw-point-y start-port))
+               (end-x (dag-draw-point-x end-port))
+               (end-y (dag-draw-point-y end-port)))
+          ;; Debug output for L-array hollow routing (can be removed)
+          ;; (message "L-ARRAY HOLLOW: %s→%s: start(%.1f,%.1f) inter(%.1f,%.1f) end(%.1f,%.1f)" 
+          ;;          (dag-draw-node-id from-node) (dag-draw-node-id to-node)
+          ;;          start-x start-y end-x inter-rank-y end-x end-y)
           (list
-           (dag-draw-point-create :x x-min :y y-min)    ; Start point
-           (dag-draw-point-create :x x-min :y safe-y)   ; Go up to empty space
-           (dag-draw-point-create :x mid-x :y safe-y)   ; Route horizontally through empty space
-           (dag-draw-point-create :x x-max :y safe-y)   ; Continue in empty space
-           (dag-draw-point-create :x x-max :y y-max)))  ; Go down to end point
-      ;; Simple path when no obstacles
+           (dag-draw-point-create :x start-x :y start-y)      ; Start at source port
+           (dag-draw-point-create :x start-x :y inter-rank-y) ; Go up to empty space
+           (dag-draw-point-create :x end-x :y inter-rank-y)   ; Route horizontally in empty space
+           (dag-draw-point-create :x end-x :y end-y)))        ; Go down to destination top
+      ;; Simple path when no obstacles or missing node info
       (list
        (dag-draw-point-create :x x-min :y y-min)
        (dag-draw-point-create :x (/ (+ x-min x-max) 2) :y (/ (+ y-min y-max) 2))

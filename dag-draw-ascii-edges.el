@@ -1620,16 +1620,19 @@ Returns list of (start-x start-y end-x end-y) segments with duplicate coordinate
       (reverse segments))))
 
 (defun dag-draw--draw-sophisticated-spline-path (grid converted-points)
-  "Draw spline path using simplified GKNV-compliant approach."
-  ;; Use simple L-shaped routing for ASCII compatibility
+  "Draw spline path using GKNV-compliant hollow routing approach.
+Enhanced to use ALL spline points for proper hollow routing behavior."
   (when (>= (length converted-points) 2)
-    (let* ((start-point (car converted-points))
-           (end-point (car (last converted-points)))
-           (x1 (nth 0 start-point))
-           (y1 (nth 1 start-point))
-           (x2 (nth 0 end-point))
-           (y2 (nth 1 end-point)))
-      (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2))))
+    ;; HOLLOW ROUTING FIX: Draw segments between ALL consecutive points, not just start/end
+    ;; This preserves the inter-rank routing calculated by the L-array
+    (dotimes (i (1- (length converted-points)))
+      (let* ((current-point (nth i converted-points))
+             (next-point (nth (1+ i) converted-points))
+             (x1 (nth 0 current-point))
+             (y1 (nth 1 current-point))
+             (x2 (nth 0 next-point))
+             (y2 (nth 1 next-point)))
+        (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2)))))
 
 
 

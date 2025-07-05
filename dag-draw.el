@@ -195,7 +195,7 @@ Used for ASCII resolution calculations before GKNV passes run."
 Based on empirical analysis of hollow routing requirements."
   (list 
    :min-horizontal 6    ; Min chars between nodes for clean edge routing
-   :min-vertical 2      ; Min rows between ranks for edge separation
+   :min-vertical 8      ; Min rows between ranks for hollow routing
    :port-offset 2))     ; Space needed for port positioning variety
 
 (defun dag-draw--adjust-separations-for-ascii (graph)
