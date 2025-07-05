@@ -25,6 +25,56 @@
 (require 'dag-draw-ports)
 (require 'dag-draw-ascii-splines)
 
+;; Global variables for current rendering context (needed for node interior detection)
+(defvar dag-draw--current-graph nil
+  "Current graph being rendered (for node interior detection).")
+(defvar dag-draw--current-min-x nil
+  "Current min-x coordinate for rendering context.")
+(defvar dag-draw--current-min-y nil
+  "Current min-y coordinate for rendering context.")
+(defvar dag-draw--current-scale nil
+  "Current scale factor for rendering context.")
+
+;; Node boundary detection functions (needed for hollow routing)
+(defun dag-draw--get-node-boundary-rect (node min-x min-y scale)
+  "Calculate exact boundary coordinates for a node in grid space.
+Returns (left top right bottom) coordinates."
+  (let* ((world-x (dag-draw-node-x-coord node))
+         (world-y (dag-draw-node-y-coord node))
+         (world-width (dag-draw-node-x-size node))
+         (world-height (dag-draw-node-y-size node))
+
+         ;; Convert to grid coordinates
+         (grid-center-x (dag-draw--world-to-grid-coord world-x min-x scale))
+         (grid-center-y (dag-draw--world-to-grid-coord world-y min-y scale))
+         (grid-width (dag-draw--world-to-grid-size world-width scale))
+         (grid-height (dag-draw--world-to-grid-size world-height scale))
+
+         ;; Calculate boundary rectangle
+         (left (round (- grid-center-x (/ grid-width 2))))
+         (top (round (- grid-center-y (/ grid-height 2))))
+         (right (+ left (round grid-width) -1))
+         (bottom (+ top (round grid-height) -1)))
+
+    (list left top right bottom)))
+
+(defun dag-draw--point-inside-node-p (x y graph min-x min-y scale)
+  "Check if coordinate (X,Y) is inside any node's interior (including boundary).
+Returns the node if point is inside node area, nil otherwise."
+  (catch 'found-node
+    (ht-each (lambda (node-id node)
+               (let* ((rect (dag-draw--get-node-boundary-rect node min-x min-y scale))
+                      (left (nth 0 rect))
+                      (top (nth 1 rect))
+                      (right (nth 2 rect))
+                      (bottom (nth 3 rect)))
+
+                 ;; Check if point is anywhere within node rectangle (interior + boundary)
+                 (when (and (>= x left) (<= x right) (>= y top) (<= y bottom))
+                   (throw 'found-node node))))
+             (dag-draw-graph-nodes graph))
+    nil))
+
 ;;; Basic Line Drawing
 
 (defun dag-draw--ascii-draw-line (grid x1 y1 x2 y2 &optional)
@@ -272,18 +322,11 @@ ASCII coordinate context ensures coordinates are always valid."
   "Check if position (X,Y) is inside a node's interior area.
 Returns t if position is in node interior, nil if boundary or empty space.
 GKNV Section 5.2: Edges should not route through node text areas."
-  (when dag-draw--global-occupancy-map
-    (let* ((grid-height (length dag-draw--global-occupancy-map))
-           (grid-width (if (> grid-height 0) (length (aref dag-draw--global-occupancy-map 0)) 0)))
-      (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
-        ;; Check if position is marked as occupied in occupancy map
-        (let ((is-occupied (aref (aref dag-draw--global-occupancy-map y) x)))
-          ;; DEBUG: Show occupancy check results for problem area
-          (when (and (>= x 65) (<= x 75) (>= y 15) (<= y 20))
-            (message "OCCUPANCY-DEBUG: Position (%d,%d) occupied=%s" x y is-occupied))
-          (when is-occupied
-            (message "OCCUPANCY-CHECK: Position (%d,%d) is occupied - edge should be blocked" x y))
-          is-occupied)))))
+  ;; CRITICAL FIX: Use direct node boundary calculation instead of relying on global occupancy map
+  ;; This ensures consistency with the hollow routing fixes in dag-draw-render.el
+  (when (and dag-draw--current-graph dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)
+    (dag-draw--point-inside-node-p x y dag-draw--current-graph
+                                   dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)))
 
 (defun dag-draw--has-nearby-vertical-line (grid x y)
   "Check if there's a vertical line nearby that would create ││ artifacts."
@@ -718,6 +761,13 @@ Longer edges (spanning more ranks) get priority over shorter edges."
 (defun dag-draw--ascii-draw-edges (graph grid min-x min-y scale)
   "Draw edges using GKNV Section 5 spline drawing algorithm.
 GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundary clipping."
+  ;; CRITICAL FIX: Set global variables for node interior detection
+  (setq dag-draw--current-graph graph
+        dag-draw--current-min-x min-x
+        dag-draw--current-min-y min-y
+        dag-draw--current-scale scale)
+
+
   ;; Initialize arrow position tracking for GKNV Section 5.2 boundary clipping
   (setq dag-draw--arrow-positions nil)
 

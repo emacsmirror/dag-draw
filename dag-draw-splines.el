@@ -59,7 +59,8 @@
 
 (defun dag-draw--get-node-port (node side &optional graph)
   "Get port coordinates for a node on given side (top, bottom, left, right).
-  Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance)."
+  Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance).
+  Enhanced with flexible port positioning for hollow routing."
   (let* ((node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
          ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
@@ -67,19 +68,59 @@
          (x (float (or (dag-draw-node-x-coord node) 0)))
          (y (float (or (dag-draw-node-y-coord node) 0)))
          (width (float (dag-draw-node-x-size node)))
-         (height (float (dag-draw-node-y-size node))))
+         (height (float (dag-draw-node-y-size node)))
+         ;; Enhanced: Flexible port positioning based on relative node positions to avoid shared lines
+         (port-offset (if graph 
+                          ;; Choose port position based on relative position to other nodes in same rank
+                          (dag-draw--calculate-optimal-port-offset node side graph)
+                        ;; Fallback to simple position-based offset
+                        (mod (abs (round x)) 3))))  ; Vary port position based on node location
 
     (cond
      ((eq side 'top)
-      (dag-draw-point-create :x x :y (- y (/ height 2.0))))
+      ;; Vary port position: left, center, or right of top edge
+      (let ((port-x (cond ((= port-offset 0) (- x (* 0.3 width)))  ; Left side of top
+                          ((= port-offset 1) x)                    ; Center of top
+                          (t (+ x (* 0.3 width))))))               ; Right side of top
+        (dag-draw-point-create :x port-x :y (- y (/ height 2.0)))))
      ((eq side 'bottom)
-      (dag-draw-point-create :x x :y (+ y (/ height 2.0))))
+      ;; Vary port position: left, center, or right of bottom edge
+      (let ((port-x (cond ((= port-offset 0) (- x (* 0.3 width)))  ; Left side of bottom
+                          ((= port-offset 1) x)                    ; Center of bottom
+                          (t (+ x (* 0.3 width))))))               ; Right side of bottom
+        (dag-draw-point-create :x port-x :y (+ y (/ height 2.0)))))
      ((eq side 'left)
       (dag-draw-point-create :x (- x (/ width 2.0)) :y y))
      ((eq side 'right)
       (dag-draw-point-create :x (+ x (/ width 2.0)) :y y))
      (t
       (dag-draw-point-create :x x :y y)))))
+
+(defun dag-draw--calculate-optimal-port-offset (node side graph)
+  "Calculate optimal port offset to avoid shared boundary lines.
+Considers relative position to other nodes in same rank."
+  (let* ((node-x (dag-draw-node-x-coord node))
+         (node-rank (dag-draw-node-rank node))
+         (same-rank-nodes '()))
+    
+    ;; Find other nodes in the same rank
+    (ht-each (lambda (node-id other-node)
+               (when (and (not (eq (dag-draw-node-id node) node-id))
+                          (= (dag-draw-node-rank other-node) node-rank))
+                 (push other-node same-rank-nodes)))
+             (dag-draw-graph-nodes graph))
+    
+    ;; Determine port offset based on relative position
+    (cond
+     ;; If leftmost node in rank, use right-side port
+     ((or (not same-rank-nodes)
+          (<= node-x (apply #'min (mapcar #'dag-draw-node-x-coord same-rank-nodes))))
+      2)  ; Right side port
+     ;; If rightmost node in rank, use left-side port  
+     ((>= node-x (apply #'max (mapcar #'dag-draw-node-x-coord same-rank-nodes)))
+      0)  ; Left side port
+     ;; Middle nodes use center port
+     (t 1))))  ; Center port
 
 
 ;;; Inter-rank edge splines
@@ -116,7 +157,8 @@
          (end-port (dag-draw--get-node-port to-node 'top graph))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region))
+         (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
+         (L-array (dag-draw--compute-L-array region obstacles))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          (splines (dag-draw--compute-s-array L-array start-port end-port))
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -133,7 +175,8 @@
          (end-port (dag-draw--get-node-port to-node 'bottom graph))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region))
+         (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
+         (L-array (dag-draw--compute-L-array region obstacles))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          (splines (dag-draw--compute-s-array L-array start-port end-port))
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -395,6 +438,9 @@ Implements proper spline routing that avoids node boundaries and other obstacles
       ;; Store splines in edge
       (setf (dag-draw-edge-spline-points edge) spline-points)))
 
+  ;; GKNV Section 5.2: "clips the spline to the boundaries of the endpoint node shapes"
+  (dag-draw--clip-splines-to-node-boundaries graph)
+  
   graph)
 
 (defun dag-draw--convert-splines-to-points (splines)
@@ -484,19 +530,33 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 
 ;;; GKNV Section 5.2: Three-Stage Spline Computation Implementation
 
-(defun dag-draw--compute-L-array (region)
+(defun dag-draw--compute-L-array (region &optional obstacles)
   "GKNV Stage 1: Compute piecewise linear path inside region.
-This implements the compute_L_array function from GKNV Figure 5-2."
+This implements the compute_L_array function from GKNV Figure 5-2.
+Enhanced with obstacle avoidance for hollow routing."
   (let* ((x-min (dag-draw-box-x-min region))
          (y-min (dag-draw-box-y-min region))
          (x-max (dag-draw-box-x-max region))
          (y-max (dag-draw-box-y-max region)))
-    ;; For now, create a simple two-segment linear path through the region
-    ;; This can be enhanced with proper obstacle avoidance later
-    (list
-     (dag-draw-point-create :x x-min :y y-min)
-     (dag-draw-point-create :x (/ (+ x-min x-max) 2) :y (/ (+ y-min y-max) 2))
-     (dag-draw-point-create :x x-max :y y-max))))
+    
+    ;; Enhanced: Route around obstacles instead of through center
+    ;; Create path that uses offset routing above/below obstacle zones
+    (if obstacles
+        ;; Obstacle-aware routing: create offset path in empty space
+        (let* ((obstacle-margin 15)  ; Offset from obstacles into empty space
+               (safe-y (- y-min obstacle-margin))  ; Route above obstacles
+               (mid-x (/ (+ x-min x-max) 2)))
+          (list
+           (dag-draw-point-create :x x-min :y y-min)    ; Start point
+           (dag-draw-point-create :x x-min :y safe-y)   ; Go up to empty space
+           (dag-draw-point-create :x mid-x :y safe-y)   ; Route horizontally through empty space
+           (dag-draw-point-create :x x-max :y safe-y)   ; Continue in empty space
+           (dag-draw-point-create :x x-max :y y-max)))  ; Go down to end point
+      ;; Simple path when no obstacles
+      (list
+       (dag-draw-point-create :x x-min :y y-min)
+       (dag-draw-point-create :x (/ (+ x-min x-max) 2) :y (/ (+ y-min y-max) 2))
+       (dag-draw-point-create :x x-max :y y-max)))))
 
 (defun dag-draw--compute-s-array (L-array start-point end-point)
   "GKNV Stage 2: Compute Bézier spline using path as hints.
@@ -644,6 +704,110 @@ Returns a Bézier spline that smoothly connects nodes while avoiding obstacles."
          :p1 control1
          :p2 control2
          :p3 end-point)))))
+
+;;; GKNV Section 5.2 Spline Clipping Implementation
+
+(defun dag-draw--clip-splines-to-node-boundaries (graph)
+  "GKNV Section 5.2: Clips splines to the boundaries of endpoint node shapes.
+This is the critical missing step that ensures splines terminate exactly at node boundaries."
+  (dolist (edge (dag-draw-graph-edges graph))
+    (let ((spline-points (dag-draw-edge-spline-points edge)))
+      (when spline-points
+        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+               (clipped-points (dag-draw--clip-spline-endpoints-to-boundaries 
+                               spline-points from-node to-node)))
+          ;; Store clipped splines back in edge
+          (setf (dag-draw-edge-spline-points edge) clipped-points))))))
+
+(defun dag-draw--clip-spline-endpoints-to-boundaries (spline-points from-node to-node)
+  "Clip spline endpoints to node boundary intersections while preserving continuity."
+  (when (and spline-points (>= (length spline-points) 2))
+    (let* ((first-point (car spline-points))
+           (second-point (cadr spline-points))
+           (last-point (car (last spline-points)))
+           (second-last-point (car (last spline-points 2)))
+           
+           ;; Calculate node boundaries
+           (from-boundary (dag-draw--get-node-boundary-rect-world from-node))
+           (to-boundary (dag-draw--get-node-boundary-rect-world to-node))
+           
+           ;; Clip start point to from-node boundary
+           (clipped-start (dag-draw--line-rectangle-intersection
+                          (dag-draw-point-x first-point) (dag-draw-point-y first-point)
+                          (dag-draw-point-x second-point) (dag-draw-point-y second-point)
+                          from-boundary))
+           
+           ;; Clip end point to to-node boundary  
+           (clipped-end (dag-draw--line-rectangle-intersection
+                        (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
+                        (dag-draw-point-x last-point) (dag-draw-point-y last-point)
+                        to-boundary)))
+      
+      ;; Rebuild spline with clipped endpoints
+      (let ((result-points (copy-sequence spline-points)))
+        (when clipped-start
+          (setcar result-points (dag-draw-point-create :x (nth 0 clipped-start) :y (nth 1 clipped-start))))
+        (when clipped-end
+          (setcar (last result-points) (dag-draw-point-create :x (nth 0 clipped-end) :y (nth 1 clipped-end))))
+        result-points))))
+
+(defun dag-draw--get-node-boundary-rect-world (node)
+  "Get node boundary rectangle in world coordinates for clipping.
+Returns (left top right bottom) in world coordinate system."
+  (let* ((x (dag-draw-node-x-coord node))
+         (y (dag-draw-node-y-coord node))
+         (width (dag-draw-node-x-size node))
+         (height (dag-draw-node-y-size node))
+         (left (- x (/ width 2)))
+         (top (- y (/ height 2)))
+         (right (+ x (/ width 2)))
+         (bottom (+ y (/ height 2))))
+    (list left top right bottom)))
+
+(defun dag-draw--line-rectangle-intersection (x1 y1 x2 y2 rect)
+  "Find intersection point of line segment (x1,y1)→(x2,y2) with rectangle boundary.
+RECT is (left top right bottom). Returns (x y) of intersection point or nil."
+  (let* ((left (nth 0 rect))
+         (top (nth 1 rect))
+         (right (nth 2 rect))
+         (bottom (nth 3 rect))
+         (dx (- x2 x1))
+         (dy (- y2 y1)))
+    
+    (catch 'intersection-found
+      ;; Check intersection with each rectangle edge
+      
+      ;; Left edge (x = left)
+      (when (not (= dx 0))
+        (let* ((t-val (/ (- left x1) dx))
+               (y-intersect (+ y1 (* t-val dy))))
+          (when (and (>= t-val 0) (<= t-val 1) (>= y-intersect top) (<= y-intersect bottom))
+            (throw 'intersection-found (list left y-intersect)))))
+      
+      ;; Right edge (x = right)  
+      (when (not (= dx 0))
+        (let* ((t-val (/ (- right x1) dx))
+               (y-intersect (+ y1 (* t-val dy))))
+          (when (and (>= t-val 0) (<= t-val 1) (>= y-intersect top) (<= y-intersect bottom))
+            (throw 'intersection-found (list right y-intersect)))))
+      
+      ;; Top edge (y = top)
+      (when (not (= dy 0))
+        (let* ((t-val (/ (- top y1) dy))
+               (x-intersect (+ x1 (* t-val dx))))
+          (when (and (>= t-val 0) (<= t-val 1) (>= x-intersect left) (<= x-intersect right))
+            (throw 'intersection-found (list x-intersect top)))))
+      
+      ;; Bottom edge (y = bottom)
+      (when (not (= dy 0))
+        (let* ((t-val (/ (- bottom y1) dy))
+               (x-intersect (+ x1 (* t-val dx))))
+          (when (and (>= t-val 0) (<= t-val 1) (>= x-intersect left) (<= x-intersect right))
+            (throw 'intersection-found (list x-intersect bottom)))))
+      
+      ;; No intersection found
+      nil)))
 
 (provide 'dag-draw-splines)
 
