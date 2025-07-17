@@ -17,6 +17,7 @@
 
 (require 'dash)
 (require 'ht)
+(require 'cl-lib)
 (require 'dag-draw)
 (require 'dag-draw-core)
 

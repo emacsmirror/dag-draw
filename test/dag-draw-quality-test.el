@@ -65,7 +65,7 @@
       (dag-draw-order-vertices graph)
       (dag-draw-position-nodes graph)
       
-      (expect (dag-draw--max-horizontal-edge-distance graph 0 1) :to-be >= 0))))
+      (expect (dag-draw--max-horizontal-edge-distance graph 0 1) :to-be-greater-than -1))))
 
 ;;; Dynamic Spacing Calculation Tests
 
@@ -96,7 +96,7 @@
       
       (dag-draw-rank-graph graph)
       
-      (expect (dag-draw--calculate-dynamic-rank-separation graph 0 1) :to-be >= 4)))
+      (expect (dag-draw--calculate-dynamic-rank-separation graph 0 1) :to-be-greater-than 3)))
 
   (it "should require more spacing for dense edge crossings"
     (let ((graph (dag-draw-create-graph)))
@@ -108,7 +108,7 @@
       
       (dag-draw-rank-graph graph)
       
-      (expect (dag-draw--calculate-dynamic-rank-separation graph 0 1) :to-be >= 3))))
+      (expect (dag-draw--calculate-dynamic-rank-separation graph 0 1) :to-be-greater-than 2))))
 
 ;;; Integration Tests
 
@@ -129,7 +129,7 @@
       
       ;; Test that dynamic calculation affects ASCII resolution
       (let ((spacing-info (dag-draw--calculate-min-ascii-routing-space graph)))
-        (expect (plist-get spacing-info :min-vertical) :to-be >= 3))))
+        (expect (plist-get spacing-info :min-vertical) :to-be-greater-than 2))))
 
   (it "should optimize spacing for the complex dependency graph"
     (let ((graph (dag-draw-create-graph)))
@@ -158,8 +158,8 @@
       
       ;; Test that spacing is optimized for this complex pattern
       (let ((max-spacing (dag-draw--calculate-max-required-rank-separation graph)))
-        (expect max-spacing :to-be >= 2)
-        (expect max-spacing :to-be <= 6))))  ; Should be reasonable, not excessive
+        (expect max-spacing :to-be-greater-than 1)
+        (expect max-spacing :to-be-less-than 7))))  ; Should be reasonable, not excessive
 
   (it "should produce hollow routing without excessive spacing"
     (let ((graph (dag-draw-create-graph)))
@@ -174,7 +174,7 @@
       ;; Render and check spacing is reasonable
       (let ((ascii-output (dag-draw-render-graph graph 'ascii)))
         ;; Should have some empty rows for hollow routing but not excessive
-        (expect (length (split-string ascii-output "\n")) :to-be <= 15)))))
+        (expect (length (split-string ascii-output "\n")) :to-be-less-than 16)))))
 
 ;;; Edge Case Tests
 

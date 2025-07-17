@@ -1,0 +1,147 @@
+#+TITLE: DAG-Draw.el Codebase Cleanup Progress
+#+AUTHOR: Claude Code
+#+DATE: 2025-01-17
+#+OPTIONS: toc:2
+
+* Overview
+This document tracks the progress of the comprehensive codebase cleanup plan for dag-draw.el.
+
+** Current Status
+- Total failing tests: 32
+- Total debug statements: 447
+- Total test files: 60+
+- Current branch: attempt-2
+
+** Goals
+- Make codebase workable before adding functionality
+- Organize code around 4 GKNV passes
+- Maintain same test failure patterns during cleanup
+- Only implement missing functions at the very end
+
+* Phase 0: Progress Tracking Setup [1/1]
+** DONE Create todo.org file with expandable sub-items
+   CLOSED: [2025-01-17 Fri]
+   - [X] Structure org-mode file with hierarchical tasks
+   - [X] Set up progress indicators
+   - [X] Initial file creation complete
+
+* Phase 1: Foundation Stabilization (Make Codebase Workable) [1/3]
+** DONE Test Syntax Fixes Only (No Functionality Changes) [4/4]
+   CLOSED: [2025-01-17 Fri]
+   - [X] Fix `>=` comparisons using `:to-be-greater-than` instead of `:to-be`
+   - [X] Fix "should require more spacing" syntax errors  
+   - [X] Fix "should produce hollow routing" assertion syntax
+   - [X] Add `(require 'cl-lib)` to source files using `incf` function
+
+** TODO Test Suite Consolidation [0/4]
+   - [ ] Merge 60+ overlapping test files into focused suites
+   - [ ] Eliminate duplicate test coverage (coordinate debug tests)
+   - [ ] Consolidate crossing reduction tests into single comprehensive suite
+   - [ ] Create clear test categories: algorithm, rendering, integration
+
+** TODO Debug Output Strategic Cleanup [0/4]
+   - [ ] Remove 447 debug statements strategically
+   - [ ] Keep essential debugging for complex algorithms (GKNV passes)
+   - [ ] Remove redundant coordinate tracing messages
+   - [ ] Preserve boundary violation and collision detection debug info
+
+* Phase 2: Domain-Driven Architecture (GKNV-Aligned) [0/3]
+** TODO GKNV Pass Module Organization [0/4]
+   - [ ] Create `dag-draw-pass1-ranking.el` - All ranking/network simplex code
+   - [ ] Create `dag-draw-pass2-ordering.el` - All crossing reduction code
+   - [ ] Create `dag-draw-pass3-positioning.el` - All coordinate assignment code
+   - [ ] Create `dag-draw-pass4-splines.el` - All spline generation code
+
+** TODO ASCII Extension Layer [0/3]
+   - [ ] Create `dag-draw-ascii-grid.el` - Grid management and occupancy
+   - [ ] Create `dag-draw-ascii-rendering.el` - ASCII-specific rendering
+   - [ ] Create `dag-draw-ascii-quality.el` - ASCII validation and quality assurance
+
+** TODO Utility Consolidation [0/3]
+   - [ ] Create `dag-draw-math.el` - Coordinate math and geometry
+   - [ ] Create `dag-draw-graph.el` - Graph data structure operations
+   - [ ] Create `dag-draw-validation.el` - Input validation and error handling
+
+* Phase 3: Code Quality & Documentation (Before Adding Features) [0/3]
+** TODO Function Refinement (XP Principles) [0/4]
+   - [ ] Keep functions under 20 lines
+   - [ ] Single responsibility principle
+   - [ ] Eliminate duplication through refactoring
+   - [ ] Proper naming that reveals intent
+
+** TODO Package Cleanup [0/4]
+   - [ ] Add proper terminating comments
+   - [ ] Fix package warnings
+   - [ ] Remove debug files that serve no purpose
+   - [ ] Clean up autoloads
+
+** TODO Documentation Enhancement [0/3]
+   - [ ] Add docstrings linking to specific GKNV paper sections
+   - [ ] Update gknv-to-ascii-mapping.md with new organization
+   - [ ] Create algorithm flow diagrams
+
+* Phase 4: Algorithm Completion (Finally Add Missing Functions) [0/4]
+** TODO Core Algorithm Implementation (Missing Functions) [0/11]
+   *** Basic Crossing Reduction [0/2]
+   - [ ] Implement `dag-draw--count-crossings` (core algorithm)
+   - [ ] Implement `dag-draw--median-order` (core algorithm)
+   
+   *** Advanced Crossing Reduction [0/3]
+   - [ ] Implement `dag-draw--calculate-weighted-median`
+   - [ ] Implement `dag-draw--iterative-crossing-reduction`
+   - [ ] Implement `dag-draw--optimize-two-layer-crossings`
+   
+   *** Dynamic Spacing Functions [0/5]
+   - [ ] Implement `dag-draw--calculate-dynamic-rank-separation`
+   - [ ] Implement related spacing calculation functions (TBD)
+   
+   *** Enhanced Cycle Breaking [0/1]
+   - [ ] Complete `dag-draw--intelligent-cycle-breaking` implementation
+
+** TODO Pass 3 Positioning Enhancements [0/3]
+   - [ ] Implement `minpath()` straightening for virtual node chains
+   - [ ] Implement `packcut()` compaction for better space utilization
+   - [ ] Add proper constraint satisfaction solver
+
+** TODO Quality Assurance Implementation [0/3]
+   - [ ] `dag-draw--validate-node-boundaries` for boundary validation
+   - [ ] `dag-draw--verify-edge-continuity` for gap detection
+   - [ ] `dag-draw--check-character-semantics` for visual meaning validation
+
+** TODO Performance Optimization [0/3]
+   - [ ] Optimize spline sampling for large graphs
+   - [ ] Implement constraint caching for position calculations
+   - [ ] Add convergence acceleration for crossing reduction
+
+* Progress Notes
+** 2025-01-17
+- Created todo.org file with comprehensive hierarchical structure
+- Set up progress tracking system with checkboxes and progress indicators
+- Ready to begin Phase 1 work
+- COMPLETED Phase 1.1: Fixed 4 test syntax issues
+  - Fixed all `>=` and `<=` comparisons to use proper Buttercup matchers
+  - Added missing `(require 'cl-lib)` to dag-draw-position.el and dag-draw-rank.el
+  - Test syntax errors resolved, same functionality preserved
+
+* Test Failure Analysis
+** Current Failing Tests (32 total)
+*** Missing Implementation (Functions Don't Exist) - 11 tests
+- Advanced Crossing Reduction (3 tests)
+- Basic Crossing Reduction (2 tests)  
+- Dynamic Spacing Functions (5 tests)
+- Enhanced Cycle Breaking (1 test)
+
+*** Test Implementation Errors - 4 tests
+- Buttercup Matcher Issues (3 tests)
+- Missing `cl-lib` Function (1 test)
+
+*** Status: Same failures maintained during cleanup phases
+- Will only fix these in Phase 4 when functionality is implemented
+
+* Key Principles
+1. **Track Progress Continuously** - Update this file after each completed task
+2. **Refactor First, Add Later** - Make codebase workable before adding functionality
+3. **Same Failures, Better Structure** - Maintain test failure patterns during cleanup
+4. **Organize Before Implement** - Know where new functions belong before writing them
+5. **Document Before Extend** - Understand existing code before adding to it
+6. **TDD for New Features Only** - Use TDD discipline only when implementing missing functions
