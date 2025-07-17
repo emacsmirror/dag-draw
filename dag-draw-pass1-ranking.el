@@ -444,8 +444,10 @@ This implements the full GKNV algorithm Pass 1 with network simplex from Figure 
 
 (defun dag-draw-balance-ranks (graph)
   "Balance rank assignment to improve layout quality.
-This is a simplified version of the balancing described in the paper."
+Implements GKNV Figure 2-1 step 8: balance() function.
+Moves nodes with equal in/out weights to less crowded feasible ranks."
   (when (dag-draw-graph-max-rank graph)
+    ;; Build rank occupancy map
     (let ((rank-counts (make-vector (1+ (dag-draw-graph-max-rank graph)) 0)))
       
       ;; Count nodes per rank
@@ -455,11 +457,11 @@ This is a simplified version of the balancing described in the paper."
                      (aset rank-counts rank (1+ (aref rank-counts rank))))))
                (dag-draw-graph-nodes graph))
       
-      ;; Try to move nodes from crowded ranks to less crowded ones
-      ;; (This is a simplified heuristic)
+      ;; Apply GKNV balancing: process nodes with equal in/out weights
       (ht-each (lambda (node-id node)
-                 (when (dag-draw-node-rank node)
-                   (dag-draw--try-balance-node graph node rank-counts)))
+                 (when (and (dag-draw-node-rank node)
+                           (dag-draw--node-eligible-for-balancing-p graph node-id))
+                   (dag-draw--gknv-balance-node graph node-id rank-counts)))
                (dag-draw-graph-nodes graph))))
   
   graph)
@@ -506,6 +508,98 @@ This is a simplified version of the balancing described in the paper."
           (setq valid nil))))
     
     valid))
+
+;;; GKNV Rank Balancing Implementation
+
+(defun dag-draw--node-eligible-for-balancing-p (graph node-id)
+  "Check if NODE-ID is eligible for GKNV balancing.
+GKNV criteria: 'Nodes having equal in- and out-edge weights and multiple feasible ranks'"
+  (let ((in-weight (dag-draw--calculate-node-in-weight graph node-id))
+        (out-weight (dag-draw--calculate-node-out-weight graph node-id)))
+    
+    ;; Node is eligible if it has equal in and out weights AND has edges
+    ;; (source and sink nodes are not eligible for balancing)
+    (and (> in-weight 0)      ; Has incoming edges
+         (> out-weight 0)     ; Has outgoing edges  
+         (= in-weight out-weight))))  ; Equal weights
+
+(defun dag-draw--calculate-node-in-weight (graph node-id)
+  "Calculate total weight of incoming edges to NODE-ID."
+  (let ((total-weight 0))
+    (dolist (predecessor (dag-draw-get-predecessors graph node-id))
+      (dolist (edge (dag-draw-get-edges-from graph predecessor))
+        (when (eq (dag-draw-edge-to-node edge) node-id)
+          (setq total-weight (+ total-weight (dag-draw-edge-weight edge))))))
+    total-weight))
+
+(defun dag-draw--calculate-node-out-weight (graph node-id)
+  "Calculate total weight of outgoing edges from NODE-ID."
+  (let ((total-weight 0))
+    (dolist (edge (dag-draw-get-edges-from graph node-id))
+      (setq total-weight (+ total-weight (dag-draw-edge-weight edge))))
+    total-weight))
+
+(defun dag-draw--find-feasible-ranks (graph node-id)
+  "Find all feasible ranks for NODE-ID that preserve edge constraints.
+Returns list of ranks where node can be placed without violating λ(pred) < λ(node) < λ(succ)."
+  (let ((min-feasible 0)
+        (max-feasible (or (dag-draw-graph-max-rank graph) 0))
+        (predecessors (dag-draw-get-predecessors graph node-id))
+        (successors (dag-draw-get-successors graph node-id)))
+    
+    ;; Find minimum feasible rank: max(predecessor_ranks) + 1
+    (dolist (pred predecessors)
+      (let ((pred-node (dag-draw-get-node graph pred)))
+        (when (dag-draw-node-rank pred-node)
+          (setq min-feasible (max min-feasible (1+ (dag-draw-node-rank pred-node)))))))
+    
+    ;; Find maximum feasible rank: min(successor_ranks) - 1
+    (dolist (succ successors)
+      (let ((succ-node (dag-draw-get-node graph succ)))
+        (when (dag-draw-node-rank succ-node)
+          (setq max-feasible (min max-feasible (1- (dag-draw-node-rank succ-node)))))))
+    
+    ;; Generate list of feasible ranks
+    (let ((feasible-ranks '()))
+      (cl-loop for rank from min-feasible to max-feasible do
+        (push rank feasible-ranks))
+      (nreverse feasible-ranks))))
+
+(defun dag-draw--gknv-balance-node (graph node-id rank-counts)
+  "Apply GKNV balancing to a single eligible node.
+Moves node to the feasible rank with the fewest nodes."
+  (let* ((feasible-ranks (dag-draw--find-feasible-ranks graph node-id))
+         (current-rank (dag-draw-node-rank (dag-draw-get-node graph node-id)))
+         (best-rank current-rank)
+         (min-count (aref rank-counts current-rank)))
+    
+    ;; Find feasible rank with fewest nodes
+    (dolist (rank feasible-ranks)
+      (when (< (aref rank-counts rank) min-count)
+        (setq min-count (aref rank-counts rank))
+        (setq best-rank rank)))
+    
+    ;; Move node if we found a better rank
+    (when (not (= best-rank current-rank))
+      ;; Update rank counts
+      (aset rank-counts current-rank (1- (aref rank-counts current-rank)))
+      (aset rank-counts best-rank (1+ (aref rank-counts best-rank)))
+      ;; Move the node
+      (setf (dag-draw-node-rank (dag-draw-get-node graph node-id)) best-rank))))
+
+(defun dag-draw--calculate-rank-assignment-cost (graph)
+  "Calculate total cost of current rank assignment.
+GKNV cost = sum of (edge_weight × rank_distance) for all edges."
+  (let ((total-cost 0))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (from-rank (or (dag-draw-node-rank from-node) 0))
+             (to-rank (or (dag-draw-node-rank to-node) 0))
+             (rank-distance (- to-rank from-rank))
+             (edge-weight (dag-draw-edge-weight edge)))
+        (setq total-cost (+ total-cost (* edge-weight rank-distance)))))
+    total-cost))
 
 ;;; GKNV Network Simplex Implementation
 
