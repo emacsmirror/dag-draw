@@ -59,8 +59,7 @@
 
 (defun dag-draw--get-node-port (node side &optional graph edge)
   "Get port coordinates for a node on given side (top, bottom, left, right).
-  Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance).
-  Enhanced with destination port distribution for hollow routing."
+  Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance)."
   (let* ((node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
          ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
@@ -159,23 +158,6 @@ Considers relative position to other nodes in same rank."
      ;; Middle nodes use center port
      (t 1))))  ; Center port
 
-(defun dag-draw--calculate-inter-rank-routing-y (from-node to-node graph)
-  "Calculate Y coordinate for routing in empty space between ranks.
-This ensures hollow routing by placing the horizontal distribution line
-in the empty space above destination nodes, not on their boundaries."
-  (let* ((from-y (dag-draw-node-y-coord from-node))
-         (to-y (dag-draw-node-y-coord to-node))
-         (from-height (dag-draw-node-y-size from-node))
-         (to-height (dag-draw-node-y-size to-node))
-         (rank-sep (dag-draw-graph-rank-separation graph)))
-    
-    ;; Route in the empty space between ranks
-    ;; Use 75% of the way from source bottom to destination top
-    (let* ((source-bottom (+ from-y (/ from-height 2)))
-           (dest-top (- to-y (/ to-height 2)))
-           (inter-rank-space (- dest-top source-bottom))
-           (routing-offset (* 0.75 inter-rank-space)))
-      (+ source-bottom routing-offset))))
 
 
 ;;; Inter-rank edge splines
@@ -587,33 +569,26 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 
 (defun dag-draw--compute-L-array (region &optional obstacles from-node to-node graph edge)
   "GKNV Stage 1: Compute piecewise linear path inside region.
-This implements the compute_L_array function from GKNV Figure 5-2.
-Enhanced with hollow routing that routes through inter-rank empty space."
+This implements the compute_L_array function from GKNV Figure 5-2."
   (let* ((x-min (dag-draw-box-x-min region))
          (y-min (dag-draw-box-y-min region))
          (x-max (dag-draw-box-x-max region))
          (y-max (dag-draw-box-y-max region)))
     
-    ;; Enhanced: Route through inter-rank empty space for hollow routing
-    (if (and obstacles from-node to-node graph)
-        ;; Hollow routing: create path through empty space between ranks
-        (let* ((inter-rank-y (dag-draw--calculate-inter-rank-routing-y from-node to-node graph))
-               ;; Use actual port coordinates for consistent routing with edge distribution
-               (start-port (dag-draw--get-node-port from-node 'bottom graph edge))
+    ;; GKNV spline routing: standard piecewise linear path
+    (if (and from-node to-node)
+        ;; Simple L-shaped routing per GKNV algorithm
+        (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
                (end-port (dag-draw--get-node-port to-node 'top graph edge))
                (start-x (dag-draw-point-x start-port))
                (start-y (dag-draw-point-y start-port))
                (end-x (dag-draw-point-x end-port))
                (end-y (dag-draw-point-y end-port)))
-          ;; Debug output for L-array hollow routing (can be removed)
-          ;; (message "L-ARRAY HOLLOW: %s→%s: start(%.1f,%.1f) inter(%.1f,%.1f) end(%.1f,%.1f)" 
-          ;;          (dag-draw-node-id from-node) (dag-draw-node-id to-node)
-          ;;          start-x start-y end-x inter-rank-y end-x end-y)
+          ;; Standard GKNV L-shaped path: start → intermediate → end
           (list
            (dag-draw-point-create :x start-x :y start-y)      ; Start at source port
-           (dag-draw-point-create :x start-x :y inter-rank-y) ; Go up to empty space
-           (dag-draw-point-create :x end-x :y inter-rank-y)   ; Route horizontally in empty space
-           (dag-draw-point-create :x end-x :y end-y)))        ; Go down to destination top
+           (dag-draw-point-create :x end-x :y start-y)        ; Horizontal to target X
+           (dag-draw-point-create :x end-x :y end-y)))        ; Vertical down to destination
       ;; Simple path when no obstacles or missing node info
       (list
        (dag-draw-point-create :x x-min :y y-min)

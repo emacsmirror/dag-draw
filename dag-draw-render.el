@@ -391,7 +391,7 @@ Each rect is (left top right bottom)."
                                   (t ?─)))))))
 
 (defun dag-draw--draw-edge-spline (graph edge grid min-x min-y scale)
-  "Draw edge following its actual spline points for hollow routing."
+  "Draw edge following its actual spline points per GKNV Section 5.2."
   (let ((spline-points (dag-draw-edge-spline-points edge)))
     (when (and spline-points (> (length spline-points) 1))
       ;; Convert spline points to grid coordinates and draw path

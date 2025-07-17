@@ -161,7 +161,7 @@
         (expect max-spacing :to-be-greater-than 1)
         (expect max-spacing :to-be-less-than 7))))  ; Should be reasonable, not excessive
 
-  (it "should produce hollow routing without excessive spacing"
+  (it "should produce clean edge routing without excessive spacing"
     (let ((graph (dag-draw-create-graph)))
       ;; Simple case that should need minimal spacing
       (dag-draw-add-node graph 'a "Node A")
@@ -173,7 +173,7 @@
       
       ;; Render and check spacing is reasonable
       (let ((ascii-output (dag-draw-render-graph graph 'ascii)))
-        ;; Should have some empty rows for hollow routing but not excessive
+        ;; Should have compact output per GKNV algorithm
         (expect (length (split-string ascii-output "\n")) :to-be-less-than 16)))))
 
 ;;; Edge Case Tests

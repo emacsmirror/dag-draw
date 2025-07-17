@@ -121,8 +121,8 @@ for better edge readability."
          (max-convergence (dag-draw--max-edges-to-same-destination graph from-rank to-rank))
          (max-horizontal-distance (dag-draw--max-horizontal-edge-distance graph from-rank to-rank))
          
-         ;; Base spacing: minimum 2 rows for hollow routing
-         (base-spacing 2)
+         ;; Base spacing: standard GKNV minimum 
+         (base-spacing 1)
          
          ;; Additional spacing for convergence: +1 row for each additional converging edge
          (convergence-spacing (max 0 (1- max-convergence)))

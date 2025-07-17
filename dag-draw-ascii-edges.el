@@ -35,7 +35,7 @@
 (defvar dag-draw--current-scale nil
   "Current scale factor for rendering context.")
 
-;; Node boundary detection functions (needed for hollow routing)
+;; Node boundary detection functions
 (defun dag-draw--get-node-boundary-rect (node min-x min-y scale)
   "Calculate exact boundary coordinates for a node in grid space.
 Returns (left top right bottom) coordinates."
@@ -156,7 +156,7 @@ GKNV-compliant: Use dominant axis to determine primary direction."
       (let ((x (+ start-x i 1)))
         (when (and (>= x 0) (< x (length (aref grid 0)))
                    (>= int-y1 0) (< int-y1 (length grid))
-                   (= (aref (aref grid int-y1) x) ?\s))  ; Only draw if cell is empty
+                   (= (aref (aref grid int-y1) x) ?\s)) ; Only draw if cell is empty
           (aset (aref grid int-y1) x ?─))))
     ;; ENHANCED GKNV Section 5.2 FIX: Use boundary search for arrow placement
     (let ((arrow-char (dag-draw--get-arrow-char direction)))
@@ -164,21 +164,21 @@ GKNV-compliant: Use dominant axis to determine primary direction."
         (let ((actual-boundary-pos (dag-draw--find-actual-boundary-position grid int-x2 int-y2 arrow-char)))
           (if actual-boundary-pos
               (progn
-                (message "    BOUNDARY-FOUND-HORIZ: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
+                (message " BOUNDARY-FOUND-HORIZ: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                          arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) int-x2 int-y2)
                 (aset (aref grid (cadr actual-boundary-pos)) (car actual-boundary-pos) arrow-char))
             ;; ENHANCED FALLBACK: Try adjacent placement
             (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid int-x2 int-y2 arrow-char)))
               (if adjacent-pos
                   (progn
-                    (message "    BOUNDARY-ADJACENT-HORIZ: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
+                    (message " BOUNDARY-ADJACENT-HORIZ: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                              arrow-char (car adjacent-pos) (cadr adjacent-pos) int-x2 int-y2)
                     (aset (aref grid (cadr adjacent-pos)) (car adjacent-pos) arrow-char))
                 ;; Legacy fallback - only if no boundaries found
                 (when (and (>= int-x2 0) (< int-x2 (length (aref grid 0)))
                            (>= int-y2 0) (< int-y2 (length grid))
                            (= (aref (aref grid int-y2) int-x2) ?\s))
-                  (message "    BOUNDARY-MISSING-HORIZ: **FLOATING ARROW ALERT** Arrow %c at fallback position (%d,%d)" arrow-char int-x2 int-y2)
+                  (message " BOUNDARY-MISSING-HORIZ: **FLOATING ARROW ALERT** Arrow %c at fallback position (%d,%d)" arrow-char int-x2 int-y2)
                   (aset (aref grid int-y2) int-x2 arrow-char))))))))))
 
 ;;; Advanced Arrow Placement Functions
@@ -197,7 +197,7 @@ GKNV-compliant: Use dominant axis to determine primary direction."
              (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
         ;; Search around the connection point for vertical line characters
         (catch 'arrow-placed
-          (dotimes (offset 3)  ; Search 3 positions below connection point
+          (dotimes (offset 3) ; Search 3 positions below connection point
             (let ((search-y (+ y2 offset)))
               (when (and (>= x2 0) (< x2 grid-width)
                          (>= search-y 0) (< search-y grid-height))
@@ -218,36 +218,36 @@ GKNV-compliant: Use dominant axis to determine primary direction."
                       ;; Same grid coordinates - don't draw arrow on same position
                       ((and (= dx 0) (= dy 0)) nil)
                       ;; Vertical arrows
-                      ((and (= dx 0) (> dy 0)) ?▼)  ; downward
-                      ((and (= dx 0) (< dy 0)) ?▲)  ; upward
+                      ((and (= dx 0) (> dy 0)) ?▼) ; downward
+                      ((and (= dx 0) (< dy 0)) ?▲) ; upward
                       ;; Horizontal arrows
-                      ((and (= dy 0) (> dx 0)) ?▶)  ; rightward
-                      ((and (= dy 0) (< dx 0)) ?◀)  ; leftward
+                      ((and (= dy 0) (> dx 0)) ?▶) ; rightward
+                      ((and (= dy 0) (< dx 0)) ?◀) ; leftward
                       ;; L-shaped paths - determine arrow based on final direction
-                      ((> dy 0) ?▼)  ; if final segment goes down
-                      ((< dy 0) ?▲)  ; if final segment goes up
-                      ((> dx 0) ?▶)  ; if final segment goes right
-                      ((< dx 0) ?◀)  ; if final segment goes left
-                      (t ?▶))))      ; default rightward arrow
+                      ((> dy 0) ?▼) ; if final segment goes down
+                      ((< dy 0) ?▲) ; if final segment goes up
+                      ((> dx 0) ?▶) ; if final segment goes right
+                      ((< dx 0) ?◀) ; if final segment goes left
+                      (t ?▶)))) ; default rightward arrow
 
     ;; GKNV Section 5.2 FIX: Use boundary search for ALL arrow placements
     (when arrow-char
       (let ((actual-boundary-pos (dag-draw--find-actual-boundary-position grid (round x2) (round y2) arrow-char)))
         (if actual-boundary-pos
             (progn
-              (message "    BOUNDARY-FOUND-ALT: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
+              (message " BOUNDARY-FOUND-ALT: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                        arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x2 y2)
               (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
           ;; ENHANCED FALLBACK: Try adjacent placement
           (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x2) (round y2) arrow-char)))
             (if adjacent-pos
                 (progn
-                  (message "    BOUNDARY-ADJACENT-ALT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
+                  (message " BOUNDARY-ADJACENT-ALT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                            arrow-char (car adjacent-pos) (cadr adjacent-pos) x2 y2)
                   (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
               ;; Final fallback
               (progn
-                (message "    BOUNDARY-MISSING-ALT: **FLOATING ARROW ALERT** No boundary found near (%d,%d), using calculated position" x2 y2)
+                (message " BOUNDARY-MISSING-ALT: **FLOATING ARROW ALERT** No boundary found near (%d,%d), using calculated position" x2 y2)
                 (dag-draw--draw-arrow grid x2 y2 arrow-char)))))))))
 
 (defvar dag-draw--arrow-positions nil
@@ -323,7 +323,7 @@ ASCII coordinate context ensures coordinates are always valid."
 Returns t if position is in node interior, nil if boundary or empty space.
 GKNV Section 5.2: Edges should not route through node text areas."
   ;; CRITICAL FIX: Use direct node boundary calculation instead of relying on global occupancy map
-  ;; This ensures consistency with the hollow routing fixes in dag-draw-render.el
+  ;; This ensures consistency with GKNV edge routing requirements
   (when (and dag-draw--current-graph dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)
     (dag-draw--point-inside-node-p x y dag-draw--current-graph
                                    dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)))
@@ -417,8 +417,8 @@ Returns t if point is on a node boundary where arrows should land according to G
                  (when (and (>= x node-x) (<= x node-x-end)
                             (>= y node-y) (<= y node-y-end))
                    ;; Point is within node bounding box, check if it's on the boundary
-                   (when (or (= x node-x) (= x node-x-end)      ; Left or right edge
-                             (= y node-y) (= y node-y-end))     ; Top or bottom edge
+                   (when (or (= x node-x) (= x node-x-end) ; Left or right edge
+                             (= y node-y) (= y node-y-end)) ; Top or bottom edge
                      (throw 'is-boundary t)))))
              (dag-draw-graph-nodes graph))
     nil))
@@ -430,61 +430,6 @@ Returns 'boundary-connection if point is on box border, 'interior-crossing if in
       'boundary-connection
     'interior-crossing))
 
-(defun dag-draw--validate-spline-segments-enhanced (edge spline-points grid occupancy-map graph min-x min-y scale)
-  "Enhanced validation that distinguishes boundary connections from interior crossings.
-Returns separate counts for each violation type."
-  (let ((boundary-connections 0)
-        (interior-crossings 0)
-        (problematic-segments '())
-        (grid-height (length grid))
-        (grid-width (if (and (> grid-height 0) (aref grid 0))
-                        (length (aref grid 0))
-                      0)))
-
-    (when (and spline-points (> (length spline-points) 1))
-      ;; Check each segment between consecutive spline points
-      (dotimes (i (1- (length spline-points)))
-        (let* ((p1 (nth i spline-points))
-               (p2 (nth (1+ i) spline-points))
-               (x1 (round (dag-draw-point-x p1)))
-               (y1 (round (dag-draw-point-y p1)))
-               (x2 (round (dag-draw-point-x p2)))
-               (y2 (round (dag-draw-point-y p2)))
-               (segment-boundary-connections 0)
-               (segment-interior-crossings 0))
-
-          ;; Check intermediate points along the segment
-          (let* ((dx (- x2 x1))
-                 (dy (- y2 y1))
-                 (steps (max (abs dx) (abs dy))))
-            (when (> steps 0)
-              (dotimes (step (1+ steps))
-                (let* ((t-val (/ (float step) steps))
-                       (check-x (round (+ x1 (* t-val dx))))
-                       (check-y (round (+ y1 (* t-val dy)))))
-
-                  ;; Check if this point would cross occupied areas
-                  (when (and (>= check-x 0) (< check-x grid-width)
-                             (>= check-y 0) (< check-y grid-height)
-                             (< check-y (length))
-                             (< check-x (length (aref occupancy-map check-y)))
-                             (aref (aref occupancy-map check-y) check-x))
-                    ;; Classify the violation type
-                    (let ((violation-type (dag-draw--classify-boundary-violation check-x check-y graph min-x min-y scale)))
-                      (if (eq violation-type 'boundary-connection)
-                          (setq segment-boundary-connections (1+ segment-boundary-connections))
-                        (setq segment-interior-crossings (1+ segment-interior-crossings)))))))))
-
-          ;; If segment has violations, record them with classification
-          (when (or (> segment-boundary-connections 0) (> segment-interior-crossings 0))
-            (push (list i (list x1 y1) (list x2 y2)
-                        segment-boundary-connections segment-interior-crossings)
-                  problematic-segments)
-            (setq boundary-connections (+ boundary-connections segment-boundary-connections))
-            (setq interior-crossings (+ interior-crossings segment-interior-crossings))))))
-
-
-    (list boundary-connections interior-crossings problematic-segments)))
 
 
 (defun dag-draw--find-safe-spline-segments (edge spline-points graph min-x min-y scale)
@@ -561,8 +506,8 @@ Returns t if point crosses node interior, nil if boundary connection or empty sp
                  (when (and (>= x node-x) (<= x node-x-end)
                             (>= y node-y) (<= y node-y-end))
                    ;; Point is within node - check if it's in interior (not on boundary)
-                   (unless (or (= x node-x) (= x node-x-end)      ; Left or right edge
-                               (= y node-y) (= y node-y-end))     ; Top or bottom edge
+                   (unless (or (= x node-x) (= x node-x-end) ; Left or right edge
+                               (= y node-y) (= y node-y-end)) ; Top or bottom edge
                      ;; Point is inside interior, not on boundary
                      (throw 'is-interior t)))))
              (dag-draw-graph-nodes graph))
@@ -584,16 +529,16 @@ Prevents junction characters adjacent to node boundaries per GKNV edge terminati
    ;; GKNV Section 5.2 COMPLIANCE: NEVER create junctions adjacent to node boundary characters
    ;; Node boundary characters (┌ ┐ └ ┘) must remain clean - edges should terminate at boundaries
    ((memq existing-char '(?┌ ?┐ ?└ ?┘))
-    existing-char)  ; Keep the boundary character, don't create junction
+    existing-char) ; Keep the boundary character, don't create junction
    ((memq new-char '(?┌ ?┐ ?└ ?┘))
-    new-char)       ; Keep the boundary character, don't create junction
+    new-char) ; Keep the boundary character, don't create junction
 
    ;; GKNV Section 5.2 COMPLIANCE: Allow proper line merging but prevent boundary artifacts
    ;; Same line types should merge into single lines (prevents ││ artifacts)
    ((and (eq existing-char ?│) (eq new-char ?│))
-    ?│)  ; Merge parallel vertical lines
+    ?│) ; Merge parallel vertical lines
    ((and (eq existing-char ?─) (eq new-char ?─))
-    ?─)  ; Merge parallel horizontal lines
+    ?─) ; Merge parallel horizontal lines
 
    ;; Only create junctions for legitimate line crossings (not boundary-adjacent)
    ((and (eq existing-char ?─) (eq new-char ?│))
@@ -617,17 +562,17 @@ Prevents junction characters adjacent to node boundaries per GKNV edge terminati
    ;; Instead, prefer the more "structural" character (boundaries over lines)
    ((and (memq existing-char '(?│ ?─))
          (memq new-char '(?├ ?┤ ?┬ ?┴)))
-    new-char)  ; Prefer T-junction characters over simple lines
+    new-char) ; Prefer T-junction characters over simple lines
    ((and (memq existing-char '(?├ ?┤ ?┬ ?┴))
          (memq new-char '(?│ ?─)))
-    existing-char)  ; Keep T-junction characters over simple lines
+    existing-char) ; Keep T-junction characters over simple lines
 
    ;; For pure edge line combinations (not involving boundaries), allow limited junctions
    ((and (memq existing-char '(?─ ?│))
          (memq new-char '(?─ ?│)))
     (if (eq existing-char new-char)
         existing-char
-      ?┼))  ; Only create junction for pure horizontal/vertical intersection
+      ?┼)) ; Only create junction for pure horizontal/vertical intersection
 
    ;; Default: prefer new character to avoid stale states
    (t new-char)))
@@ -715,11 +660,11 @@ This fixes patterns like '│──' with '├──' after both nodes and edges
                 (message "JUNCTION-CREATED: T-junction ┬ created at (%d,%d)" x y)
                 (aset (aref grid y) x ?┬))))
            ((and (eq current-char ?─)
-                (> y 0)
-                (eq (aref (aref grid (1- y)) x) ?│))
-           ;; GKNV Section 5.2 COMPLIANCE: Check occupancy before creating junction
-           (unless (dag-draw--is-node-interior-position grid x y)
-             (aset (aref grid y) x ?┴))))
+                 (> y 0)
+                 (eq (aref (aref grid (1- y)) x) ?│))
+            ;; GKNV Section 5.2 COMPLIANCE: Check occupancy before creating junction
+            (unless (dag-draw--is-node-interior-position grid x y)
+              (aset (aref grid y) x ?┴))))
 
           ;; Horizontal boundary with vertical line above
           )))))
@@ -771,20 +716,15 @@ GKNV COMPLIANCE: Implement proper Pass 4 spline-to-ASCII conversion with boundar
   ;; Initialize arrow position tracking for GKNV Section 5.2 boundary clipping
   (setq dag-draw--arrow-positions nil)
 
-  ;; Create node occupancy map to avoid drawing through nodes
-  (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
-    ;; Set global occupancy map for safety checks
-    (setq dag-draw--global-occupancy-map occupancy-map)
-
-    ;; GKNV Pass 4: Draw edges sequentially to avoid collisions per Section 5.2
-    ;; "splines are drawn by a 'greedy' strategy, they depend on the order in which they are computed"
-    (let ((drawn-splines '())  ; Track already-drawn splines for collision avoidance
-          (edge-usage-map (dag-draw--create-edge-usage-map grid)))  ; Track edge positions
-      (dolist (edge (dag-draw-graph-edges graph))
-        ;; Use GKNV-compliant edge drawing with collision awareness
-        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale)
-        ;; Add this edge to drawn splines for future collision avoidance
-        (push edge drawn-splines)))))
+  ;; GKNV Pass 4: Draw edges sequentially per Section 5.2
+  ;; "splines are drawn by a 'greedy' strategy, they depend on the order in which they are computed"
+  (let ((drawn-splines '()) ; Track already-drawn splines for collision avoidance
+        (edge-usage-map (dag-draw--create-edge-usage-map grid))) ; Track edge positions
+    (dolist (edge (dag-draw-graph-edges graph))
+      ;; Use GKNV-compliant edge drawing with collision awareness
+      (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale)
+      ;; Add this edge to drawn splines for future collision avoidance
+      (push edge drawn-splines))))
 
 ;;; Edge Drawing Implementation - FIXED VERSION
 
@@ -886,10 +826,10 @@ GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering."
                (top node-y)
                (bottom (+ node-y node-height -1)))
           ;; Point is on boundary if it's on any edge of the rectangle
-          (or (and (= int-x left) (>= int-y top) (<= int-y bottom))     ; Left edge
-              (and (= int-x right) (>= int-y top) (<= int-y bottom))    ; Right edge
-              (and (= int-y top) (>= int-x left) (<= int-x right))      ; Top edge
-              (and (= int-y bottom) (>= int-x left) (<= int-x right))))))))  ; Bottom edge
+          (or (and (= int-x left) (>= int-y top) (<= int-y bottom)) ; Left edge
+              (and (= int-x right) (>= int-y top) (<= int-y bottom)) ; Right edge
+              (and (= int-y top) (>= int-x left) (<= int-x right)) ; Top edge
+              (and (= int-y bottom) (>= int-x left) (<= int-x right)))))))) ; Bottom edge
 
 (defun dag-draw--would-violate-node-boundary (graph x y min-x min-y scale)
   "Check if drawing at position (X,Y) would create a boundary violation.
@@ -908,8 +848,8 @@ GKNV Section 5.2: Prevents true boundary violations while allowing legitimate ed
                         (bottom (+ node-y node-height -1)))
                    ;; REFINED FIX: Only block true boundary violations, not legitimate edge routing
                    ;; Allow edge exit/approach paths but prevent ──────│node│────── patterns
-                   (when (and (>= y top) (<= y bottom)  ; Within node vertical range
-                              (or (< x left) (> x right))  ; Outside node horizontally
+                   (when (and (>= y top) (<= y bottom) ; Within node vertical range
+                              (or (< x left) (> x right)) ; Outside node horizontally
                               ;; CRITICAL: Only block if this creates a boundary violation pattern
                               ;; Allow edges that are clearly routing to/from the node
                               (dag-draw--is-true-boundary-violation graph node-id x y left right top bottom))
@@ -948,12 +888,12 @@ SIDE is either 'left or 'right indicating which side we're checking from."
 
   ;; Check if we're very far from the node boundary (indicates violation)
   (let ((distance (if (eq side 'left) (- left x) (- x right))))
-    (> distance 2)))  ; Allow up to 2 chars of routing, block longer extensions
+    (> distance 2))) ; Allow up to 2 chars of routing, block longer extensions
 
 (defun dag-draw--line-intersects-vertical (x1 y1 x2 y2 boundary-x min-y max-y)
   "Find intersection of line (X1,Y1)→(X2,Y2) with vertical boundary at BOUNDARY-X.
 Returns (x,y) intersection point or nil if no intersection within Y range."
-  (when (not (= x1 x2))  ; Avoid division by zero for vertical lines
+  (when (not (= x1 x2)) ; Avoid division by zero for vertical lines
     (let* ((t-param (/ (float (- boundary-x x1)) (- x2 x1)))
            (intersect-y (+ y1 (* t-param (- y2 y1)))))
       ;; Check if intersection is within the line segment and boundary range
@@ -964,7 +904,7 @@ Returns (x,y) intersection point or nil if no intersection within Y range."
 (defun dag-draw--line-intersects-horizontal (x1 y1 x2 y2 boundary-y min-x max-x)
   "Find intersection of line (X1,Y1)→(X2,Y2) with horizontal boundary at BOUNDARY-Y.
 Returns (x,y) intersection point or nil if no intersection within X range."
-  (when (not (= y1 y2))  ; Avoid division by zero for horizontal lines
+  (when (not (= y1 y2)) ; Avoid division by zero for horizontal lines
     (let* ((t-param (/ (float (- boundary-y y1)) (- y2 y1)))
            (intersect-x (+ x1 (* t-param (- x2 x1)))))
       ;; Check if intersection is within the line segment and boundary range
@@ -1011,9 +951,9 @@ This function ensures edges never extend beyond node boundaries by checking each
 
       ;; Choose routing direction based on edge orientation
       (let ((routing-direction (if (<= (abs (- x1 x2)) 4)
-                                   'vertical-only    ; Pure vertical edge
+                                   'vertical-only ; Pure vertical edge
                                  (if (<= (abs (- y1 y2)) 4)
-                                     'horizontal-only  ; Pure horizontal edge
+                                     'horizontal-only ; Pure horizontal edge
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with boundary awareness
@@ -1049,54 +989,33 @@ Implements GKNV Section 5.2 boundary clipping by checking each segment against n
 GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary exit."
   (let* ((start-x (min x1 x2))
          (end-x (max x1 x2))
-         (y y1)  ; Horizontal line uses y1
-         (direction (if (< x1 x2) 1 -1)))  ; Drawing direction: 1=right, -1=left
+         (y y1) ; Horizontal line uses y1
+         (direction (if (< x1 x2) 1 -1))) ; Drawing direction: 1=right, -1=left
 
     ;; GKNV Section 5.2 FIX: Smart boundary-aware drawing with obstacle avoidance
     ;; Route around nodes rather than through them
-    (let ((current-x x1))  ; Start from actual start point, not min
+    (let ((current-x x1)) ; Start from actual start point, not min
       (while (if (> direction 0) (<= current-x x2) (>= current-x x2))
         (when (and (>= current-x 0) (< current-x (if (> (length grid) 0) (length (aref grid 0)) 0))
                    (>= y 0) (< y (length grid)))
-          ;; RESTORE DAG EDGE DRAWING: Allow full horizontal lines for proper DAG connectivity
-          ;; Only avoid drawing through node interiors, but allow full edge lines
-          (unless (dag-draw--position-inside-any-node graph current-x y min-x min-y scale)
-            (dag-draw--draw-char grid current-x y ?─)))
+          ;; GKNV compliant: Draw edge characters directly, clipped at boundaries
+          (dag-draw--draw-char grid current-x y ?─))
         (setq current-x (+ current-x direction))))))
 
 (defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 min-x min-y scale)
   "Draw vertical line segment that stops at node boundaries."
   (let* ((start-y (min y1 y2))
          (end-y (max y1 y2))
-         (x x1))  ; Vertical line uses x1
+         (x x1)) ; Vertical line uses x1
 
     ;; Draw each character of the vertical line, checking boundaries
     (dotimes (i (1+ (- end-y start-y)))
       (let ((y (+ start-y i)))
         (when (and (>= x 0) (< x (if (> (length grid) 0) (length (aref grid 0)) 0))
                    (>= y 0) (< y (length grid)))
-          ;; GKNV boundary check: Don't draw if this position is inside a node
-          (unless (dag-draw--position-inside-any-node graph x y min-x min-y scale)
-            (dag-draw--draw-char grid x y ?│)))))))
+          ;; GKNV compliant: Draw edge characters directly, clipped at boundaries
+          (dag-draw--draw-char grid x y ?│))))))
 
-(defun dag-draw--position-inside-any-node (graph x y min-x min-y scale)
-  "Check if position (X,Y) is inside any node interior (not including boundary).
-Returns t if inside a node interior, nil if on boundary or outside all nodes.
-GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
-  (let ((adjusted-positions (dag-draw-graph-adjusted-positions graph))
-        (inside-node nil))
-    (when adjusted-positions
-      (ht-each (lambda (node-id coords)
-                 (let* ((node-x (nth 0 coords))
-                        (node-y (nth 1 coords))
-                        (node-width (nth 2 coords))
-                        (node-height (nth 3 coords)))
-                   ;; Check if position is inside the node interior (excludes boundary)
-                   (when (and (> x node-x) (< x (+ node-x node-width -1))
-                              (> y node-y) (< y (+ node-y node-height -1)))
-                     (setq inside-node t))))
-               adjusted-positions))
-    inside-node))
 
 ;;; Enhanced Edge Drawing Functions
 
@@ -1171,9 +1090,9 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
 
       ;; Choose routing direction based on edge orientation
       (let ((routing-direction (if (<= (abs (- x1 x2)) 4)
-                                   'vertical-only    ; Pure vertical edge (allow 4-char tolerance)
+                                   'vertical-only ; Pure vertical edge (allow 4-char tolerance)
                                  (if (<= (abs (- y1 y2)) 4)
-                                     'horizontal-only  ; Pure horizontal edge (allow 4-char tolerance)
+                                     'horizontal-only ; Pure horizontal edge (allow 4-char tolerance)
                                    'horizontal-first)))) ; L-shaped edge
 
         ;; Draw the path with appropriate direction
@@ -1221,11 +1140,11 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
             (dag-draw--draw-char grid x2 y ?│))))
       ;; Add corner character at junction point (x2, y1)
       (let ((corner-char (cond
-                          ((and (< x1 x2) (< y1 y2)) ?┐)  ; Right then down
-                          ((and (< x1 x2) (> y1 y2)) ?┘)  ; Right then up
-                          ((and (> x1 x2) (< y1 y2)) ?┌)  ; Left then down
-                          ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
-                          (t ?┼))))                         ; Fallback intersection
+                          ((and (< x1 x2) (< y1 y2)) ?┐) ; Right then down
+                          ((and (< x1 x2) (> y1 y2)) ?┘) ; Right then up
+                          ((and (> x1 x2) (< y1 y2)) ?┌) ; Left then down
+                          ((and (> x1 x2) (> y1 y2)) ?└) ; Left then up
+                          (t ?┼)))) ; Fallback intersection
         (dag-draw--draw-char grid x2 y1 corner-char)))
 
      ;; L-shaped path: vertical first (default fallback)
@@ -1244,11 +1163,11 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
             (dag-draw--draw-char grid x y2 ?─))))
       ;; Add corner character at junction point (x1, y2)
       (let ((corner-char (cond
-                          ((and (< y1 y2) (< x1 x2)) ?┌)  ; Down then right
-                          ((and (< y1 y2) (> x1 x2)) ?┐)  ; Down then left
-                          ((and (> y1 y2) (< x1 x2)) ?└)  ; Up then right
-                          ((and (> y1 y2) (> x1 x2)) ?┘)  ; Up then left
-                          (t ?┼))))                         ; Fallback intersection
+                          ((and (< y1 y2) (< x1 x2)) ?┌) ; Down then right
+                          ((and (< y1 y2) (> x1 x2)) ?┐) ; Down then left
+                          ((and (> y1 y2) (< x1 x2)) ?└) ; Up then right
+                          ((and (> y1 y2) (> x1 x2)) ?┘) ; Up then left
+                          (t ?┼)))) ; Fallback intersection
         (dag-draw--draw-char grid x1 y2 corner-char))))))
 
 (defun dag-draw--find-actual-boundary-position (grid target-x target-y arrow-char)
@@ -1256,14 +1175,14 @@ GKNV Section 5.2: Allows arrows on boundaries but prevents interior traversal."
 Returns (x y) of boundary position where arrow should be placed, or nil if none found."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (search-radius 20)  ; EXPANDED: Increased from 12 to 20 for complex graphs
+         (search-radius 20) ; EXPANDED: Increased from 12 to 20 for complex graphs
          (target-boundary-chars (cond
                                  ;; ENHANCED: Added junction characters for comprehensive boundary detection
-                                 ((eq arrow-char ?▼) '(?─ ?┌ ?┬ ?┐ ?├ ?┤ ?┼))  ; Down arrow replaces top boundary + junctions
-                                 ((eq arrow-char ?▲) '(?─ ?└ ?┴ ?┘ ?├ ?┤ ?┼))  ; Up arrow replaces bottom boundary + junctions
-                                 ((eq arrow-char ?▶) '(?│ ?┌ ?├ ?└ ?┬ ?┴ ?┼))  ; Right arrow replaces left boundary + junctions
-                                 ((eq arrow-char ?◀) '(?│ ?┐ ?┤ ?┘ ?┬ ?┴ ?┼))  ; Left arrow replaces right boundary + junctions
-                                 (t '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))))     ; Default: any boundary + junctions
+                                 ((eq arrow-char ?▼) '(?─ ?┌ ?┬ ?┐ ?├ ?┤ ?┼)) ; Down arrow replaces top boundary + junctions
+                                 ((eq arrow-char ?▲) '(?─ ?└ ?┴ ?┘ ?├ ?┤ ?┼)) ; Up arrow replaces bottom boundary + junctions
+                                 ((eq arrow-char ?▶) '(?│ ?┌ ?├ ?└ ?┬ ?┴ ?┼)) ; Right arrow replaces left boundary + junctions
+                                 ((eq arrow-char ?◀) '(?│ ?┐ ?┤ ?┘ ?┬ ?┴ ?┼)) ; Left arrow replaces right boundary + junctions
+                                 (t '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼)))) ; Default: any boundary + junctions
          (best-pos nil)
          (best-distance most-positive-fixnum))
 
@@ -1292,7 +1211,7 @@ Returns (x y) of boundary position where arrow should be placed, or nil if none 
 This ensures arrows don't float in space per GKNV Section 5.2."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (search-radius 25)  ; Wider search for fallback
+         (search-radius 25) ; Wider search for fallback
          (any-boundary-chars '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))
          (best-pos nil)
          (best-distance most-positive-fixnum))
@@ -1320,11 +1239,11 @@ This ensures arrows don't float in space per GKNV Section 5.2."
              (boundary-y (cadr best-pos))
              ;; Calculate adjacent position based on arrow direction
              (adjacent-pos (cond
-                            ((eq arrow-char ?▼) (list boundary-x (1+ boundary-y)))  ; Below boundary
-                            ((eq arrow-char ?▲) (list boundary-x (1- boundary-y)))  ; Above boundary
-                            ((eq arrow-char ?▶) (list (1+ boundary-x) boundary-y))  ; Right of boundary
-                            ((eq arrow-char ?◀) (list (1- boundary-x) boundary-y))  ; Left of boundary
-                            (t (list boundary-x boundary-y)))))  ; Fallback to boundary itself
+                            ((eq arrow-char ?▼) (list boundary-x (1+ boundary-y))) ; Below boundary
+                            ((eq arrow-char ?▲) (list boundary-x (1- boundary-y))) ; Above boundary
+                            ((eq arrow-char ?▶) (list (1+ boundary-x) boundary-y)) ; Right of boundary
+                            ((eq arrow-char ?◀) (list (1- boundary-x) boundary-y)) ; Left of boundary
+                            (t (list boundary-x boundary-y))))) ; Fallback to boundary itself
         ;; Ensure adjacent position is within grid bounds
         (let ((adj-x (car adjacent-pos))
               (adj-y (cadr adjacent-pos)))
@@ -1340,32 +1259,32 @@ This ensures arrows don't float in space per GKNV Section 5.2."
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
     ;; DEBUG: Show coordinates and direction calculation for arrow placement
-    (message "    GRID-ARROW: (%d,%d)->(%d,%d) dx=%d dy=%d port-side=%s"
+    (message " GRID-ARROW: (%d,%d)->(%d,%d) dx=%d dy=%d port-side=%s"
              x1 y1 x2 y2 dx dy port-side)
 
     (let* ((arrow-char (cond
                         ;; PRIORITY: Use coordinate-based direction for clear vertical/horizontal cases
-                        ((and (= dx 0) (> dy 0)) ?▼)  ; Pure vertical downward
-                        ((and (= dx 0) (< dy 0)) ?▲)  ; Pure vertical upward
-                        ((and (= dy 0) (> dx 0)) ?▶)  ; Pure horizontal rightward
-                        ((and (= dy 0) (< dx 0)) ?◀)  ; Pure horizontal leftward
+                        ((and (= dx 0) (> dy 0)) ?▼) ; Pure vertical downward
+                        ((and (= dx 0) (< dy 0)) ?▲) ; Pure vertical upward
+                        ((and (= dy 0) (> dx 0)) ?▶) ; Pure horizontal rightward
+                        ((and (= dy 0) (< dx 0)) ?◀) ; Pure horizontal leftward
                         ;; GKNV Section 5.2 FIX: For ambiguous cases, use COORDINATE DIRECTION not port orientation
-                        ((eq port-side 'top) ?▼)      ; Arrow pointing down to top side
-                        ((eq port-side 'bottom) ?▼)   ; Arrow pointing down to bottom side (DAG: downward flow)
-                        ((eq port-side 'left) (if (< dx 0) ?◀ ?▶))     ; Use actual movement direction
-                        ((eq port-side 'right) (if (> dx 0) ?▶ ?◀))    ; Use actual movement direction
+                        ((eq port-side 'top) ?▼) ; Arrow pointing down to top side
+                        ((eq port-side 'bottom) ?▼) ; Arrow pointing down to bottom side (DAG: downward flow)
+                        ((eq port-side 'left) (if (< dx 0) ?◀ ?▶)) ; Use actual movement direction
+                        ((eq port-side 'right) (if (> dx 0) ?▶ ?◀)) ; Use actual movement direction
                         ;; For remaining diagonal cases, use coordinate direction as fallback
                         ((> (abs dy) (abs dx))
-                         (if (> dy 0) ?▼ ?▲))    ; Primarily vertical
+                         (if (> dy 0) ?▼ ?▲)) ; Primarily vertical
                         ((> (abs dx) (abs dy))
-                         (if (> dx 0) ?▶ ?◀))    ; Primarily horizontal
-                        (t ?▶)))                       ; Final default
+                         (if (> dx 0) ?▶ ?◀)) ; Primarily horizontal
+                        (t ?▶))) ; Final default
            ;; GKNV Section 5.2 FIX: Find actual boundary character to replace
            (actual-boundary-pos (dag-draw--find-actual-boundary-position grid (round x2) (round y2) arrow-char)))
 
       (if actual-boundary-pos
           (progn
-            (message "    BOUNDARY-FOUND: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
+            (message " BOUNDARY-FOUND: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                      arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x2 y2)
             ;; Place arrow ON actual boundary per GKNV Section 5.2
             (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
@@ -1373,12 +1292,12 @@ This ensures arrows don't float in space per GKNV Section 5.2."
         (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x2) (round y2) arrow-char)))
           (if adjacent-pos
               (progn
-                (message "    BOUNDARY-ADJACENT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
+                (message " BOUNDARY-ADJACENT: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                          arrow-char (car adjacent-pos) (cadr adjacent-pos) x2 y2)
                 (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
             ;; Final fallback: use calculated position only if no boundaries found anywhere
             (progn
-              (message "    BOUNDARY-MISSING: No boundary found near (%d,%d), using calculated position" x2 y2)
+              (message " BOUNDARY-MISSING: No boundary found near (%d,%d), using calculated position" x2 y2)
               (dag-draw--draw-arrow grid x2 y2 arrow-char))))))))
 
 
@@ -1407,11 +1326,6 @@ GKNV Section 5.2: Splines are continuous curves, not broken segments."
 Implements GKNV Pass 4: Convert B-spline control points to ASCII grid coordinates."
   (let ((spline-points (dag-draw-edge-spline-points edge)))
 
-    ;; HYPOTHESIS TEST: Temporarily disabled to avoid scope issues
-    ;;   (let ((enhanced-results (dag-draw--validate-spline-segments-enhanced edge spline-points grid occupancy-map graph min-x min-y scale)))
-    ;;     (message "HYPOTHESIS TEST: Are the violations legitimate boundary connections?")
-    ;;     (message "  Result: %d boundary connections, %d interior crossings"
-    ;;              (nth 0 enhanced-results) (nth 1 enhanced-results))))
 
     (if (and spline-points (>= (length spline-points) 2))
         (progn
@@ -1428,7 +1342,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
          (to-port (when connection-points (cadr connection-points))))
 
     (when (and from-port to-port)
-      (message "  RAW-PORTS: from=(%.2f,%.2f) to=(%.2f,%.2f)"
+      (message " RAW-PORTS: from=(%.2f,%.2f) to=(%.2f,%.2f)"
                (dag-draw-point-x from-port) (dag-draw-point-y from-port)
                (dag-draw-point-x to-port) (dag-draw-point-y to-port))
       (let* ((start-x (round (dag-draw-point-x from-port)))
@@ -1442,7 +1356,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
              (clipped-end-x (nth 2 clipped-coords))
              (clipped-end-y (nth 3 clipped-coords)))
 
-        (message "  GRID-PORTS: Edge %s->%s: (%d,%d) -> (%d,%d) %s"
+        (message " GRID-PORTS: Edge %s->%s: (%d,%d) -> (%d,%d) %s"
                  (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
                  clipped-start-x clipped-start-y clipped-end-x clipped-end-y
                  (if (and (= clipped-start-x clipped-end-x) (= clipped-start-y clipped-end-y)) "ZERO-LENGTH!" ""))
@@ -1450,7 +1364,7 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
         ;; Log boundary clipping for splines
         (when (or (not (= clipped-start-x start-x)) (not (= clipped-start-y start-y))
                   (not (= clipped-end-x end-x)) (not (= clipped-end-y end-y)))
-          (message "  SPLINE-CLIPPED: Edge %s->%s clipped from (%d,%d)->(%d,%d) to (%d,%d)->(%d,%d)"
+          (message " SPLINE-CLIPPED: Edge %s->%s clipped from (%d,%d)->(%d,%d) to (%d,%d)->(%d,%d)"
                    (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
                    start-x start-y end-x end-y clipped-start-x clipped-start-y clipped-end-x clipped-end-y))
 
@@ -1463,31 +1377,31 @@ GKNV Section 5.2 compliant: Proper edge separation to avoid overlapping paths."
                (total-edges (length edges-from-same-node))
                ;; Enable edge separation to prevent overlapping parallel lines
                (y-separation (if (> total-edges 1)
-                                 (* edge-index 2)  ; Separate multiple edges by 2 grid units
+                                 (* edge-index 2) ; Separate multiple edges by 2 grid units
                                0))
                (adjusted-start-y (+ clipped-start-y y-separation)))
           ;; Multi-edge distribution working correctly - debug output removed
 
           ;; Spline path analysis
           ;; (let ((validation-issues (dag-draw--validate-spline-segments edge spline-points grid)))
-          ;;   ;; Store validation results for decision making
-          ;;   (when validation-issues
-          ;;     (message "VALIDATION: Edge %s->%s has %d boundary violations"
-          ;;              (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
-          ;;              (length validation-issues))))
+          ;; ;; Store validation results for decision making
+          ;; (when validation-issues
+          ;; (message "VALIDATION: Edge %s->%s has %d boundary violations"
+          ;; (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
+          ;; (length validation-issues))))
 
 
           ;; Segment safety analysis - disabled to avoid scope issues
           ;; (when (dag-draw--is-research-api-edge edge)
-          ;;   (let ((safe-segments (dag-draw--find-safe-spline-segments edge spline-points grid)))
-          ;;     (message "SEGMENT-ANALYSIS: Research->API has %d total segments" (length safe-segments))
-          ;;     (let ((safe-count 0)
-          ;;           (unsafe-count 0))
-          ;;       (dolist (seg safe-segments)
-          ;;         (if (nth 2 seg)  ; safe-flag
-          ;;             (setq safe-count (1+ safe-count))
-          ;;           (setq unsafe-count (1+ unsafe-count))))
-          ;;       (message "  Safe segments: %d, Unsafe segments: %d" safe-count unsafe-count))))
+          ;; (let ((safe-segments (dag-draw--find-safe-spline-segments edge spline-points grid)))
+          ;; (message "SEGMENT-ANALYSIS: Research->API has %d total segments" (length safe-segments))
+          ;; (let ((safe-count 0)
+          ;; (unsafe-count 0))
+          ;; (dolist (seg safe-segments)
+          ;; (if (nth 2 seg) ; safe-flag
+          ;; (setq safe-count (1+ safe-count))
+          ;; (setq unsafe-count (1+ unsafe-count))))
+          ;; (message " Safe segments: %d, Unsafe segments: %d" safe-count unsafe-count))))
 
           ;; Use spline points and convert world→grid coordinates
           (if (and spline-points (>= (length spline-points) 2))
@@ -1507,10 +1421,10 @@ Converts spline points from world coordinates to grid coordinates before drawing
         (spline-validation-failed nil))
 
     ;; DEBUG: Show edge info
-    (message "  EDGE-DEBUG: %s->%s has %d spline points"
+    (message " EDGE-DEBUG: %s->%s has %d spline points"
              (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge) (length spline-points))
     (when spline-points
-      (message "    SPLINE-RANGE: (%.1f,%.1f) -> (%.1f,%.1f)"
+      (message " SPLINE-RANGE: (%.1f,%.1f) -> (%.1f,%.1f)"
                (dag-draw-point-x (car spline-points))
                (dag-draw-point-y (car spline-points))
                (dag-draw-point-x (car (last spline-points)))
@@ -1551,12 +1465,12 @@ Converts spline points from world coordinates to grid coordinates before drawing
 
     ;; Validate converted spline points - disabled to avoid scope issues
     ;; (let* ((converted-spline-points (mapcar (lambda (point-pair)
-    ;;                                          (dag-draw-point-create :x (nth 0 point-pair) :y (nth 1 point-pair)))
-    ;;                                        converted-points))
-    ;;        (validation-issues (dag-draw--validate-spline-segments edge converted-spline-points grid)))
-    ;;   ;; Store validation results for later decision making
-    ;;   (setq spline-validation-failed (> (length validation-issues) 0)))
-    (setq spline-validation-failed nil)  ; Temporarily assume no validation failures
+    ;; (dag-draw-point-create :x (nth 0 point-pair) :y (nth 1 point-pair)))
+    ;; converted-points))
+    ;; (validation-issues (dag-draw--validate-spline-segments edge converted-spline-points grid)))
+    ;; ;; Store validation results for later decision making
+    ;; (setq spline-validation-failed (> (length validation-issues) 0)))
+    (setq spline-validation-failed nil) ; Temporarily assume no validation failures
 
     ;; CORRECTED: Use sophisticated spline drawing since validation shows all segments are safe
     (if spline-validation-failed
@@ -1566,7 +1480,7 @@ Converts spline points from world coordinates to grid coordinates before drawing
       (progn
         (dag-draw--draw-sophisticated-spline-path grid converted-points)))
     ;; Add proper arrow at endpoint
-    (message "  ADDING ARROW: (%d,%d) -> (%d,%d) port-side=%s" start-x start-y end-x end-y target-port-side)
+    (message " ADDING ARROW: (%d,%d) -> (%d,%d) port-side=%s" start-x start-y end-x end-y target-port-side)
     (dag-draw--add-port-based-arrow grid start-x start-y end-x end-y target-port-side)))
 
 (defun dag-draw--collapse-spline-coordinates (converted-points)
@@ -1620,11 +1534,11 @@ Returns list of (start-x start-y end-x end-y) segments with duplicate coordinate
       (reverse segments))))
 
 (defun dag-draw--draw-sophisticated-spline-path (grid converted-points)
-  "Draw spline path using GKNV-compliant hollow routing approach.
-Enhanced to use ALL spline points for proper hollow routing behavior."
+  "Draw spline path using GKNV-compliant approach.
+Draws segments between consecutive spline points per GKNV Section 5.2."
   (when (>= (length converted-points) 2)
-    ;; HOLLOW ROUTING FIX: Draw segments between ALL consecutive points, not just start/end
-    ;; This preserves the inter-rank routing calculated by the L-array
+    ;; Draw segments between ALL consecutive points for complete spline path
+    ;; This preserves the piecewise linear path calculated by the L-array
     (dotimes (i (1- (length converted-points)))
       (let* ((current-point (nth i converted-points))
              (next-point (nth (1+ i) converted-points))
@@ -1687,11 +1601,11 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
 
       ;; Corner character at junction
       (let ((corner-char (cond
-                          ((and (< x1 x2) (< y1 y2)) ?┐)  ; Right then down
-                          ((and (< x1 x2) (> y1 y2)) ?┘)  ; Right then up
-                          ((and (> x1 x2) (< y1 y2)) ?┌)  ; Left then down
-                          ((and (> x1 x2) (> y1 y2)) ?└)  ; Left then up
-                          (t ?┼))))                         ; Fallback
+                          ((and (< x1 x2) (< y1 y2)) ?┐) ; Right then down
+                          ((and (< x1 x2) (> y1 y2)) ?┘) ; Right then up
+                          ((and (> x1 x2) (< y1 y2)) ?┌) ; Left then down
+                          ((and (> x1 x2) (> y1 y2)) ?└) ; Left then up
+                          (t ?┼)))) ; Fallback
         (dag-draw--draw-char grid x2 y1 corner-char))))))
 
 (defun dag-draw--add-precise-endpoint-arrow (graph edge grid x y)
@@ -1719,22 +1633,22 @@ COORDINATE SYSTEM FIX: Uses adjusted-positions when available to match port calc
          (to-adjusted (and adjusted-positions (ht-get adjusted-positions to-id)))
          ;; Calculate coordinates with adjusted-positions priority
          (from-x (if from-adjusted
-                     (+ (nth 0 from-adjusted) (/ (nth 2 from-adjusted) 2.0))  ; center of adjusted box
+                     (+ (nth 0 from-adjusted) (/ (nth 2 from-adjusted) 2.0)) ; center of adjusted box
                    (or (dag-draw-node-x-coord from-node) 0)))
          (from-y (if from-adjusted
-                     (+ (nth 1 from-adjusted) (/ (nth 3 from-adjusted) 2.0))  ; center of adjusted box
+                     (+ (nth 1 from-adjusted) (/ (nth 3 from-adjusted) 2.0)) ; center of adjusted box
                    (or (dag-draw-node-y-coord from-node) 0)))
          (to-x (if to-adjusted
-                   (+ (nth 0 to-adjusted) (/ (nth 2 to-adjusted) 2.0))      ; center of adjusted box
+                   (+ (nth 0 to-adjusted) (/ (nth 2 to-adjusted) 2.0)) ; center of adjusted box
                  (or (dag-draw-node-x-coord to-node) 0)))
          (to-y (if to-adjusted
-                   (+ (nth 1 to-adjusted) (/ (nth 3 to-adjusted) 2.0))      ; center of adjusted box
+                   (+ (nth 1 to-adjusted) (/ (nth 3 to-adjusted) 2.0)) ; center of adjusted box
                  (or (dag-draw-node-y-coord to-node) 0)))
          (dx (- to-x from-x))
          (dy (- to-y from-y)))
 
     ;; DEBUG: Show direction calculation for diagnosis
-    (message "    ARROW-DIR: %s->%s from=(%.1f,%.1f) to=(%.1f,%.1f) dx=%.1f dy=%.1f direction=%s"
+    (message " ARROW-DIR: %s->%s from=(%.1f,%.1f) to=(%.1f,%.1f) dx=%.1f dy=%.1f direction=%s"
              from-id to-id from-x from-y to-x to-y dx dy
              (cond ((>= (abs dy) (abs dx)) (if (> dy 0) 'down 'up))
                    (t (if (> dx 0) 'right 'left))))
@@ -1755,7 +1669,7 @@ Ensures arrow appears exactly on node boundary, not floating in space."
   (let ((actual-boundary-pos (dag-draw--find-actual-boundary-position grid (round x) (round y) arrow-char)))
     (if actual-boundary-pos
         (progn
-          (message "    BOUNDARY-FOUND-CLIP: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
+          (message " BOUNDARY-FOUND-CLIP: Arrow %c at actual boundary (%d,%d) instead of calculated (%d,%d)"
                    arrow-char (car actual-boundary-pos) (cadr actual-boundary-pos) x y)
           ;; Place arrow ON actual boundary per GKNV Section 5.2
           (dag-draw--draw-arrow grid (car actual-boundary-pos) (cadr actual-boundary-pos) arrow-char))
@@ -1763,7 +1677,7 @@ Ensures arrow appears exactly on node boundary, not floating in space."
       (let ((adjacent-pos (dag-draw--find-nearest-boundary-for-adjacent-placement grid (round x) (round y) arrow-char)))
         (if adjacent-pos
             (progn
-              (message "    BOUNDARY-ADJACENT-CLIP: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
+              (message " BOUNDARY-ADJACENT-CLIP: Arrow %c placed adjacent to boundary at (%d,%d) instead of floating at (%d,%d)"
                        arrow-char (car adjacent-pos) (cadr adjacent-pos) x y)
               (dag-draw--draw-arrow grid (car adjacent-pos) (cadr adjacent-pos) arrow-char))
           ;; Legacy fallback - only if no boundaries found anywhere
@@ -1782,17 +1696,17 @@ Ensures arrow appears exactly on node boundary, not floating in space."
                   (cond
                    ;; Case 1: Position is on target node boundary - GKNV compliant placement
                    (is-on-boundary
-                    (message "    BOUNDARY-LEGACY: Arrow %c placed at legacy boundary position (%d,%d)" arrow-char int-x int-y)
+                    (message " BOUNDARY-LEGACY: Arrow %c placed at legacy boundary position (%d,%d)" arrow-char int-x int-y)
                     (aset (aref grid int-y) int-x arrow-char))
 
                    ;; Case 2: Empty space near boundary - safe to place
                    ((eq current-char ?\s)
-                    (message "    BOUNDARY-MISSING-CLIP: **FLOATING ARROW ALERT** Arrow %c at fallback position (%d,%d)" arrow-char int-x int-y)
+                    (message " BOUNDARY-MISSING-CLIP: **FLOATING ARROW ALERT** Arrow %c at fallback position (%d,%d)" arrow-char int-x int-y)
                     (aset (aref grid int-y) int-x arrow-char))
 
                    ;; Case 3: On edge character that can be replaced with arrow
                    ((memq current-char '(?─ ?│ ?┼))
-                    (message "    BOUNDARY-MISSING-CLIP: Arrow %c replacing edge char at (%d,%d)" arrow-char int-x int-y)
+                    (message " BOUNDARY-MISSING-CLIP: Arrow %c replacing edge char at (%d,%d)" arrow-char int-x int-y)
                     (aset (aref grid int-y) int-x arrow-char))
 
                    ;; Case 4: Do not place on node text or unknown characters
@@ -1814,8 +1728,8 @@ Used for GKNV Section 5.2 boundary clipping verification."
                (top node-y)
                (bottom (+ node-y height -1)))
           ;; Check if position is on any of the four boundary edges
-          (or (and (>= x left) (<= x right) (or (= y top) (= y bottom)))      ; top/bottom edges
-              (and (>= y top) (<= y bottom) (or (= x left) (= x right)))))    ; left/right edges
+          (or (and (>= x left) (<= x right) (or (= y top) (= y bottom))) ; top/bottom edges
+              (and (>= y top) (<= y bottom) (or (= x left) (= x right))))) ; left/right edges
       ;; Fallback: assume valid boundary
       t)))
 
@@ -1851,7 +1765,7 @@ Returns t if position is next to a vertical boundary character, preventing │�
     (let ((int-x (round x))
           (int-y (round y)))
       (catch 'found-vertical-boundary
-        (dolist (x-offset '(-1 1))  ; Check left and right positions only
+        (dolist (x-offset '(-1 1)) ; Check left and right positions only
           (let ((check-x (+ int-x x-offset)))
             (when (and (>= check-x 0) (< check-x grid-width)
                        (>= int-y 0) (< int-y grid-height))
@@ -1899,7 +1813,7 @@ Returns t if position appears to be inside a complete node box structure."
             (found-bottom-border nil))
 
         ;; Look upward for top border
-        (dotimes (y-offset 5)  ; Search up to 5 rows above
+        (dotimes (y-offset 5) ; Search up to 5 rows above
           (let ((check-y (- int-y y-offset)))
             (when (and (>= check-y 0) (< check-y grid-height))
               (let ((char-above (aref (aref grid check-y) int-x)))
@@ -1907,7 +1821,7 @@ Returns t if position appears to be inside a complete node box structure."
                   (setq found-top-border t))))))
 
         ;; Look downward for bottom border
-        (dotimes (y-offset 5)  ; Search up to 5 rows below
+        (dotimes (y-offset 5) ; Search up to 5 rows below
           (let ((check-y (+ int-y y-offset)))
             (when (and (>= check-y 0) (< check-y grid-height))
               (let ((char-below (aref (aref grid check-y) int-x)))
