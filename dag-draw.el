@@ -254,19 +254,19 @@ Returns a string representation of the rendered graph."
 
 ;;; Implementation placeholders (to be implemented in separate modules)
 
-(declare-function dag-draw-rank-graph "dag-draw-rank")
-(declare-function dag-draw-order-vertices "dag-draw-order")
-(declare-function dag-draw-position-nodes "dag-draw-position")
-(declare-function dag-draw-generate-splines "dag-draw-splines")
+(declare-function dag-draw-rank-graph "dag-draw-pass1-ranking")
+(declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
+(declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
+(declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
 (declare-function dag-draw-render-svg "dag-draw-render")
 (declare-function dag-draw-render-ascii "dag-draw-render")
 (declare-function dag-draw-render-dot "dag-draw-render")
 
 ;; Load algorithm modules when needed
-(autoload 'dag-draw-rank-graph "dag-draw-rank" "Assign ranks to graph nodes." nil)
-(autoload 'dag-draw-order-vertices "dag-draw-order" "Order vertices within ranks." nil)
-(autoload 'dag-draw-position-nodes "dag-draw-position" "Assign coordinates to nodes." nil)
-(autoload 'dag-draw-generate-splines "dag-draw-splines" "Generate edge splines." nil)
+(autoload 'dag-draw-rank-graph "dag-draw-pass1-ranking" "Assign ranks to graph nodes." nil)
+(autoload 'dag-draw-order-vertices "dag-draw-pass2-ordering" "Order vertices within ranks." nil)
+(autoload 'dag-draw-position-nodes "dag-draw-pass3-positioning" "Assign coordinates to nodes." nil)
+(autoload 'dag-draw-generate-splines "dag-draw-pass4-splines" "Generate edge splines." nil)
 (autoload 'dag-draw-render-svg "dag-draw-render" "Render graph as SVG." nil)
 (autoload 'dag-draw-render-ascii "dag-draw-render" "Render graph as ASCII art." nil)
 (autoload 'dag-draw-render-dot "dag-draw-render" "Render graph as DOT format." nil)
