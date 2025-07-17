@@ -9,7 +9,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-rank)
+(require 'dag-draw-pass1-ranking)
 
 (describe
  "Complete GKNV network simplex algorithm"

@@ -11,9 +11,9 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
-(require 'dag-draw-rank)
-(require 'dag-draw-order)
-(require 'dag-draw-position)
+(require 'dag-draw-pass1-ranking)
+(require 'dag-draw-pass2-ordering)
+(require 'dag-draw-pass3-positioning)
 
 (describe
  "dag-draw-position"

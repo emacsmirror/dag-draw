@@ -18,7 +18,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
-(require 'dag-draw-position)
+(require 'dag-draw-pass3-positioning)
 
 (describe "GKNV Pass 3: Hierarchical Node Positioning"
   

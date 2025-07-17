@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-order)
+(require 'dag-draw-pass2-ordering)
 
 (describe "Advanced GKNV crossing reduction with weighted median"
   (describe "weighted median calculation"

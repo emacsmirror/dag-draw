@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-rank)
+(require 'dag-draw-pass1-ranking)
 
 (describe "Enhanced cycle breaking and virtual node management"
   (describe "intelligent cycle detection with edge priorities"

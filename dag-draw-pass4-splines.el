@@ -871,6 +871,6 @@ RECT is (left top right bottom). Returns (x y) of intersection point or nil."
       ;; No intersection found
       nil)))
 
-(provide 'dag-draw-splines)
+(provide 'dag-draw-pass4-splines)
 
-;;; dag-draw-splines.el ends here
+;;; dag-draw-pass4-splines.el ends here

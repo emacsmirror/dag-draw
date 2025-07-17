@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-rank)
+(require 'dag-draw-pass1-ranking)
 
 (describe "GKNV network simplex rank assignment"
   (describe "feasible spanning tree construction"

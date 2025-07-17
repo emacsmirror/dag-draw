@@ -13,7 +13,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
-(require 'dag-draw-splines)
+(require 'dag-draw-pass4-splines)
 (require 'dag-draw-render)
 
 (describe "Node Port Calculation"

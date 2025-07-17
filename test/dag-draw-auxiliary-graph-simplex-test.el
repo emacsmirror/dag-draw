@@ -9,7 +9,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-position)
+(require 'dag-draw-pass3-positioning)
 
 (describe "Auxiliary graph network simplex for X-coordinates"
   (describe "auxiliary graph construction with Omega factors"

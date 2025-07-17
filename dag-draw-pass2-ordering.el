@@ -580,6 +580,6 @@ Returns t if algorithm has converged."
             (setf (dag-draw-node-order node) order)
             (setq order (1+ order))))))))
 
-(provide 'dag-draw-order)
+(provide 'dag-draw-pass2-ordering)
 
-;;; dag-draw-order.el ends here
+;;; dag-draw-pass2-ordering.el ends here

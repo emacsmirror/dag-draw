@@ -3,7 +3,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
-(require 'dag-draw-order)
+(require 'dag-draw-pass2-ordering)
 (require 'cl-lib)
 
 (describe "Size-Aware Vertex Ordering - TDD"

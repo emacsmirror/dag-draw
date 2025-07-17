@@ -4,7 +4,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
-(require 'dag-draw-splines)
+(require 'dag-draw-pass4-splines)
 (require 'dag-draw-ports)
 
 (describe "Port Coordinate System Bug"

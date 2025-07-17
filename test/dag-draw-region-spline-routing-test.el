@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-splines)
+(require 'dag-draw-pass4-splines)
 
 (describe "Region-based spline routing with obstacle avoidance"
   (describe "obstacle detection for spline paths"

@@ -11,7 +11,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
-(require 'dag-draw-splines)
+(require 'dag-draw-pass4-splines)
 
 (describe "dag-draw spline integration for ASCII"
   (describe "spline data utilization"

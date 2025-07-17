@@ -1308,6 +1308,6 @@ Returns hash table with information about cleanup performed."
         (setq exists t)))
     exists))
 
-(provide 'dag-draw-rank)
+(provide 'dag-draw-pass1-ranking)
 
-;;; dag-draw-rank.el ends here
+;;; dag-draw-pass1-ranking.el ends here

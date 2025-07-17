@@ -12,7 +12,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
-(require 'dag-draw-rank)
+(require 'dag-draw-pass1-ranking)
 
 (describe "Network Simplex Iteration Process"
   (describe "entering and leaving edge selection"

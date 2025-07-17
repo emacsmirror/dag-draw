@@ -485,6 +485,6 @@ Returns hash table with success information."
     
     result))
 
-(provide 'dag-draw-position)
+(provide 'dag-draw-pass3-positioning)
 
-;;; dag-draw-position.el ends here
+;;; dag-draw-pass3-positioning.el ends here

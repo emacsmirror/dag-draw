@@ -10,7 +10,7 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-position)
+(require 'dag-draw-pass3-positioning)
 
 (describe "GKNV coordinate positioning with separation constraints"
   (describe "node separation constraint handling"
