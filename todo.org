@@ -33,8 +33,8 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
    - [X] Fix "should produce hollow routing" assertion syntax
    - [X] Add `(require 'cl-lib)` to source files using `incf` function
 
-** TODO Test Suite Consolidation [0/4]
-   - [ ] Merge 60+ overlapping test files into focused suites
+** TODO Test Suite Consolidation [1/4]
+   - [X] Created first consolidated test file: core-functionality-test.el (21 specs, 0 failures)
    - [ ] Eliminate duplicate test coverage (coordinate debug tests)
    - [ ] Consolidate crossing reduction tests into single comprehensive suite
    - [ ] Create clear test categories: algorithm, rendering, integration
@@ -122,6 +122,10 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
   - Fixed all `>=` and `<=` comparisons to use proper Buttercup matchers
   - Added missing `(require 'cl-lib)` to dag-draw-position.el and dag-draw-rank.el
   - Test syntax errors resolved, same functionality preserved
+- STARTED Phase 1.2: Test suite consolidation
+  - Created core-functionality-test.el with 21 specs from dag-draw-test.el
+  - Consolidated graph creation, node/edge management, and error handling tests
+  - All tests passing (0 failures)
 
 * Test Failure Analysis
 ** Current Failing Tests (32 total)
