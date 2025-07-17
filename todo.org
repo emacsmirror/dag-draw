@@ -40,10 +40,27 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
    - [ ] Create clear test categories: algorithm, rendering, integration
 
 ** TODO Debug Output Strategic Cleanup [0/4]
-   - [ ] Remove 447 debug statements strategically
+   - [ ] Remove 499 debug statements strategically (found via grep analysis)
    - [ ] Keep essential debugging for complex algorithms (GKNV passes)
-   - [ ] Remove redundant coordinate tracing messages
+   - [ ] Remove redundant coordinate tracing messages (dag-draw-ascii-edges.el has 42 statements)
    - [ ] Preserve boundary violation and collision detection debug info
+   
+   *** Debug Statement Distribution Analysis
+   - dag-draw-ascii-edges.el: 42 statements (highest concentration)
+   - dag-draw-core.el: 11 statements  
+   - dag-draw-render.el: 8 statements
+   - dag-draw-splines.el: 8 statements
+   - dag-draw-quality.el: 7 statements
+   - dag-draw-render-gknv-compliant.el: 6 statements
+   - dag-draw-rank.el: 6 statements
+   - dag-draw.el: 5 statements
+   - dag-draw-ascii-grid.el: 4 statements
+   - Plus 46 test files with debug output
+   
+   *** Target Messages for Removal
+   - Verbose coordinate tracing: "BOUNDARY-FOUND-HORIZ", "BOUNDARY-ADJACENT-HORIZ" 
+   - Redundant positioning messages: coordinate calculations that clutter output
+   - Keep: boundary violations, collision detection, actual error conditions
 
 * Phase 2: Domain-Driven Architecture (GKNV-Aligned) [0/3]
 ** TODO GKNV Pass Module Organization [0/4]
