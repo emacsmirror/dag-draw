@@ -124,7 +124,7 @@
             (setf (dag-draw-node-x-coord node-b) 200)
             (setf (dag-draw-node-y-coord node-b) 50)
             (setf (dag-draw-node-x-coord node-c) 200)
-            (setf (dag-draw-node-y-coord node-c) 150)))
+            (setf (dag-draw-node-y-coord node-c) 150))
           
           ;; Test port calculation for diverging edges
           (let* ((node-a (dag-draw-get-node graph 'A))
@@ -143,7 +143,7 @@
             (let ((from-port-b (car ports-a-b))
                   (from-port-c (car ports-a-c)))
               (expect (dag-draw-point-x from-port-b) :not :to-equal (dag-draw-node-x-coord node-a))
-              (expect (dag-draw-point-x from-port-c) :not :to-equal (dag-draw-node-x-coord node-a)))))
+              (expect (dag-draw-point-x from-port-c) :not :to-equal (dag-draw-node-x-coord node-a))))))
 
   )  ; End describe "6-Node Multi-Connection Test Case"
 )  ; End describe "Complex Graph Edge Routing"
