@@ -47,7 +47,7 @@ Returns a new graph with virtual nodes inserted."
           ;; Edge spans multiple ranks - add virtual nodes
           (let ((prev-node-id (dag-draw-edge-from-node edge)))
             (dotimes (i (1- rank-span))
-              (let* ((virtual-id (intern (format "virtual_%d" (incf virtual-counter))))
+              (let* ((virtual-id (intern (format "virtual_%d" (cl-incf virtual-counter))))
                      (virtual-rank (+ from-rank i 1))
                      (virtual-node (dag-draw-node-create
                                    :id virtual-id

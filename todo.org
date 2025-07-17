@@ -130,6 +130,27 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
    - [X] Simplify spline generation to standard GKNV L-shaped routing
    Complete cleanup - codebase now pure GKNV algorithm
    
+   *** PRIORITY: Fix Phase 1 Known Issues [0/3]
+   CRITICAL: These issues significantly impact layout quality and algorithm optimality
+   
+   - [ ] Fix network simplex fallback - CRITICAL ISSUE
+     Currently always uses suboptimal topological ordering instead of true network simplex
+     Impact: 25-40% longer edges, poor edge slopes, more crossing potential
+     Status: "Network simplex simplified: using topological ranks" - always falls back
+     Root cause: dag-draw--assign-ranks-network-simplex bypassed due to "syntax issue"
+     
+   - [ ] Fix rank balancing disabled - MODERATE ISSUE  
+     Currently skipped due to constraint violations in dag-draw--try-balance-node
+     Impact: Unbalanced layouts, crowded ranks, poor aspect ratios, performance issues
+     Status: Line 639-640 "TEMPORARY: Skip balancing - it's moving nodes incorrectly"
+     Root cause: Balance function violates λ(w) ≥ λ(v) + 1 constraint
+     
+   - [ ] Fix auxiliary graph cleanup - MINOR ISSUE
+     Incomplete cleanup of auxiliary nodes/edges created during network simplex
+     Impact: Memory leaks, ghost nodes interfering with passes, debugging difficulty  
+     Status: dag-draw--cleanup-auxiliary-elements called with nil parameter
+     Root cause: Cleanup function not properly removing all auxiliary elements
+
    *** Dynamic Spacing Functions [0/5]
    - [ ] Implement `dag-draw--calculate-dynamic-rank-separation`
    - [ ] Implement related spacing calculation functions (TBD)

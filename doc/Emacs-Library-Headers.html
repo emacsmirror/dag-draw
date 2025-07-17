@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<title>Library Headers (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Library Headers (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Library Headers (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link rev="made" href="mailto:bug-gnu-emacs@gnu.org">
+<link rel="icon" type="image/png" href="/graphics/gnu-head-mini.png">
+<meta name="ICBM" content="42.256233,-71.006581">
+<meta name="DC.title" content="gnu.org">
+<style type="text/css">
+@import url('/software/emacs/manual.css');
+</style>
+</head>
+
+<body lang="en">
+<div class="section" id="Library-Headers">
+<div class="header" style="background-color:#DDDDFF">
+<p>
+Previous: <a href="Comment-Tips.html" accesskey="p" rel="prev">Tips on Writing Comments</a>, Up: <a href="Tips.html" accesskey="u" rel="up">Tips and Conventions</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+<span id="Conventional-Headers-for-Emacs-Libraries"></span><h3 class="section">D.8 Conventional Headers for Emacs Libraries</h3>
+<span id="index-header-comments"></span>
+<span id="index-library-header-comments"></span>
+<span id="index-conventions-for-library-header-comments"></span>
+
+<p>Emacs has conventions for using special comments in Lisp libraries
+to divide them into sections and give information such as who wrote
+them.  Using a standard format for these items makes it easier for
+tools (and people) to extract the relevant information.  This section
+explains these conventions, starting with an example:
+</p>
+<div class="example">
+<pre class="example">;;; foo.el --- Support for the Foo programming language  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2010-2025 Your Name
+</pre><pre class="example">
+
+;; Author: Your Name &lt;yourname@example.com&gt;
+;; Maintainer: Someone Else &lt;someone@example.com&gt;
+;; Created: 14 Jul 2010
+</pre><pre class="example">;; Keywords: languages
+;; URL: https://example.com/foo
+
+;; This file is not part of GNU Emacs.
+
+;; This file is free software&hellip;
+&hellip;
+;; along with this file.  If not, see &lt;https://www.gnu.org/licenses/&gt;.
+</pre></div>
+
+<p>The very first line should have this format:
+</p>
+<div class="example">
+<pre class="example">;;; <var>filename</var> --- <var>description</var>  -*- lexical-binding: t; -*-
+</pre></div>
+
+<p>The description should be contained in one line.  If the file needs to
+set more variables in the &lsquo;<samp>-*-</samp>&rsquo; specification, add it after
+<code>lexical-binding</code>.  If this would make the first line too long, use
+a Local Variables section at the end of the file.
+</p>
+<p>The copyright notice usually lists your name (if you wrote the file).
+If you have an employer who claims copyright on your work, you might
+need to list them instead.  Do not say that the copyright holder is the
+Free Software Foundation (or that the file is part of GNU Emacs) unless
+your file has been accepted into the Emacs distribution or GNU ELPA.
+For more information on the form of copyright and license notices, see
+<a href="https://www.gnu.org/licenses/gpl-howto.html">the guide on the GNU
+website</a>.
+</p>
+<p>After the copyright notice come several <em>header comment</em> lines,
+each beginning with &lsquo;<samp>;; <var>header-name</var>:</samp>&rsquo;.  Here is a table of
+the conventional possibilities for <var>header-name</var>:
+</p>
+<dl compact="compact">
+<dt><span>&lsquo;<samp>Author</samp>&rsquo;</span></dt>
+<dd><p>This header states the name and email address of at least the principal
+author of the library.  If there are multiple authors, list them on
+continuation lines led by <code>;;</code> and a tab or at least two spaces.
+We recommend including a contact email address, of the form
+&lsquo;<samp>&lt;&hellip;&gt;</samp>&rsquo;.  For example:
+</p>
+<div class="example">
+<pre class="example">;; Author: Your Name &lt;yourname@example.com&gt;
+;;      Someone Else &lt;someone@example.com&gt;
+;;      Another Person &lt;another@example.com&gt;
+</pre></div>
+
+</dd>
+<dt><span>&lsquo;<samp>Maintainer</samp>&rsquo;</span></dt>
+<dd><p>This header has the same format as the Author header.  It lists the
+person(s) who currently maintain(s) the file (respond to bug reports,
+etc.).
+</p>
+<p>If there is no Maintainer header, the person(s) in the Author header
+is/are presumed to be the maintainer(s).  Some files in Emacs use
+&lsquo;<samp>emacs-devel@gnu.org</samp>&rsquo; for the maintainer, which means the author is
+no longer responsible for the file, and that it is maintained as part
+of Emacs.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>Created</samp>&rsquo;</span></dt>
+<dd><p>This optional line gives the original creation date of the file, and
+is for historical interest only.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>Version</samp>&rsquo;</span></dt>
+<dd><p>If you wish to record version numbers for the individual Lisp program,
+put them in this line.  Lisp files distributed with Emacs generally do
+not have a &lsquo;<samp>Version</samp>&rsquo; header, since the version number of Emacs
+itself serves the same purpose.  If you are distributing a collection
+of multiple files, we recommend not writing the version in every file,
+but only the main one.
+</p>
+</dd>
+<dt id='index-checkdoc_002dpackage_002dkeywords_002dflag'><span>&lsquo;<samp>Keywords</samp>&rsquo;<a href='#index-checkdoc_002dpackage_002dkeywords_002dflag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><span id="index-checkdoc_002dpackage_002dkeywords"></span>
+<p>This line lists keywords for the <code>finder-by-keyword</code> help command.
+Please use that command to see a list of the meaningful keywords.  The
+command <kbd>M-x checkdoc-package-keywords <span class="key">RET</span></kbd> will find and display
+any keywords that are not in <code>finder-known-keywords</code>.  If you set
+the variable <code>checkdoc-package-keywords-flag</code> non-<code>nil</code>,
+checkdoc commands will include the keyword verification in its checks.
+</p>
+<p>This field is how people will find your package when they&rsquo;re looking
+for things by topic.  To separate the keywords, you can use spaces,
+commas, or both.
+</p>
+<p>The name of this field is unfortunate, since people often assume it is
+the place to write arbitrary keywords that describe their package,
+rather than just the relevant Finder keywords.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>URL</samp>&rsquo;</span></dt>
+<dt><span>&lsquo;<samp>Homepage</samp>&rsquo;</span></dt>
+<dd><p>These lines state the website of the library.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>Package-Version</samp>&rsquo;</span></dt>
+<dd><p>If &lsquo;<samp>Version</samp>&rsquo; is not suitable for use by the package manager, then
+a package can define &lsquo;<samp>Package-Version</samp>&rsquo;; it will be used instead.
+This is handy if &lsquo;<samp>Version</samp>&rsquo; is an RCS id or something else that
+cannot be parsed by <code>version-to-list</code>.  See <a href="Packaging-Basics.html">Packaging Basics</a>.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>Package-Requires</samp>&rsquo;</span></dt>
+<dd><p>If this exists, it names packages on which the current package depends
+for proper operation.  See <a href="Packaging-Basics.html">Packaging Basics</a>.  This is used by the
+package manager both at download time (to ensure that a complete set
+of packages is downloaded) and at activation time (to ensure that a
+package is only activated if all its dependencies have been).
+</p>
+<p>Its format is a list of lists on a single line.  The <code>car</code> of
+each sub-list is the name of a package, as a symbol.  The <code>cadr</code>
+of each sub-list is the minimum acceptable version number, as a string
+that can be parsed by <code>version-to-list</code>.  An entry that lacks a
+version (i.e., an entry which is just a symbol, or a sub-list of one
+element) is equivalent to entry with version &quot;0&quot;.  For instance:
+</p>
+<div class="example">
+<pre class="example">;; Package-Requires: ((gnus &quot;1.0&quot;) (bubbles &quot;2.7.2&quot;) cl-lib (seq))
+</pre></div>
+
+<p>Packages that don&rsquo;t need to support Emacs versions older than Emacs 27
+can have the &lsquo;<samp>Package-Requires</samp>&rsquo; header split across multiple
+lines, like this:
+</p>
+<div class="example">
+<pre class="example">;; Package-Requires: ((emacs &quot;27.1&quot;)
+;;                    (compat &quot;29.1.4.1&quot;))
+</pre></div>
+
+<p>Note that with this format, you still need to start the list on the
+same line as &lsquo;<samp>Package-Requires</samp>&rsquo;.
+</p>
+<p>The package code automatically defines a package named &lsquo;<samp>emacs</samp>&rsquo;
+with the version number of the currently running Emacs.  This can be
+used to require a minimal version of Emacs for a package.
+</p></dd>
+</dl>
+
+<p>Just about every Lisp library ought to have the &lsquo;<samp>Author</samp>&rsquo; and
+&lsquo;<samp>Keywords</samp>&rsquo; header comment lines.  Use the others if they are
+appropriate.  You can also put in header lines with other header
+names&mdash;they have no standard meanings, so they can&rsquo;t do any harm.
+</p>
+<p>We use additional stylized comments to subdivide the contents of the
+library file.  These should be separated from anything else by blank
+lines.  Here is a table of them:
+</p>
+<span id="index-commentary_002c-in-a-Lisp-library"></span>
+<dl compact="compact">
+<dt><span>&lsquo;<samp>;;; Commentary:</samp>&rsquo;</span></dt>
+<dd><p>This begins introductory comments that explain how the library works.
+It should come right after the copying permissions, terminated by a
+&lsquo;<samp>Change Log</samp>&rsquo;, &lsquo;<samp>History</samp>&rsquo; or &lsquo;<samp>Code</samp>&rsquo; comment line.  This
+text is used by the Finder package, so it should make sense in that
+context.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>;;; Change Log:</samp>&rsquo;</span></dt>
+<dd><p>This begins an optional log of changes to the file over time.  Don&rsquo;t
+put too much information in this section&mdash;it is better to keep the
+detailed logs in a version control system (as Emacs does) or in a
+separate <samp>ChangeLog</samp> file.  &lsquo;<samp>History</samp>&rsquo; is an alternative to
+&lsquo;<samp>Change Log</samp>&rsquo;.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>;;; Code:</samp>&rsquo;</span></dt>
+<dd><p>This begins the actual code of the program.
+</p>
+</dd>
+<dt><span>&lsquo;<samp>;;; <var>filename</var> ends here</samp>&rsquo;</span></dt>
+<dd><p>This is the <em>footer line</em>; it appears at the very end of the file.
+Its purpose is to enable people to detect truncated versions of the file
+from the lack of a footer line.
+</p></dd>
+</dl>
+</div>
+
+<div class="header" style="background-color:#DDDDFF">
+<p>
+Previous: <a href="Comment-Tips.html">Tips on Writing Comments</a>, Up: <a href="Tips.html">Tips and Conventions</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
