@@ -78,6 +78,35 @@
           (expect (ht-get result 'valid) :to-be nil)
           (expect (length (ht-get result 'gaps)) :to-be-greater-than 0)))))
 
+  (describe "character semantics validation"
+    (it "should validate correct arrow directions"
+      ;; RED phase: This test will fail because validation doesn't exist yet
+      (let ((ascii-grid '("┌─────┐"
+                          "│Node1│"
+                          "└──┬──┘"
+                          "   ▼   "  ; Correct downward arrow
+                          "┌─────┐"
+                          "│Node2│"
+                          "└─────┘"))
+            (arrows (list (list 'arrow1 3 3 'down))))  ; x y direction
+        (let ((result (dag-draw--check-character-semantics ascii-grid arrows)))
+          (expect (ht-get result 'valid) :to-be t)
+          (expect (ht-get result 'semantic-errors) :to-equal '()))))
+
+    (it "should detect incorrect arrow directions"
+      ;; RED phase: This test will fail because validation doesn't exist yet
+      (let ((ascii-grid '("┌─────┐"
+                          "│Node1│"
+                          "└──┬──┘"
+                          "   ▶   "  ; Wrong arrow - should be ▼ for downward
+                          "┌─────┐"
+                          "│Node2│"
+                          "└─────┘"))
+            (arrows (list (list 'arrow1 3 3 'down))))  ; Expected downward but has rightward
+        (let ((result (dag-draw--check-character-semantics ascii-grid arrows)))
+          (expect (ht-get result 'valid) :to-be nil)
+          (expect (length (ht-get result 'semantic-errors)) :to-be-greater-than 0)))))
+
 (provide 'dag-draw-quality-assurance-test)
 
 ;;; dag-draw-quality-assurance-test.el ends here
