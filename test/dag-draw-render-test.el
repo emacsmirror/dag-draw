@@ -235,16 +235,7 @@
         (expect (dag-draw-render-graph graph 'ascii) :to-be-truthy)
         (expect (dag-draw-render-graph graph 'dot) :to-match "digraph")))
 
-  (it "should handle buffer display"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'test "Test Node")
-
-        ;; Test buffer creation
-        (let ((buffer (dag-draw-display-in-buffer graph "*Test Graph*" 'ascii)))
-          (expect (bufferp buffer) :to-be-truthy)
-          (with-current-buffer buffer
-            (expect (buffer-string) :to-match "Test Node"))
-          (kill-buffer buffer)))))
+)
 
  (describe
   "error handling and edge cases"

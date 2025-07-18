@@ -767,6 +767,21 @@ RECT is (left top right bottom). Returns (x y) of intersection point or nil."
       ;; No intersection found
       nil)))
 
+;;; Spline Utility Functions
+
+(defun dag-draw--spline-length (splines)
+  "Calculate approximate length of spline curves."
+  (let ((total-length 0.0))
+    (dolist (spline splines)
+      (let ((points (dag-draw--sample-spline spline 10)))
+        (dotimes (i (1- (length points)))
+          (let* ((p1 (nth i points))
+                 (p2 (nth (1+ i) points))
+                 (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
+                 (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
+            (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy)))))))))
+    total-length))
+
 (provide 'dag-draw-pass4-splines)
 
 ;;; dag-draw-pass4-splines.el ends here

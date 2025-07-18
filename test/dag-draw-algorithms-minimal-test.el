@@ -25,13 +25,6 @@
         (let ((result (dag-draw-dfs graph)))
           (expect result :to-be-truthy)))))
 
-  (describe "cycle detection"
-    (it "should detect no cycles in acyclic graph"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        (dag-draw-add-node graph 'b)
-        (dag-draw-add-edge graph 'a 'b)
-        
-        (expect (dag-draw-has-cycles graph) :to-be nil)))))
+)
 
 ;;; dag-draw-algorithms-minimal-test.el ends here

@@ -59,6 +59,19 @@ Optimized for compact, readable layouts following GKNV algorithm principles."
   :type 'integer
   :group 'dag-draw)
 
+(defcustom dag-draw-ascii-coordinate-scale 0.15
+  "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
+
+ASCII CHARACTER CONSTRAINTS:
+- GKNV paper suggests '72 units per inch' for high-resolution graphics
+- ASCII terminals have ~5 characters per inch in typical monospace fonts
+- Scale factor needed: 72 ÷ 5 = ~14.4x compression from GKNV to ASCII
+- Our 0.15 scale provides balanced compression avoiding coordinate collapse
+
+VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
+  :type 'float
+  :group 'dag-draw)
+
 (defcustom dag-draw-default-output-format 'svg
   "Default output format for rendered graphs."
   :type '(choice (const :tag "SVG" svg)

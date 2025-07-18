@@ -25,6 +25,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-pass3-positioning)
+(require 'dag-draw-test-helpers)
 
 ;;; Layout Compaction Detection Tests
 

@@ -266,6 +266,52 @@ Returns hash table with 'valid and 'gaps keys."
     (ht-set! result 'gaps gaps)
     result))
 
+(defun dag-draw--check-character-semantics (ascii-grid arrows)
+  "Check that box-drawing characters have correct directional meaning.
+ASCII-GRID is a list of strings representing the rendered graph.
+ARROWS is a list of (arrow-id x y direction) lists where direction is 'up, 'down, 'left, or 'right.
+Returns hash table with 'valid and 'semantic-errors keys."
+  (let ((result (ht-create))
+        (semantic-errors '())
+        (direction-chars '((up    . (?▲ ?↑))
+                          (down  . (?▼ ?↓))
+                          (left  . (?◀ ?←))
+                          (right . (?▶ ?→)))))
+    
+    ;; Check each arrow for correct directional character
+    (dolist (arrow-spec arrows)
+      (let* ((arrow-id (nth 0 arrow-spec))
+             (x (nth 1 arrow-spec))
+             (y (nth 2 arrow-spec))
+             (expected-direction (nth 3 arrow-spec))
+             (row-string (when (< y (length ascii-grid))
+                          (nth y ascii-grid)))
+             (char-at-pos (when (and row-string (< x (length row-string)))
+                           (aref row-string x)))
+             (expected-chars (cdr (assq expected-direction direction-chars))))
+        
+        ;; Check if character matches expected direction
+        (when char-at-pos
+          (unless (memq char-at-pos expected-chars)
+            ;; Find what direction this character actually represents
+            (let ((actual-direction nil))
+              (dolist (dir-pair direction-chars)
+                (when (memq char-at-pos (cdr dir-pair))
+                  (setq actual-direction (car dir-pair))))
+              
+              (push (list :arrow arrow-id
+                         :row y
+                         :col x
+                         :expected-direction expected-direction
+                         :actual-direction actual-direction
+                         :expected-chars expected-chars
+                         :found-char char-at-pos)
+                    semantic-errors))))))
+    
+    (ht-set! result 'valid (null semantic-errors))
+    (ht-set! result 'semantic-errors semantic-errors)
+    result))
+
 ;;; Graph Structure Analysis
 
 (defun dag-draw--analyze-graph-complexity (graph)

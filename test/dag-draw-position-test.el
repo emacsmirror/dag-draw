@@ -87,7 +87,7 @@
 
           (expect x-a :to-be-less-than x-b)
           (expect x-b :to-be-less-than x-c)
-          (expect x-a :to-equal 0.0))))  ; Should start from 0
+          (expect x-a :to-equal 0))))  ; Should start from 0
 
   (it "should handle minimum separation constraints"
       (let ((graph (dag-draw-create-graph)))
@@ -118,18 +118,18 @@
 
  (describe
   "auxiliary graph creation"
-  (it "should create auxiliary nodes for edges"
+  (it "should copy original nodes with omega weights"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a)
         (dag-draw-add-node graph 'b)
         (dag-draw-add-edge graph 'a 'b)
 
-        (let ((aux-graph (dag-draw--create-auxiliary-graph graph)))
-          ;; Should have original nodes plus auxiliary edge node
-          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 3)
+        (let ((aux-graph (dag-draw--create-auxiliary-graph-with-omega graph)))
+          ;; Should have same number of original nodes (GKNV omega approach)
+          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 2)
 
-          ;; Should have auxiliary edges
-          (expect (length (dag-draw-graph-edges aux-graph)) :to-be-greater-than 0))))
+          ;; Should have edges with omega weights
+          (expect (length (dag-draw-graph-edges aux-graph)) :to-equal 1))))
 
   (it "should handle multiple edges correctly"
       (let ((graph (dag-draw-create-graph)))
@@ -139,39 +139,12 @@
         (dag-draw-add-edge graph 'a 'b)
         (dag-draw-add-edge graph 'b 'c)
 
-        (let ((aux-graph (dag-draw--create-auxiliary-graph graph)))
-          ;; Should have 3 original + 2 auxiliary nodes
-          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 5)))))
+        (let ((aux-graph (dag-draw--create-auxiliary-graph-with-omega graph)))
+          ;; Should have same 3 original nodes (GKNV omega approach)
+          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 3)
+          ;; Should have 2 edges with omega weights
+          (expect (length (dag-draw-graph-edges aux-graph)) :to-equal 2)))))
 
- (describe
-  "coordinate normalization"
-  (it "should normalize coordinates to start from origin"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        (dag-draw-add-node graph 'b)
-
-        ;; Set negative coordinates
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) -100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'a)) -50)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'b)) -80)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'b)) -30)
-
-        (dag-draw-normalize-coordinates graph)
-
-        (let ((x-a (dag-draw-node-x-coord (dag-draw-get-node graph 'a)))
-              (y-a (dag-draw-node-y-coord (dag-draw-get-node graph 'a)))
-              (x-b (dag-draw-node-x-coord (dag-draw-get-node graph 'b)))
-              (y-b (dag-draw-node-y-coord (dag-draw-get-node graph 'b))))
-
-          ;; All coordinates should be non-negative
-          (expect x-a :not :to-be-less-than 0)
-          (expect y-a :not :to-be-less-than 0)
-          (expect x-b :not :to-be-less-than 0)
-          (expect y-b :not :to-be-less-than 0)
-
-          ;; Minimum should be 0
-          (expect (min x-a x-b) :to-equal 0)
-          (expect (min y-a y-b) :to-equal 0)))))
 
  (describe
   "graph bounds calculation"

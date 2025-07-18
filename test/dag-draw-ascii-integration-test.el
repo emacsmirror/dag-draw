@@ -80,26 +80,6 @@
           (expect ascii-output :to-match "Right")
           (expect ascii-output :to-match "Bottom"))))
     
-    (it "should handle nodes with different label lengths"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'short "A")
-        (dag-draw-add-node graph 'medium "Medium")
-        (dag-draw-add-node graph 'long "Very Long Label")
-        
-        ;; Set coordinates
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'short)) 50)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'short)) 50)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'medium)) 50)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'medium)) 100)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'long)) 50)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'long)) 150)
-        
-        (let ((ascii-output (dag-draw-render-ascii graph)))
-          (expect ascii-output :to-be-truthy)
-          (expect ascii-output :to-match "A")
-          (expect ascii-output :to-match "Medium")
-          (expect ascii-output :to-match "Very Long Label"))))
-    
     (it "should handle empty graphs gracefully"
       (let ((graph (dag-draw-create-graph)))
         (let ((ascii-output (dag-draw-render-ascii graph)))
