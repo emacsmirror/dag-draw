@@ -47,7 +47,7 @@ Returns the number of edges that cross from nodes in RANK1 to nodes in RANK2."
   "Find maximum number of edges converging on any single destination node.
 Analyzes edges from FROM-RANK to TO-RANK and returns the highest convergence count."
   (let ((destination-counts (ht-create)))
-    
+
     ;; Count edges to each destination node
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
@@ -58,9 +58,9 @@ Analyzes edges from FROM-RANK to TO-RANK and returns the highest convergence cou
                    (= from-node-rank from-rank)
                    (= to-node-rank to-rank))
           (let ((dest-id (dag-draw-edge-to-node edge)))
-            (ht-set! destination-counts dest-id 
+            (ht-set! destination-counts dest-id
                      (1+ (or (ht-get destination-counts dest-id) 0)))))))
-    
+
     ;; Find maximum convergence
     (let ((max-convergence 0))
       (ht-each (lambda (dest-id count)
@@ -120,19 +120,19 @@ for better edge readability."
   (let* ((edges-between (dag-draw--count-edges-between-ranks graph from-rank to-rank))
          (max-convergence (dag-draw--max-edges-to-same-destination graph from-rank to-rank))
          (max-horizontal-distance (dag-draw--max-horizontal-edge-distance graph from-rank to-rank))
-         
+
          ;; Base spacing: standard GKNV minimum per paper specification
          (base-spacing 2)
-         
+
          ;; Additional spacing for convergence: +1 row for each additional converging edge
          (convergence-spacing (max 0 (1- max-convergence)))
-         
+
          ;; Additional spacing for edge density: +1 row for every 3 edges crossing between ranks
          (density-spacing (/ edges-between 3))
-         
+
          ;; Additional spacing for long horizontal routes: +1 row if routes are very long
          (distance-spacing (if (> max-horizontal-distance 300) 1 0)))
-    
+
     (+ base-spacing convergence-spacing density-spacing distance-spacing)))
 
 (defun dag-draw--calculate-max-required-rank-separation (graph)
@@ -147,10 +147,124 @@ This ensures sufficient space for the most complex rank transition."
         (dotimes (i (1- (length ranks)))
           (let* ((from-rank (nth i ranks))
                  (to-rank (nth (1+ i) ranks))
-                 (required-spacing (dag-draw--calculate-dynamic-rank-separation 
-                                   graph from-rank to-rank)))
+                 (required-spacing (dag-draw--calculate-dynamic-rank-separation
+                                    graph from-rank to-rank)))
             (setq max-spacing (max max-spacing required-spacing))))
         max-spacing))))
+
+;;; ASCII Quality Assurance Functions
+
+(defun dag-draw--validate-node-boundaries (ascii-grid nodes)
+  "Validate that edges terminate properly at node boundaries, not inside text areas.
+ASCII-GRID is a list of strings representing the rendered graph.
+NODES is a list of (node-id x y width height) lists.
+Returns hash table with 'valid and 'violations keys."
+  (let ((result (ht-create))
+        (violations '())
+        (arrow-chars '(?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
+
+    ;; Check each node's text area for arrow characters
+    (dolist (node-spec nodes)
+      (let* ((node-id (nth 0 node-spec))
+             (x (nth 1 node-spec))
+             (y (nth 2 node-spec))
+             (width (nth 3 node-spec))
+             (height (nth 4 node-spec)))
+
+        ;; Check interior of node (excluding boundary)
+        (when (> height 2)  ; Only check if node has interior
+          (dotimes (row-offset (- height 2))  ; Skip top and bottom boundary
+            (when (> width 2)  ; Only check if node has interior columns
+              (dotimes (col-offset (- width 2))  ; Skip left and right boundary
+                (let* ((grid-row (+ y row-offset 1))   ; +1 to skip top boundary
+                       (grid-col (+ x col-offset 1))   ; +1 to skip left boundary
+                       (row-string (when (< grid-row (length ascii-grid))
+                                     (nth grid-row ascii-grid)))
+                       (char-at-pos (when (and row-string (< grid-col (length row-string)))
+                                      (aref row-string grid-col))))
+
+                  ;; Check if arrow character found inside node
+                  (when (and char-at-pos (memq char-at-pos arrow-chars))
+                    (push (list :node node-id
+                                :row grid-row
+                                :col grid-col
+                                :char char-at-pos
+                                :violation "Arrow character inside node text area")
+                          violations))))))))
+
+    (ht-set! result 'valid (null violations))
+    (ht-set! result 'violations violations)
+    )
+    result))
+
+(defun dag-draw--verify-edge-continuity (ascii-grid edges)
+  "Verify that edges are rendered continuously without gaps.
+ASCII-GRID is a list of strings representing the rendered graph.
+EDGES is a list of (edge-id from-node to-node start-x start-y end-x end-y) lists.
+Returns hash table with 'valid and 'gaps keys."
+  (let ((result (ht-create))
+        (gaps '())
+        (edge-chars '(?│ ?─ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤ ?┼ ?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
+
+    ;; Check each edge path for continuity
+    (dolist (edge-spec edges)
+      (let* ((edge-id (nth 0 edge-spec))
+             (start-x (nth 3 edge-spec))
+             (start-y (nth 4 edge-spec))
+             (end-x (nth 5 edge-spec))
+             (end-y (nth 6 edge-spec)))
+
+        ;; For vertical edges, check each row between start and end
+        (when (= start-x end-x)
+          (let ((min-y (min start-y end-y))
+                (max-y (max start-y end-y)))
+            (dotimes (offset (1+ (- max-y min-y)))
+              (let* ((check-y (+ min-y offset))
+                     (check-x start-x)
+                     (row-string (when (< check-y (length ascii-grid))
+                                  (nth check-y ascii-grid)))
+                     (char-at-pos (when (and row-string (< check-x (length row-string)))
+                                   (aref row-string check-x))))
+
+                ;; Check if expected edge character is missing
+                (when (and row-string
+                          (or (null char-at-pos)
+                              (not (memq char-at-pos edge-chars))
+                              (eq char-at-pos ?\s)))
+                  (push (list :edge edge-id
+                             :row check-y
+                             :col check-x
+                             :expected "vertical edge character"
+                             :found (or char-at-pos "nil"))
+                        gaps))))))
+
+        ;; For horizontal edges, check each column between start and end
+        (when (= start-y end-y)
+          (let ((min-x (min start-x end-x))
+                (max-x (max start-x end-x)))
+            (dotimes (offset (1+ (- max-x min-x)))
+              (let* ((check-x (+ min-x offset))
+                     (check-y start-y)
+                     (row-string (when (< check-y (length ascii-grid))
+                                  (nth check-y ascii-grid)))
+                     (char-at-pos (when (and row-string (< check-x (length row-string)))
+                                   (aref row-string check-x))))
+
+                ;; Check if expected edge character is missing
+                (when (and row-string
+                          (or (null char-at-pos)
+                              (not (memq char-at-pos edge-chars))
+                              (eq char-at-pos ?\s)))
+                  (push (list :edge edge-id
+                             :row check-y
+                             :col check-x
+                             :expected "horizontal edge character"
+                             :found (or char-at-pos "nil"))
+                        gaps))))))))
+
+    (ht-set! result 'valid (null gaps))
+    (ht-set! result 'gaps gaps)
+    result))
 
 ;;; Graph Structure Analysis
 
@@ -162,7 +276,7 @@ Returns a plist with complexity metrics for debugging and optimization."
          (total-edges (dag-draw-edge-count graph))
          (max-convergence 0)
          (total-rank-transitions 0))
-    
+
     ;; Analyze convergence across all rank pairs
     (when (>= (length ranks) 2)
       (dotimes (i (1- (length ranks)))
@@ -172,15 +286,15 @@ Returns a plist with complexity metrics for debugging and optimization."
                (edge-count (dag-draw--count-edges-between-ranks graph from-rank to-rank)))
           (setq max-convergence (max max-convergence convergence))
           (setq total-rank-transitions (+ total-rank-transitions edge-count)))))
-    
+
     (list :total-nodes total-nodes
           :total-edges total-edges
           :rank-count (length ranks)
           :max-convergence max-convergence
           :total-rank-transitions total-rank-transitions
           :avg-edges-per-transition (if (> (length ranks) 1)
-                                       (/ (float total-rank-transitions) (1- (length ranks)))
-                                     0))))
+                                        (/ (float total-rank-transitions) (1- (length ranks)))
+                                      0))))
 
 (defun dag-draw--debug-spacing-calculation (graph)
   "Debug helper to show spacing calculation details.
@@ -188,11 +302,11 @@ Prints analysis of graph structure and spacing requirements."
   (let* ((complexity (dag-draw--analyze-graph-complexity graph))
          (max-spacing (dag-draw--calculate-max-required-rank-separation graph))
          (ranks (dag-draw--get-graph-ranks graph)))
-    
+
     (message "=== DYNAMIC SPACING ANALYSIS ===")
     (message "Graph complexity: %s" complexity)
     (message "Calculated max rank separation: %d ASCII rows" max-spacing)
-    
+
     (when (>= (length ranks) 2)
       (dotimes (i (1- (length ranks)))
         (let* ((from-rank (nth i ranks))
@@ -200,9 +314,9 @@ Prints analysis of graph structure and spacing requirements."
                (spacing (dag-draw--calculate-dynamic-rank-separation graph from-rank to-rank))
                (edges (dag-draw--count-edges-between-ranks graph from-rank to-rank))
                (convergence (dag-draw--max-edges-to-same-destination graph from-rank to-rank)))
-          (message "Rank %d→%d: %d rows (edges: %d, max convergence: %d)" 
+          (message "Rank %d→%d: %d rows (edges: %d, max convergence: %d)"
                    from-rank to-rank spacing edges convergence))))
-    
+
     (message "=== END SPACING ANALYSIS ===")
     max-spacing))
 
