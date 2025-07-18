@@ -300,6 +300,9 @@ for optimal X-coordinate assignment."
   ;; Use GKNV-compliant positioning with proper separation constraints
   (dag-draw--position-with-separation-constraints graph)
   
+  ;; Apply GKNV positioning enhancements
+  (dag-draw--apply-gknv-positioning-enhancements graph)
+  
   ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
   (dag-draw--ensure-all-nodes-have-coordinates graph)
   
@@ -485,6 +488,59 @@ Returns hash table with success information."
       (ht-set! result 'success t))
     
     result))
+
+;;; GKNV Positioning Enhancements Integration
+
+(defun dag-draw--apply-gknv-positioning-enhancements (graph)
+  "Apply GKNV positioning enhancements: minpath() and packcut().
+Based on GKNV Figure 4-1 algorithm steps 8-9 within the iterative optimization loop."
+  (let ((max-iterations 3)  ; GKNV recommends iterative improvement
+        (best-layout-width most-positive-fixnum)
+        (best-coordinates (ht-create)))
+    
+    ;; Store initial coordinates as baseline
+    (dag-draw--store-coordinates graph best-coordinates)
+    (setq best-layout-width (dag-draw--calculate-layout-width graph))
+    
+    ;; Iterative GKNV positioning enhancement
+    (dotimes (iteration max-iterations)
+      (message "GKNV positioning enhancement iteration %d" (1+ iteration))
+      
+      ;; Step 8: minpath() - straighten virtual node chains
+      (dag-draw--minpath-straighten-virtual-chains graph)
+      
+      ;; Step 9: packcut() - compact layout by removing excess spacing
+      (dag-draw--packcut-compact-layout graph)
+      
+      ;; Check if this iteration improved the layout
+      (let ((current-width (dag-draw--calculate-layout-width graph)))
+        (when (< current-width best-layout-width)
+          (message "GKNV enhancement: Improved layout width from %s to %s" 
+                   best-layout-width current-width)
+          (setq best-layout-width current-width)
+          (dag-draw--store-coordinates graph best-coordinates))))
+    
+    ;; Restore best coordinates found
+    (dag-draw--restore-coordinates graph best-coordinates)
+    (message "GKNV positioning enhancements completed. Final width: %s" best-layout-width)))
+
+(defun dag-draw--store-coordinates (graph coordinate-store)
+  "Store current node coordinates in COORDINATE-STORE hash table."
+  (ht-clear! coordinate-store)
+  (ht-each (lambda (node-id node)
+             (ht-set! coordinate-store node-id
+                      (cons (dag-draw-node-x-coord node)
+                            (dag-draw-node-y-coord node))))
+           (dag-draw-graph-nodes graph)))
+
+(defun dag-draw--restore-coordinates (graph coordinate-store)
+  "Restore node coordinates from COORDINATE-STORE hash table."
+  (ht-each (lambda (node-id coords)
+             (let ((node (dag-draw-get-node graph node-id)))
+               (when node
+                 (setf (dag-draw-node-x-coord node) (car coords))
+                 (setf (dag-draw-node-y-coord node) (cdr coords)))))
+           coordinate-store))
 
 ;;; GKNV minpath() Virtual Node Chain Straightening
 
