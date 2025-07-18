@@ -22,6 +22,7 @@
 (require 'cl-lib)
 (require 'dag-draw)
 (require 'dag-draw-core)
+(require 'dag-draw-quality)
 
 ;;; Y-coordinate assignment (straightforward)
 
@@ -593,6 +594,141 @@ Uses median of chain endpoints and neighbor positions for best alignment."
                 (nth mid-index sorted-coords)))))
       ;; Fallback if no coordinates found
       0)))
+
+;;; GKNV packcut() Layout Compaction
+
+(defun dag-draw--find-compaction-opportunities (graph)
+  "Find layout compaction opportunities in GRAPH.
+Returns list of compaction operations, each with :can-compact and :savings info.
+Based on GKNV packcut algorithm that searches for blocks that can be compacted."
+  (let ((opportunities '())
+        (ranks (dag-draw--get-graph-ranks graph)))
+    
+    ;; Analyze each rank for compaction opportunities
+    (dolist (rank ranks)
+      (let* ((nodes-in-rank (dag-draw--get-nodes-in-rank-sorted-by-x graph rank))
+             (rank-opportunities (dag-draw--find-rank-compaction-opportunities 
+                                 graph nodes-in-rank)))
+        (setq opportunities (append opportunities rank-opportunities))))
+    
+    opportunities))
+
+(defun dag-draw--get-nodes-in-rank-sorted-by-x (graph rank)
+  "Get nodes in RANK sorted by X coordinate (left to right).
+Returns list of node IDs sorted by their X coordinates."
+  (let ((nodes-in-rank '()))
+    ;; Collect nodes in this rank
+    (ht-each (lambda (node-id node)
+               (when (and (dag-draw-node-rank node)
+                         (= (dag-draw-node-rank node) rank))
+                 (push node-id nodes-in-rank)))
+             (dag-draw-graph-nodes graph))
+    
+    ;; Sort by X coordinate
+    (sort nodes-in-rank
+          (lambda (a b)
+            (let ((x-a (or (dag-draw-node-x-coord (dag-draw-get-node graph a)) 0))
+                  (x-b (or (dag-draw-node-x-coord (dag-draw-get-node graph b)) 0)))
+              (< x-a x-b))))))
+
+(defun dag-draw--find-rank-compaction-opportunities (graph nodes-in-rank)
+  "Find compaction opportunities within a single rank.
+Returns list of compaction operations for this rank."
+  (let ((opportunities '()))
+    (when (>= (length nodes-in-rank) 2)
+      ;; Check gaps between adjacent nodes
+      (dotimes (i (1- (length nodes-in-rank)))
+        (let* ((left-node-id (nth i nodes-in-rank))
+               (right-node-id (nth (1+ i) nodes-in-rank))
+               (left-node (dag-draw-get-node graph left-node-id))
+               (right-node (dag-draw-get-node graph right-node-id))
+               (left-x (dag-draw-node-x-coord left-node))
+               (right-x (dag-draw-node-x-coord right-node))
+               (current-gap (- right-x left-x))
+               (min-separation (dag-draw--calculate-separation graph left-node-id right-node-id))
+               (excess-space (- current-gap min-separation)))
+          
+          (when (> excess-space 5)  ; Minimum threshold for compaction
+            (push (list :left-node left-node-id
+                       :right-node right-node-id
+                       :can-compact t
+                       :savings excess-space
+                       :current-gap current-gap
+                       :min-separation min-separation)
+                  opportunities)))))
+    opportunities))
+
+(defun dag-draw--packcut-compact-layout (graph)
+  "Apply GKNV packcut() compaction algorithm to reduce layout width.
+Sweeps layout from left to right, searching for blocks that can be compacted.
+Based on GKNV specification: 'For each node, if all the nodes to the right of 
+it can be shifted to the left by some increment without violating any positioning 
+constraints, the shift is performed.'"
+  (let ((ranks (dag-draw--get-graph-ranks graph)))
+    ;; Process each rank independently
+    (dolist (rank ranks)
+      (dag-draw--packcut-compact-rank graph rank))))
+
+(defun dag-draw--packcut-compact-rank (graph rank)
+  "Apply packcut compaction to a single RANK in GRAPH.
+Implements left-to-right sweep compaction within the rank."
+  (let ((nodes-in-rank (dag-draw--get-nodes-in-rank-sorted-by-x graph rank)))
+    (when (>= (length nodes-in-rank) 2)
+      ;; Sweep from left to right, compacting gaps
+      (dotimes (i (1- (length nodes-in-rank)))
+        (let* ((left-node-id (nth i nodes-in-rank))
+               (right-node-id (nth (1+ i) nodes-in-rank))
+               (compaction-amount (dag-draw--calculate-compaction-amount 
+                                 graph left-node-id right-node-id)))
+          (when (> compaction-amount 0)
+            ;; Shift right node and all nodes to its right
+            (dag-draw--shift-nodes-right-of-position graph rank
+                                                   (dag-draw-node-x-coord 
+                                                   (dag-draw-get-node graph right-node-id))
+                                                   (- compaction-amount))))))))
+
+(defun dag-draw--calculate-compaction-amount (graph left-node-id right-node-id)
+  "Calculate how much RIGHT-NODE can be shifted left toward LEFT-NODE.
+Returns the amount of compaction possible while respecting GKNV constraints."
+  (let* ((left-node (dag-draw-get-node graph left-node-id))
+         (right-node (dag-draw-get-node graph right-node-id))
+         (left-x (dag-draw-node-x-coord left-node))
+         (right-x (dag-draw-node-x-coord right-node))
+         (current-gap (- right-x left-x))
+         (min-separation (dag-draw--calculate-separation graph left-node-id right-node-id))
+         (excess-space (- current-gap min-separation)))
+    
+    ;; Return compaction amount (positive means can compact)
+    (max 0 (- excess-space 2))))  ; Leave smaller buffer for more aggressive compaction
+
+(defun dag-draw--shift-nodes-right-of-position (graph rank x-threshold shift-amount)
+  "Shift all nodes in RANK that are right of X-THRESHOLD by SHIFT-AMOUNT.
+SHIFT-AMOUNT should be negative for leftward movement (compaction)."
+  (ht-each (lambda (node-id node)
+             (when (and (dag-draw-node-rank node)
+                       (= (dag-draw-node-rank node) rank)
+                       (>= (dag-draw-node-x-coord node) x-threshold))
+               ;; Shift this node
+               (setf (dag-draw-node-x-coord node)
+                     (+ (dag-draw-node-x-coord node) shift-amount))))
+           (dag-draw-graph-nodes graph)))
+
+(defun dag-draw--calculate-layout-width (graph)
+  "Calculate total width of the layout from leftmost to rightmost node."
+  (let ((min-x most-positive-fixnum)
+        (max-x most-negative-fixnum))
+    (ht-each (lambda (node-id node)
+               (let ((x (dag-draw-node-x-coord node)))
+                 (when x
+                   (setq min-x (min min-x x))
+                   (setq max-x (max max-x x)))))
+             (dag-draw-graph-nodes graph))
+    (if (and (< min-x most-positive-fixnum)
+             (> max-x most-negative-fixnum))
+        (- max-x min-x)
+      0)))
+
+;; Note: dag-draw--get-graph-ranks is defined in dag-draw-quality.el
 
 (provide 'dag-draw-pass3-positioning)
 
