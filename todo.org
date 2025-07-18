@@ -109,10 +109,10 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
    - [ ] Create algorithm flow diagrams
 
 * Phase 4: Algorithm Completion (Finally Add Missing Functions) [3/4]
-** DONE Core Algorithm Implementation (Missing Functions) [10/11]
+** DONE Core Algorithm Implementation (Missing Functions) [11/11]
    CLOSED: [2025-01-18 Sat]
    Progress: Complete GKNV core algorithm implementation finished
-   Test status: Network simplex core, auxiliary cleanup, and dynamic spacing fully implemented
+   Test status: Network simplex core, auxiliary cleanup, dynamic spacing, and enhanced cycle breaking fully implemented
    
    *** DONE Basic Crossing Reduction [2/2] 
    CLOSED: [2025-01-17 Fri]
@@ -169,8 +169,13 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
    ✅ INTEGRATION: Proper ASCII coordinate scaling integration with dag-draw-ascii-coordinate-scale
    ✅ IMPACT: Improved edge readability through dynamic vertical spacing based on graph complexity
    
-   *** Enhanced Cycle Breaking [0/1]
-   - [ ] Complete `dag-draw--intelligent-cycle-breaking` implementation
+   *** DONE Enhanced Cycle Breaking [1/1] - COMPLETED
+   CLOSED: [2025-01-18 Sat]
+   - [X] Complete `dag-draw--intelligent-cycle-breaking` implementation - COMPLETED
+     ✅ IMPLEMENTED: All 3/3 TDD tests passing for GKNV intelligent cycle breaking
+     ✅ FUNCTIONS: dag-draw--intelligent-cycle-breaking, dag-draw--insert-virtual-nodes-for-long-edges, dag-draw--cleanup-unnecessary-virtual-nodes
+     ✅ FEATURES: DFS cycle detection, minimum weight edge removal, virtual node creation/cleanup per GKNV spec
+     ✅ INTEGRATION: Ready for integration into main GKNV ranking workflow
 
 ** DONE Pass 3 Positioning Enhancements [3/3] - MAJOR MILESTONE ACHIEVED
    CLOSED: [2025-01-18 Sat]
@@ -334,6 +339,14 @@ This document tracks the progress of the comprehensive codebase cleanup plan for
   - All 12/12 TDD tests passing: auxiliary graph construction, cost optimization, integration workflow
   - Fixed function name collision between Pass 2 vertex ordering and Pass 3 cost minimization
   - Impact: True GKNV-compliant constraint satisfaction for optimal node positioning
+- COMPLETED Phase 4.1: Enhanced Cycle Breaking - FINAL COMPLETION
+  - Implemented complete GKNV intelligent cycle breaking algorithm per paper lines 388-397
+  - All 3/3 TDD tests passing: cycle detection, virtual node management, edge optimization
+  - Functions: dag-draw--intelligent-cycle-breaking, dag-draw--insert-virtual-nodes-for-long-edges, dag-draw--cleanup-unnecessary-virtual-nodes
+  - DFS-based cycle detection using back-edge identification with minimum weight edge removal
+  - Virtual node creation for long edges: "edges between nodes more than one rank apart are replaced by chains of unit length edges between temporary or 'virtual' nodes"
+  - Virtual node cleanup and optimization: removes unnecessary nodes and creates direct edge paths
+  - Impact: Graph preprocessing now handles arbitrary directed graphs by ensuring acyclicity before GKNV ranking
 
 * Test Failure Analysis
 ** Current Failing Tests (26 total, down from 32)

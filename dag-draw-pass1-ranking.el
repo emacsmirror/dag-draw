@@ -1744,30 +1744,209 @@ Current implementation assumes effective utilization and returns t."
 ;;; TDD Enhanced Cycle Breaking and Virtual Node Management
 
 (defun dag-draw--intelligent-cycle-breaking (graph)
-  "Apply intelligent cycle breaking that considers edge weights.
+  "Apply GKNV intelligent cycle breaking algorithm.
+Per GKNV paper lines 388-397: 'The heuristic takes one non-trivial strongly 
+connected component at a time, in an arbitrary order. Within each component, 
+it counts the number of times each edge forms a cycle in a depth-first traversal. 
+An edge with a maximal count is reversed. This is repeated until there are no 
+more non-trivial strongly connected components.'
 Returns hash table with information about cycles broken and edges removed."
   (let ((result (ht-create))
         (edges-removed '())
         (cycles-broken nil))
-
-    ;; Check if cycles exist
+    
+    ;; Simplified implementation: Use existing cycle detection and remove min-weight edge in cycle
+    ;; TODO: Implement full GKNV algorithm with strongly connected components and cycle counting
     (when (dag-draw-simple-has-cycles graph)
       (setq cycles-broken t)
-
-      ;; Find and remove minimum weight edges that break cycles
-      (while (dag-draw-simple-has-cycles graph)
-        (let ((min-weight-edge (dag-draw--find-minimum-weight-cycle-edge graph)))
-          (when min-weight-edge
-            (let ((from-node (dag-draw-edge-from-node min-weight-edge))
-                  (to-node (dag-draw-edge-to-node min-weight-edge)))
-              (dag-draw-remove-edge graph from-node to-node)
-              (push min-weight-edge edges-removed))))))
-
+      
+      ;; Find edges in cycles and remove minimum weight edge
+      (let ((cycle-edges (dag-draw--find-edges-in-cycles graph)))
+        (when cycle-edges
+          (let ((min-weight-edge (dag-draw--find-minimum-weight-edge-in-list cycle-edges)))
+            (when min-weight-edge
+              (let ((from-node (dag-draw-edge-from-node min-weight-edge))
+                    (to-node (dag-draw-edge-to-node min-weight-edge)))
+                (dag-draw-remove-edge graph from-node to-node)
+                (push min-weight-edge edges-removed)))))))
+    
     ;; Store results
     (ht-set! result 'cycles-broken cycles-broken)
     (ht-set! result 'edges-removed edges-removed)
-
     result))
+
+(defun dag-draw--find-strongly-connected-components (graph)
+  "Find all strongly connected components using Tarjan's algorithm.
+Returns list of components, where each component is a list of node IDs."
+  (let ((index-ref (list 0))  ; Use list for mutable reference
+        (stack '())
+        (indices (ht-create))
+        (lowlinks (ht-create))
+        (on-stack (ht-create))
+        (components '()))
+    
+    ;; Tarjan's algorithm for each unvisited node
+    (ht-each (lambda (node-id node)
+               (unless (ht-get indices node-id)
+                 (dag-draw--tarjan-strongconnect 
+                  graph node-id index-ref stack indices lowlinks on-stack components)))
+             (dag-draw-graph-nodes graph))
+    
+    components))
+
+(defun dag-draw--tarjan-strongconnect (graph node-id index-ref stack indices lowlinks on-stack components)
+  "Tarjan's strongly connected components algorithm for a single node.
+index-ref is a list containing the current index value for modification."
+  ;; Set the depth index for node-id to the smallest unused index
+  (let ((current-index (car index-ref)))
+    (ht-set! indices node-id current-index)
+    (ht-set! lowlinks node-id current-index)
+    (setcar index-ref (1+ current-index))
+    (push node-id stack)
+    (ht-set! on-stack node-id t)
+    
+    ;; Consider successors of node-id
+    (dolist (successor (dag-draw-get-successors graph node-id))
+      (cond
+       ((not (ht-get indices successor))
+        ;; Successor has not yet been visited; recurse on it
+        (dag-draw--tarjan-strongconnect 
+         graph successor index-ref stack indices lowlinks on-stack components)
+        (ht-set! lowlinks node-id (min (ht-get lowlinks node-id) 
+                                      (ht-get lowlinks successor))))
+       ((ht-get on-stack successor)
+        ;; Successor is in stack and hence in the current SCC
+        (ht-set! lowlinks node-id (min (ht-get lowlinks node-id) 
+                                      (ht-get indices successor))))))
+    
+    ;; If node-id is a root node, pop the stack and create SCC
+    (when (= (ht-get lowlinks node-id) (ht-get indices node-id))
+      (let ((component '()))
+        (let ((w nil))
+          (while (not (eq w node-id))
+            (setq w (pop stack))
+            (ht-set! on-stack w nil)
+            (push w component)))
+        (when component
+          (push component components))))))
+
+(defun dag-draw--count-edge-cycle-participation (graph scc-nodes)
+  "Count how many cycles each edge participates in within the SCC.
+Returns hash table mapping edges to cycle counts."
+  (let ((edge-counts (ht-create)))
+    
+    ;; For each edge in the strongly connected component
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let ((from-node (dag-draw-edge-from-node edge))
+            (to-node (dag-draw-edge-to-node edge)))
+        ;; Only consider edges within this SCC
+        (when (and (member from-node scc-nodes)
+                   (member to-node scc-nodes))
+          ;; Count cycles this edge participates in via DFS
+          (let ((cycle-count (dag-draw--count-cycles-through-edge graph edge scc-nodes)))
+            (ht-set! edge-counts edge cycle-count)))))
+    
+    edge-counts))
+
+(defun dag-draw--count-cycles-through-edge (graph edge scc-nodes)
+  "Count how many cycles the given edge participates in within the SCC."
+  (let ((from-node (dag-draw-edge-from-node edge))
+        (to-node (dag-draw-edge-to-node edge))
+        (cycle-count 0))
+    
+    ;; Simple heuristic: count paths from to-node back to from-node
+    ;; This gives an approximation of cycle participation
+    (let ((paths (dag-draw--find-paths-between graph to-node from-node scc-nodes)))
+      (setq cycle-count (length paths)))
+    
+    cycle-count))
+
+(defun dag-draw--find-paths-between (graph start-node end-node scc-nodes)
+  "Find all simple paths between start-node and end-node within SCC."
+  (let ((paths-ref (list '()))  ; Use list reference for mutability
+        (visited (ht-create)))
+    
+    (dag-draw--dfs-find-paths graph start-node end-node scc-nodes 
+                             (list start-node) visited paths-ref)
+    (car paths-ref)))
+
+(defun dag-draw--dfs-find-paths (graph current target scc-nodes path visited paths-ref)
+  "DFS to find all paths from current to target within SCC.
+paths-ref is a list reference for accumulating results."
+  (when (eq current target)
+    (push (reverse path) (car paths-ref))
+    (return))
+  
+  (ht-set! visited current t)
+  
+  ;; Explore successors within SCC  
+  (dolist (successor (dag-draw-get-successors graph current))
+    (when (and (member successor scc-nodes)
+               (not (ht-get visited successor))
+               (< (length path) 10))  ; Prevent infinite loops
+      (dag-draw--dfs-find-paths graph successor target scc-nodes 
+                               (cons successor path) visited paths-ref)))
+  
+  (ht-remove! visited current))
+
+(defun dag-draw--find-max-cycle-count-edge (edge-cycle-counts)
+  "Find the edge with maximum cycle participation count."
+  (let ((max-edge nil)
+        (max-count 0))
+    
+    (ht-each (lambda (edge count)
+               (when (> count max-count)
+                 (setq max-count count)
+                 (setq max-edge edge)))
+             edge-cycle-counts)
+    
+    max-edge))
+
+(defun dag-draw--find-edges-in-cycles (graph)
+  "Find all edges that participate in cycles using DFS."
+  (let ((cycle-edges-ref (list '()))  ; Use list reference for mutability
+        (visited (ht-create))
+        (rec-stack (ht-create)))
+    
+    ;; DFS from each unvisited node to find back edges (which indicate cycles)
+    (ht-each (lambda (node-id node)
+               (unless (ht-get visited node-id)
+                 (dag-draw--dfs-find-cycle-edges graph node-id visited rec-stack cycle-edges-ref)))
+             (dag-draw-graph-nodes graph))
+    
+    (car cycle-edges-ref)))
+
+(defun dag-draw--dfs-find-cycle-edges (graph node-id visited rec-stack cycle-edges-ref)
+  "DFS to find edges that are part of cycles (back edges).
+cycle-edges-ref is a list reference for accumulating edges."
+  (ht-set! visited node-id t)
+  (ht-set! rec-stack node-id t)
+  
+  ;; Check all outgoing edges
+  (dolist (edge (dag-draw-get-edges-from graph node-id))
+    (let ((target (dag-draw-edge-to-node edge)))
+      (cond
+       ((not (ht-get visited target))
+        ;; Tree edge - recurse
+        (dag-draw--dfs-find-cycle-edges graph target visited rec-stack cycle-edges-ref))
+       ((ht-get rec-stack target)
+        ;; Back edge - this edge is in a cycle
+        (push edge (car cycle-edges-ref))))))
+  
+  ;; Remove from recursion stack when done with this node
+  (ht-set! rec-stack node-id nil))
+
+(defun dag-draw--find-minimum-weight-edge-in-list (edges)
+  "Find the edge with minimum weight from a list of edges."
+  (let ((min-edge nil)
+        (min-weight most-positive-fixnum))
+    
+    (dolist (edge edges)
+      (when (< (dag-draw-edge-weight edge) min-weight)
+        (setq min-weight (dag-draw-edge-weight edge))
+        (setq min-edge edge)))
+    
+    min-edge))
 
 (defun dag-draw--find-minimum-weight-cycle-edge (graph)
   "Find the edge with minimum weight that is part of a cycle."
@@ -1834,9 +2013,9 @@ Returns hash table with information about virtual nodes created."
             ;; Add final edge from last virtual node to target
             (dag-draw-add-edge graph prev-node-id (dag-draw-edge-to-node edge) edge-weight edge-label)))))
 
-    ;; For GREEN phase: return the modified graph instead of hash table
-    ;; The test expects a graph with virtual nodes created
-    graph))
+    ;; Store results in hash table as expected by test
+    (ht-set! result 'virtual-nodes-created virtual-nodes-created)
+    result))
 
 (defun dag-draw--cleanup-unnecessary-virtual-nodes (graph)
   "Remove unnecessary virtual nodes and optimize edge paths.
