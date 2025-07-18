@@ -485,6 +485,115 @@ Returns hash table with success information."
     
     result))
 
+;;; GKNV minpath() Virtual Node Chain Straightening
+
+(defun dag-draw--find-virtual-node-chains (graph)
+  "Find chains of virtual nodes that can be straightened.
+Returns list of virtual node chains, where each chain is a list of node IDs
+that form a continuous path of virtual nodes between real nodes.
+Based on GKNV paper: minpath straightens chains of virtual nodes."
+  (let ((chains '())
+        (visited (ht-create)))
+    
+    ;; Find all virtual nodes
+    (ht-each (lambda (node-id node)
+               (when (and (dag-draw--is-virtual-node-p node-id)
+                         (not (ht-get visited node-id)))
+                 ;; Start a new chain from this virtual node
+                 (let ((chain (dag-draw--trace-virtual-chain graph node-id visited)))
+                   (when (> (length chain) 0)
+                     (push chain chains)))))
+             (dag-draw-graph-nodes graph))
+    
+    chains))
+
+(defun dag-draw--trace-virtual-chain (graph start-node visited)
+  "Trace a chain of virtual nodes starting from START-NODE.
+Marks visited nodes and returns the chain as a list of node IDs."
+  (let ((chain '())
+        (current-node start-node))
+    
+    ;; Walk forward through virtual nodes
+    (while (and current-node
+                (dag-draw--is-virtual-node-p current-node)
+                (not (ht-get visited current-node)))
+      ;; Mark as visited
+      (ht-set! visited current-node t)
+      ;; Add to chain
+      (push current-node chain)
+      
+      ;; Find next virtual node in chain
+      (setq current-node (dag-draw--find-next-virtual-in-chain graph current-node)))
+    
+    ;; Return chain in correct order (reverse since we pushed)
+    (reverse chain)))
+
+(defun dag-draw--find-next-virtual-in-chain (graph current-node)
+  "Find the next virtual node connected to CURRENT-NODE.
+Returns the next virtual node ID if found, nil otherwise."
+  (let ((next-virtual nil))
+    (dolist (edge (dag-draw-graph-edges graph))
+      (when (eq (dag-draw-edge-from-node edge) current-node)
+        (let ((target-node (dag-draw-edge-to-node edge)))
+          (when (dag-draw--is-virtual-node-p target-node)
+            (setq next-virtual target-node)))))
+    next-virtual))
+
+(defun dag-draw--minpath-straighten-virtual-chains (graph)
+  "Apply GKNV minpath() algorithm to straighten virtual node chains.
+Sets virtual nodes in each chain to have the same X coordinate for straight lines.
+Based on GKNV paper: 'minpath straightens chains of virtual nodes by sequentially 
+finding sub-chains that may be assigned the same X coordinate.'"
+  (let ((chains (dag-draw--find-virtual-node-chains graph)))
+    (dolist (chain chains)
+      (when (> (length chain) 1)
+        ;; Calculate optimal X coordinate for this chain
+        (let ((optimal-x (dag-draw--calculate-optimal-chain-x-coordinate graph chain)))
+          ;; Align all virtual nodes in chain to optimal X
+          (dolist (node-id chain)
+            (let ((node (dag-draw-get-node graph node-id)))
+              (when node
+                (setf (dag-draw-node-x-coord node) optimal-x)))))))))
+
+(defun dag-draw--calculate-optimal-chain-x-coordinate (graph chain)
+  "Calculate optimal X coordinate for virtual node CHAIN.
+Uses median of chain endpoints and neighbor positions for best alignment."
+  (let ((x-coordinates '()))
+    
+    ;; Collect X coordinates of chain endpoints (real nodes connected to chain)
+    (let ((first-virtual (car chain))
+          (last-virtual (car (last chain))))
+      
+      ;; Find real nodes connected to first virtual node (incoming)
+      (dolist (edge (dag-draw-graph-edges graph))
+        (when (eq (dag-draw-edge-to-node edge) first-virtual)
+          (let ((source-node (dag-draw-get-node graph (dag-draw-edge-from-node edge))))
+            (when (and source-node (not (dag-draw--is-virtual-node-p (dag-draw-edge-from-node edge))))
+              (push (or (dag-draw-node-x-coord source-node) 0) x-coordinates)))))
+      
+      ;; Find real nodes connected to last virtual node (outgoing)
+      (dolist (edge (dag-draw-graph-edges graph))
+        (when (eq (dag-draw-edge-from-node edge) last-virtual)
+          (let ((target-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+            (when (and target-node (not (dag-draw--is-virtual-node-p (dag-draw-edge-to-node edge))))
+              (push (or (dag-draw-node-x-coord target-node) 0) x-coordinates))))))
+    
+    ;; Calculate median/average of collected coordinates
+    (if x-coordinates
+        (let ((sorted-coords (sort x-coordinates #'<)))
+          (if (= (length sorted-coords) 1)
+              (car sorted-coords)
+            ;; Use median for better alignment
+            (let ((mid-index (/ (length sorted-coords) 2)))
+              (if (= (mod (length sorted-coords) 2) 0)
+                  ;; Even number - average of two middle values
+                  (/ (+ (nth (1- mid-index) sorted-coords)
+                        (nth mid-index sorted-coords)) 2.0)
+                ;; Odd number - middle value
+                (nth mid-index sorted-coords)))))
+      ;; Fallback if no coordinates found
+      0)))
+
 (provide 'dag-draw-pass3-positioning)
 
 ;;; dag-draw-pass3-positioning.el ends here
