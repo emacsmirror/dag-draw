@@ -19,6 +19,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-quality)
+(require 'dag-draw-ascii-grid)
 
 ;;; Basic Edge Analysis Tests
 
