@@ -189,8 +189,8 @@
           (dag-draw-generate-splines graph)
           
           ;; Draw nodes and edges
-          (dag-draw--ascii-draw-nodes graph grid min-x min-y scale)
-          (dag-draw--ascii-draw-edges graph grid min-x min-y scale)
+          (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
+          (dag-draw--draw-edges-gknv-compliant graph grid min-x min-y scale)
 
           ;; Verify we have both horizontal and vertical edge segments
           (let ((has-horizontal nil)

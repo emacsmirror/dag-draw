@@ -12,6 +12,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'test-helpers)
 
 (describe "End-to-End DAG Pipeline Quality Tests"
 

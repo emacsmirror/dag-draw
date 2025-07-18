@@ -123,46 +123,10 @@ This ensures all ASCII grid coordinates are non-negative."
     (list (dag-draw--world-to-grid-coord (+ world-x offset-x) 0 scale)
           (dag-draw--world-to-grid-coord (+ world-y offset-y) 0 scale))))
 
-(defun dag-draw--ascii-get-node-position (node context scale)
-  "Get node position in ASCII coordinate system.
-Returns (x y) in ASCII grid coordinates."
-  (let ((world-x (or (dag-draw-node-x-coord node) 0))
-        (world-y (or (dag-draw-node-y-coord node) 0)))
-    (dag-draw--ascii-world-to-grid world-x world-y context scale)))
-
 (defun dag-draw--ascii-get-bounds (context)
   "Get ASCII bounds from context.
 Returns (min-x min-y max-x max-y) where min-x and min-y are always 0."
   (ht-get context 'ascii-bounds))
-
-(defun dag-draw--ascii-normalize-graph-coordinates (graph context)
-  "Temporarily normalize graph node coordinates to ASCII coordinate system.
-Returns original coordinates for restoration."
-  (let ((original-coords (ht-create))
-        (offset-x (ht-get context 'offset-x))
-        (offset-y (ht-get context 'offset-y)))
-    
-    ;; Save original coordinates and apply ASCII normalization
-    (ht-each (lambda (node-id node)
-               (let ((orig-x (dag-draw-node-x-coord node))
-                     (orig-y (dag-draw-node-y-coord node)))
-                 ;; Save original coordinates
-                 (ht-set! original-coords node-id (list orig-x orig-y))
-                 ;; Apply ASCII normalization
-                 (setf (dag-draw-node-x-coord node) (+ orig-x offset-x))
-                 (setf (dag-draw-node-y-coord node) (+ orig-y offset-y))))
-             (dag-draw-graph-nodes graph))
-    
-    original-coords))
-
-(defun dag-draw--ascii-restore-graph-coordinates (graph original-coords)
-  "Restore original graph coordinates from ASCII normalization."
-  (ht-each (lambda (node-id coords)
-             (let ((node (ht-get (dag-draw-graph-nodes graph) node-id)))
-               (when node
-                 (setf (dag-draw-node-x-coord node) (nth 0 coords))
-                 (setf (dag-draw-node-y-coord node) (nth 1 coords)))))
-           original-coords))
 
 ;;; ASCII Grid Creation
 
@@ -282,159 +246,10 @@ GRAPH and NODE-ID are optional for hierarchy-aware collision resolution."
 
           (list best-x best-y))))))
 
-;;; Occupancy Map Management
-
-(defun dag-draw--create-node-occupancy-map (graph grid min-x min-y scale)
-  "Create a 2D map marking which grid cells are occupied by nodes.
-HYBRID APPROACH: Analyzes actual grid content if nodes are drawn,
-otherwise calculates from coordinates for compatibility with tests."
-  (let* ((grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
-         (occupancy-map (make-vector grid-height nil)))
-
-    ;; Initialize the occupancy map
-    (dotimes (y grid-height)
-      (aset occupancy-map y (make-vector grid-width nil)))
-
-    ;; FIXED: Always use coordinate-based calculation since edges are drawn before nodes
-    ;; The grid content analysis fails because nodes aren't drawn yet when edges need the occupancy map
-    (let ((has-content nil))  ; Force coordinate-based mode
-
-      (if has-content
-          ;; PREFERRED: Grid has content - analyze actual drawn positions and mark complete box interiors
-          (progn
-            ;; FIXED: Only mark node text characters as occupied, NOT edge lines
-            ;; Edge lines (─│┼┌┐└┘) should allow arrow placement
-            (dotimes (y grid-height)
-              (dotimes (x grid-width)
-                (let ((char-at-pos (aref (aref grid y) x)))
-                  (when (and (not (eq char-at-pos ?\s))
-                             ;; Allow arrows on edge line characters
-                             (not (memq char-at-pos '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤))))
-                    (aset (aref occupancy-map y) x t)))))
-
-            ;; Then mark complete box interiors to prevent edge drawing inside boxes
-            (ht-each (lambda (node-id node)
-                       (let* ((manual-x (dag-draw-node-x-coord node))
-                              (manual-y (dag-draw-node-y-coord node))
-                              (has-manual-coords (and manual-x manual-y))
-                              (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-                              ;; Prioritize manual coordinates over adjusted coordinates
-                              (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
-                                          (progn
-                                            (message "DEBUG: Using adjusted coords for %s" node-id)
-                                            (ht-get adjusted-positions node-id))
-                                        (let* ((x (or manual-x 0))
-                                               (y (or manual-y 0))
-                                               (width (dag-draw-node-x-size node))
-                                               (height (dag-draw-node-y-size node))
-                                               (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                                               (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                                               (grid-width-node (dag-draw--world-to-grid-size width scale))
-                                               (grid-height-node (dag-draw--world-to-grid-size height scale))
-                                               (grid-x (round (- grid-center-x (/ grid-width-node 2))))
-                                               (grid-y (round (- grid-center-y (/ grid-height-node 2)))))
-                                          (list grid-x grid-y grid-width-node grid-height-node))))
-                              (grid-x (nth 0 coords))
-                              (grid-y (nth 1 coords))
-                              (grid-width-node (nth 2 coords))
-                              (grid-height-node (nth 3 coords)))
-
-                         ;; GKNV Section 5.2 FIX: Mark only INTERIOR text area as occupied
-                         ;; Boundaries should allow arrow placement per "clips spline to boundaries"
-                         (dotimes (dy grid-height-node)
-                           (dotimes (dx grid-width-node)
-                             (let ((box-x (+ grid-x dx))
-                                   (box-y (+ grid-y dy))
-                                   ;; GKNV Section 5.2 COMPLIANCE: Only mark interior as occupied
-                                   ;; Allow arrow placement on boundaries: top/bottom/left/right edges are NOT occupied
-                                   (is-interior (and (> dx 0) (< dx (1- grid-width-node))   ; Not left/right edge
-                                                     (> dy 0) (< dy (1- grid-height-node))))) ; Not top/bottom edge
-                               (when (and (>= box-x 0) (< box-x grid-width)
-                                          (>= box-y 0) (< box-y grid-height)
-                                          is-interior)  ; Only mark interior as occupied
-                                 (aset (aref occupancy-map box-y) box-x t)))))
-
-                         ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
-                         ;; by blocking proper edge placement. Node boundaries are handled by
-                         ;; ultra-safe-draw-char logic instead.
-                         ))
-                     (dag-draw-graph-nodes graph)))
-
-        ;; FALLBACK: Empty grid - calculate from coordinates (for tests)
-        ;; FIXED: Moved this logic to proper else branch
-        (ht-each (lambda (node-id node)
-                   (let* ((manual-x (dag-draw-node-x-coord node))
-                          (manual-y (dag-draw-node-y-coord node))
-                          (has-manual-coords (and manual-x manual-y))
-                          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-                          ;; Prioritize manual coordinates over adjusted coordinates
-                          (coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
-                                      (ht-get adjusted-positions node-id)
-                                    (let* ((x (or manual-x 0))
-                                           (y (or manual-y 0))
-                                           (width (dag-draw-node-x-size node))
-                                           (height (dag-draw-node-y-size node))
-                                           (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
-                                           (grid-center-y (dag-draw--world-to-grid-coord y min-y scale))
-                                           (grid-width-node (dag-draw--world-to-grid-size width scale))
-                                           (grid-height-node (dag-draw--world-to-grid-size height scale))
-                                           (grid-x (- grid-center-x (/ grid-width-node 2)))
-                                           (grid-y (- grid-center-y (/ grid-height-node 2))))
-                                      (list grid-x grid-y grid-width-node grid-height-node))))
-                          (grid-x (nth 0 coords))
-                          (grid-y (nth 1 coords))
-                          (grid-width-node (nth 2 coords))
-                          (grid-height-node (nth 3 coords)))
-
-                     ;; GKNV Section 5.2 FIX: Mark only INTERIOR text area as occupied 
-                     ;; DEBUG: Show what coordinates we're working with for troubleshooting
-                     (message "DEBUG OCCUPANCY: node %s, grid-x=%.1f grid-y=%.1f grid-w=%d grid-h=%d grid-bounds=%dx%d"
-                              node-id grid-x grid-y grid-width-node grid-height-node grid-width grid-height)
-                     (dotimes (dy grid-height-node)
-                       (dotimes (dx grid-width-node)
-                         (let ((map-x (round (+ grid-x dx)))
-                               (map-y (round (+ grid-y dy)))
-                               ;; GKNV Section 5.2 COMPLIANCE: Only mark interior as occupied
-                               ;; Allow arrow placement on boundaries: top/bottom/left/right edges are NOT occupied
-                               (is-interior (and (> dx 0) (< dx (1- grid-width-node))   ; Not left/right edge
-                                                 (> dy 0) (< dy (1- grid-height-node))))) ; Not top/bottom edge
-                           (when (and (>= map-x 0) (< map-x grid-width)
-                                      (>= map-y 0) (< map-y grid-height)
-                                      is-interior)  ; Only mark interior as occupied
-                             (aset (aref occupancy-map map-y) map-x t)))))
-
-                     ;; REMOVED BUFFER ZONE FIX: The buffer zone logic was CAUSING ││ artifacts
-                     ;; by blocking proper edge placement. Node boundaries are handled by
-                     ;; ultra-safe-draw-char logic instead.
-                     ))
-                 (dag-draw-graph-nodes graph)))
-
-      occupancy-map)))
-
 ;;; Global Occupancy Map
 
 (defvar dag-draw--global-occupancy-map nil
   "Global occupancy map for comprehensive collision detection.")
-
-(defun dag-draw--safety-check-aset (array index value)
-  "Safety wrapper for aset to prevent overwriting node content.
-ARRAY is a grid row, INDEX is the column position, VALUE is the character to place.
-This function checks the global occupancy map to prevent overwriting node content
-with edge characters."
-  (when dag-draw--global-occupancy-map
-    (let* ((grid-height (length dag-draw--global-occupancy-map))
-           (grid-width (if (> grid-height 0) (length (aref dag-draw--global-occupancy-map 0)) 0)))
-      ;; Find which row this array belongs to in the grid
-      (catch 'row-found
-        (dotimes (row grid-height)
-          (when (eq array (aref (car (cdr (cdr (current-buffer)))) row))
-            ;; This is hacky - we need a better way to map array to grid position
-            ;; For now, skip the safety check if we can't determine position
-            (throw 'row-found nil))))))
-
-  ;; Default: place the character
-  (aset array index value))
 
 ;;; Grid Coordinate Utilities
 

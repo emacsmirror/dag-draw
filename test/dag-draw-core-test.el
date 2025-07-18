@@ -14,21 +14,6 @@
 
 (describe "dag-draw-core utilities"
   
-  (describe "graph validation"
-    (it "should validate well-formed graphs"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        (dag-draw-add-node graph 'b)
-        (dag-draw-add-edge graph 'a 'b)
-        (expect (dag-draw-validate-graph graph) :to-be t)))
-    
-    (it "should reject graphs with invalid edge endpoints"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        ;; Manually add an invalid edge
-        (push (dag-draw-edge-create :from-node 'a :to-node 'nonexistent)
-              (dag-draw-graph-edges graph))
-        (expect (dag-draw-validate-graph graph) :to-throw 'error))))
 
   (describe "graph traversal"
     (let ((graph))
@@ -77,15 +62,6 @@
           (expect (length predecessors) :to-equal 2)))))
 
   (describe "graph properties"
-    (it "should identify empty graphs"
-      (let ((empty-graph (dag-draw-create-graph)))
-        (expect (dag-draw-is-empty empty-graph) :to-be t)))
-    
-    (it "should identify non-empty graphs"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        (expect (dag-draw-is-empty graph) :to-be nil)))
-    
     (it "should find source nodes"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'root)
@@ -95,18 +71,7 @@
         (let ((sources (dag-draw-get-source-nodes graph)))
           (expect sources :to-contain 'root)
           (expect sources :to-contain 'isolated)
-          (expect sources :not :to-contain 'child))))
-    
-    (it "should find sink nodes"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'parent)
-        (dag-draw-add-node graph 'leaf)
-        (dag-draw-add-node graph 'isolated)
-        (dag-draw-add-edge graph 'parent 'leaf)
-        (let ((sinks (dag-draw-get-sink-nodes graph)))
-          (expect sinks :to-contain 'leaf)
-          (expect sinks :to-contain 'isolated)
-          (expect sinks :not :to-contain 'parent)))))
+          (expect sources :not :to-contain 'child)))))
 
   (describe "graph modification"
     (let ((graph))
@@ -125,13 +90,7 @@
       
       (it "should remove specific edges"
         (dag-draw-remove-edge graph 'a 'b)
-        (expect (dag-draw-has-edge graph 'a 'b) :to-be nil)
-        (expect (dag-draw-has-edge graph 'b 'c) :to-be t)
-        (expect (dag-draw-edge-count graph) :to-equal 1))
-      
-      (it "should detect existing edges"
-        (expect (dag-draw-has-edge graph 'a 'b) :to-be t)
-        (expect (dag-draw-has-edge graph 'b 'a) :to-be nil))))
+        (expect (dag-draw-edge-count graph) :to-equal 1))))
 
   (describe "graph copying"
     (it "should create deep copies"
@@ -159,11 +118,6 @@
         (dag-draw-add-edge graph 'a 'b)
         (let ((summary (dag-draw-graph-summary graph)))
           (expect summary :to-match "2 nodes")
-          (expect summary :to-match "1 edges"))))
-    
-    (it "should print graph information without errors"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'test)
-        (expect (dag-draw-print-graph graph) :not :to-throw)))))
+          (expect summary :to-match "1 edges"))))))
 
 ;;; dag-draw-core-test.el ends here

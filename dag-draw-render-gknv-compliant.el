@@ -8,22 +8,6 @@
 (require 'dag-draw-ascii-nodes)
 (require 'dag-draw-ascii-edges)
 
-(defun dag-draw-render-ascii-gknv-compliant (graph)
-  "GKNV-compliant ASCII rendering: pure coordinate conversion without regeneration.
-This function respects the GKNV 4-pass algorithm and performs only coordinate conversion."
-  
-  ;; GKNV COMPLIANCE: Ensure 4-pass algorithm has completed
-  (unless (and (dag-draw-graph-edges graph)
-               (dag-draw-edge-spline-points (car (dag-draw-graph-edges graph))))
-    ;; Run GKNV algorithm ONCE if not already done
-    (dag-draw-layout-graph graph))
-
-  ;; Handle empty graphs
-  (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
-      "(Empty Graph)"
-    
-    ;; PURE COORDINATE CONVERSION: No coordinate system changes, no regeneration
-    (dag-draw--convert-gknv-to-ascii-grid graph)))
 
 (defun dag-draw--convert-gknv-to-ascii-grid (graph)
   "Pure conversion of GKNV final coordinates to ASCII grid.

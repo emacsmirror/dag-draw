@@ -212,11 +212,6 @@ Removes complex multi-edge distribution in favor of basic direction-based ports.
   (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale graph))
 
 
-(defun dag-draw--world-point-to-grid (world-point min-x min-y scale)
-  "Convert world coordinate point to ASCII grid coordinates with precise rounding."
-  (dag-draw-point-create
-   :x (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale)
-   :y (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale)))
 
 (defun dag-draw--get-edge-connection-points (graph edge &optional min-x min-y scale)
   "Get connection points for edge in ASCII rendering context.

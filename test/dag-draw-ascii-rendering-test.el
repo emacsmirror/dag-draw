@@ -149,7 +149,7 @@
       ))
   
   (it "should scale node sizes appropriately"
-    ;; Test node size scaling used in dag-draw--ascii-draw-nodes
+    ;; Test node size scaling used in dag-draw--draw-nodes-gknv-compliant
     (let* ((scale 2)  ; Uses unified dag-draw-ascii-coordinate-scale
            (node-width 50)
            (node-height 30)

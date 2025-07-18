@@ -147,14 +147,6 @@ This is the standard ASCII routing strategy."
   "Convert ASCII path to simple list of points for rendering."
   (dag-draw-ascii-path-points ascii-path))
 
-(defun dag-draw-ascii-convert-edge-to-spline-points (graph edge)
-  "Convert edge to spline points format for compatibility.
-Generates points in format expected by existing ASCII rendering code."
-  (let* ((ascii-path (dag-draw-ascii-generate-edge-path graph edge))
-         (points (dag-draw-ascii-path-to-points ascii-path)))
-    ;; Store points in edge for compatibility with existing code
-    (setf (dag-draw-edge-spline-points edge) points)
-    points))
 
 (provide 'dag-draw-ascii-splines)
 

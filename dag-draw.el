@@ -180,17 +180,6 @@ Returns the actual scale factor used for world-coordinates → ASCII-grid conver
   ;; dynamic scaling based on graph size and complexity
   dag-draw-ascii-coordinate-scale)
 
-(defun dag-draw--estimate-graph-width (graph)
-  "Estimate the world coordinate width the graph will occupy after layout.
-Used for ASCII resolution calculations before GKNV passes run."
-  (let ((node-count (ht-size (dag-draw-graph-nodes graph)))
-        (node-separation (dag-draw-graph-node-separation graph))
-        (avg-node-width 80))  ; Average node width in world coordinates
-    
-    ;; Rough estimate: nodes + separations
-    ;; This is conservative - actual GKNV positioning may be more compact
-    (+ (* node-count avg-node-width)
-       (* (max 0 (1- node-count)) node-separation))))
 
 (defun dag-draw--calculate-min-ascii-routing-space (&optional graph)
   "Calculate minimum ASCII characters needed for clean edge routing.
@@ -366,30 +355,6 @@ Returns a list of lines."
         (list (substring text 0 max-width)
               (substring text max-width))))))
 
-(defun dag-draw--calculate-wrapped-node-size (text-lines)
-  "Calculate appropriate node size for wrapped text lines.
-Returns (width . height) where width accommodates the longest line
-and height accommodates all lines with padding.
-GKNV-compatible: Uses fixed height to maintain algorithm assumptions."
-  (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
-         (num-lines (length text-lines))
-         ;; MATHEMATICAL UNIFICATION FIX: Use unified coordinate scale
-         (grid-scale 2)
-         (ascii-box-scale (if (boundp 'dag-draw-ascii-coordinate-scale)
-                              dag-draw-ascii-coordinate-scale
-                            0.15))  ; Use unified scale for mathematical consistency
-         (min-width 147)  ; FIXED: Ensure 20+ character interior space after grid conversion (147*0.15=22, 22-2=20 chars)
-         ;; Calculate width to fit the longest line
-         (required-grid-chars (+ max-line-length 4))  ; Text + borders + padding
-         (calculated-width (ceiling (/ required-grid-chars
-                                       (* grid-scale ascii-box-scale))))
-         (node-width (max min-width calculated-width))
-         ;; GKNV-compatible: Use fixed height to maintain algorithm assumptions
-         ;; The original GKNV algorithm expects consistent node dimensions
-         (base-height 14)  ; Minimal fixed height for optimal visual density
-         (node-height base-height))  ; Always use base height for layout consistency
-
-    (cons node-width node-height)))
 
 ;;; Graph utility functions
 

@@ -490,22 +490,7 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 
 ;;; Spline utility functions
 
-(defun dag-draw-get-edge-spline-points (edge)
-  "Get spline control points for an edge."
-  (dag-draw-edge-spline-points edge))
 
-(defun dag-draw--spline-length (splines)
-  "Calculate approximate length of spline curves."
-  (let ((total-length 0.0))
-    (dolist (spline splines)
-      (let ((points (dag-draw--sample-spline spline 10)))
-        (dotimes (i (1- (length points)))
-          (let* ((p1 (nth i points))
-                 (p2 (nth (1+ i) points))
-                 (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
-                 (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
-            (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy)))))))))
-    total-length))
 
 (defun dag-draw--spline-bounds (splines)
   "Calculate bounding box of spline curves."
@@ -528,42 +513,9 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 
 ;;; Edge label positioning
 
-(defun dag-draw--position-edge-label (edge splines)
-  "Position edge label at midpoint of spline."
-  (when (and splines (dag-draw-edge-label edge))
-    (let* ((first-spline (car splines))
-           (midpoint (dag-draw--bezier-point-at first-spline 0.5)))
-      ;; Store label position (could be extended with better placement logic)
-      (setf (dag-draw-edge-label-position edge) midpoint))))
 
 ;;; Arrow head generation
 
-(defun dag-draw--create-arrow-head (spline)
-  "Create arrow head at end of spline."
-  (let* ((end-point (dag-draw-bezier-curve-p3 spline))
-         (control-point (dag-draw-bezier-curve-p2 spline))
-         (dx (- (dag-draw-point-x end-point) (dag-draw-point-x control-point)))
-         (dy (- (dag-draw-point-y end-point) (dag-draw-point-y control-point)))
-         (length (sqrt (+ (* dx dx) (* dy dy))))
-         (arrow-size 8)
-         (angle 0.5))  ; radians
-
-    (when (> length 0)
-      (let* ((unit-x (/ dx length))
-             (unit-y (/ dy length))
-             (perp-x (- unit-y))
-             (perp-y unit-x)
-             (back-x (- (dag-draw-point-x end-point) (* arrow-size unit-x)))
-             (back-y (- (dag-draw-point-y end-point) (* arrow-size unit-y))))
-
-        (list
-         (dag-draw-point-create
-          :x (+ back-x (* arrow-size 0.3 perp-x))
-          :y (+ back-y (* arrow-size 0.3 perp-y)))
-         end-point
-         (dag-draw-point-create
-          :x (- back-x (* arrow-size 0.3 perp-x))
-          :y (- back-y (* arrow-size 0.3 perp-y))))))))
 
 ;;; GKNV Section 5.2: Three-Stage Spline Computation Implementation
 
@@ -710,37 +662,6 @@ Returns list of points defining the avoidance path."
        (dag-draw-point-create :x from-x :y from-y)
        (dag-draw-point-create :x to-x :y to-y)))))
 
-(defun dag-draw--create-region-aware-spline (graph from-node to-node)
-  "Create a region-aware spline that avoids obstacles.
-Returns a Bézier spline that smoothly connects nodes while avoiding obstacles."
-  (let* ((path-points (dag-draw--plan-obstacle-avoiding-path graph from-node to-node))
-         (start-point (car path-points))
-         (end-point (car (last path-points))))
-
-    ;; Create smooth Bézier curve from path points
-    (if (> (length path-points) 2)
-        ;; Multi-segment path - create smooth curve through waypoints
-        (let* ((control1 (nth 1 path-points))
-               (control2 (nth 2 path-points)))
-          (dag-draw-bezier-curve-create
-           :p0 start-point
-           :p1 control1
-           :p2 control2
-           :p3 end-point))
-      ;; Direct path - simple curve
-      (let* ((dx (- (dag-draw-point-x end-point) (dag-draw-point-x start-point)))
-             (dy (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))
-             (control1 (dag-draw-point-create
-                        :x (+ (dag-draw-point-x start-point) (* dx 0.3))
-                        :y (+ (dag-draw-point-y start-point) (* dy 0.3))))
-             (control2 (dag-draw-point-create
-                        :x (+ (dag-draw-point-x start-point) (* dx 0.7))
-                        :y (+ (dag-draw-point-y start-point) (* dy 0.7)))))
-        (dag-draw-bezier-curve-create
-         :p0 start-point
-         :p1 control1
-         :p2 control2
-         :p3 end-point)))))
 
 ;;; GKNV Section 5.2 Spline Clipping Implementation
 

@@ -21,25 +21,6 @@
 
 ;;; ASCII Node Drawing
 
-(defun dag-draw--ascii-draw-nodes (graph grid min-x min-y scale)
-  "Draw nodes on ASCII grid using pre-calculated positions.
-PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-positions"
-  ;; Use the pre-calculated positions from the graph
-  (let ((adjusted-positions (dag-draw-graph-adjusted-positions graph)))
-    (when adjusted-positions
-      ;; Draw each node at its final calculated position
-      (ht-each (lambda (node-id coords)
-                 (let* ((node (ht-get (dag-draw-graph-nodes graph) node-id))
-                        (label (dag-draw-node-label node))
-                        (adjusted-x (nth 0 coords))
-                        (adjusted-y (nth 1 coords))
-                        (final-width (nth 2 coords))
-                        (final-height (nth 3 coords)))
-
-                   ;; Draw the node at its pre-calculated position
-                   (dag-draw--ascii-draw-box grid adjusted-x adjusted-y final-width final-height label)))
-               adjusted-positions))))
-
 ;;; Safe Box Character Drawing
 
 (defun dag-draw--safe-draw-box-char (grid x y char)
@@ -181,57 +162,6 @@ PHASE 2 FIX: Now uses positions from dag-draw--pre-calculate-final-node-position
                                  (< char-x (+ x width -1)))  ; Stay within box interior
                         (aset (aref grid label-y) char-x (aref text-to-place i))))))))))))))
 
-(defun dag-draw--minimal-collision-adjustment (x y width height drawn-nodes)
-  "Minimal collision adjustment that preserves manual coordinates when possible.
-Only moves nodes if there's any collision that would corrupt rendering."
-  (let ((current-rect (list x y (+ x width -1) (+ y height -1)))
-        (has-collision nil)
-        (collision-rect nil))
-    
-    ;; Check for any collision 
-    (dolist (drawn-rect drawn-nodes)
-      (when (dag-draw--rectangles-overlap current-rect drawn-rect)
-        (setq has-collision t)
-        (setq collision-rect drawn-rect)))
-    
-    (if (not has-collision)
-        ;; No collision - keep original position
-        (list x y)
-      ;; Collision detected - move to avoid overlap while preserving manual positioning intent
-      (let* ((collision-x-start (nth 0 collision-rect))
-             (collision-x-end (nth 2 collision-rect))
-             (collision-y-start (nth 1 collision-rect))
-             (collision-y-end (nth 3 collision-rect))
-             ;; Determine best direction to move based on positions
-             (move-right (< x collision-x-start))  ; If we're left of collision, move right
-             (move-left (> x collision-x-end))     ; If we're right of collision, move left
-             (new-x (cond
-                     (move-right (+ collision-x-end 2))    ; Move right of collision
-                     (move-left (- collision-x-start width 2))  ; Move left of collision  
-                     (t (+ collision-x-end 2)))))         ; Default: move right
-        (list (max 0 new-x) y)))))
-
-(defun dag-draw--rectangles-severely-overlap (rect1 rect2)
-  "Check if rectangles have severe overlap (more than 50% area overlap)."
-  (let* ((x1-start (nth 0 rect1)) (y1-start (nth 1 rect1))
-         (x1-end (nth 2 rect1)) (y1-end (nth 3 rect1))
-         (x2-start (nth 0 rect2)) (y2-start (nth 1 rect2))
-         (x2-end (nth 2 rect2)) (y2-end (nth 3 rect2))
-         ;; Calculate overlap area
-         (overlap-x-start (max x1-start x2-start))
-         (overlap-y-start (max y1-start y2-start))
-         (overlap-x-end (min x1-end x2-end))
-         (overlap-y-end (min y1-end y2-end)))
-    
-    ;; Severe overlap if rectangles overlap by more than 50%
-    (and (< overlap-x-start overlap-x-end)
-         (< overlap-y-start overlap-y-end)
-         (let* ((overlap-area (* (- overlap-x-end overlap-x-start)
-                                (- overlap-y-end overlap-y-start)))
-                (rect1-area (* (- x1-end x1-start) (- y1-end y1-start)))
-                (overlap-ratio (/ (float overlap-area) rect1-area)))
-           (> overlap-ratio 0.5)))))
-
 (defun dag-draw--clean-adjacent-edge-fragments (grid x y)
   "Clean up any edge line fragments adjacent to box corners.
 Prevents trailing garbage like '┐─' by removing edge lines next to corners."
@@ -265,43 +195,6 @@ Prevents trailing garbage like '┐─' by removing edge lines next to corners."
             (let ((char-at-pos (aref (aref grid check-y) check-x)))
               (when (eq char-at-pos ?─)  ; Remove leading horizontal line
                 (aset (aref grid check-y) check-x ?\s))))))))))
-
-(defun dag-draw--draw-intelligent-box-horizontal-edge (grid start-x end-x y edge-type)
-  "Draw box horizontal edge with intelligent segmentation to prevent ──────── patterns.
-EDGE-TYPE is 'top or 'bottom to exclude corner positions appropriately."
-  (let* ((grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
-         (effective-start (if (eq edge-type 'top) (+ start-x 1) (+ start-x 1)))  ; Skip corner
-         (effective-end (if (eq edge-type 'bottom) (- end-x 1) (- end-x 1)))     ; Skip corner
-         (edge-length (- effective-end effective-start))
-         (max-segment 4))  ; Maximum consecutive dashes before break
-    
-    (when (> edge-length 0)
-      (if (<= edge-length 5)
-          ;; Short edge: draw normally
-          (dotimes (i edge-length)
-            (let ((pos-x (+ effective-start i)))
-              (when (and (>= pos-x 0) (< pos-x grid-width))
-                (dag-draw--safe-draw-box-char grid pos-x y ?─))))
-        
-        ;; Long edge: draw with intelligent breaks
-        (let ((segments-needed (ceiling (/ (float edge-length) max-segment)))
-              (current-x effective-start))
-          
-          (dotimes (segment segments-needed)
-            (let* ((remaining-length (- effective-end current-x))
-                   (segment-length (min max-segment remaining-length)))
-              
-              ;; Draw this segment
-              (dotimes (i segment-length)
-                (when (and (>= (+ current-x i) 0) (< (+ current-x i) grid-width))
-                  (dag-draw--safe-draw-box-char grid (+ current-x i) y ?─)))
-              
-              (setq current-x (+ current-x segment-length))
-              
-              ;; Add strategic break if not the last segment
-              (when (and (< segment (1- segments-needed)) (< current-x effective-end))
-                ;; Leave one space for visual break
-                (setq current-x (+ current-x 1))))))))))
 
 (provide 'dag-draw-ascii-nodes)
 

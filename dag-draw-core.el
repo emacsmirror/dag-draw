@@ -18,25 +18,6 @@
 (require 'ht)
 (require 'dag-draw)
 
-;;; Graph Validation
-
-(defun dag-draw-validate-graph (graph)
-  "Validate that GRAPH is well-formed.
-Returns t if valid, signals an error otherwise."
-  (unless (dag-draw-graph-p graph)
-    (error "Invalid graph object"))
-  
-  ;; Check that all edge endpoints exist as nodes
-  (dolist (edge (dag-draw-graph-edges graph))
-    (unless (ht-get (dag-draw-graph-nodes graph) (dag-draw-edge-from-node edge))
-      (error "Edge references non-existent from-node: %s" 
-             (dag-draw-edge-from-node edge)))
-    (unless (ht-get (dag-draw-graph-nodes graph) (dag-draw-edge-to-node edge))
-      (error "Edge references non-existent to-node: %s" 
-             (dag-draw-edge-to-node edge))))
-  
-  t)
-
 ;;; Graph Traversal and Analysis
 
 (defun dag-draw-get-node (graph node-id)
@@ -75,22 +56,11 @@ Returns t if valid, signals an error otherwise."
 
 ;;; Graph Properties
 
-(defun dag-draw-is-empty (graph)
-  "Return t if GRAPH has no nodes or edges."
-  (and (zerop (dag-draw-node-count graph))
-       (zerop (dag-draw-edge-count graph))))
-
 (defun dag-draw-get-source-nodes (graph)
   "Get list of source nodes (nodes with no incoming edges) in GRAPH."
   (let ((all-nodes (dag-draw-get-node-ids graph))
         (target-nodes (mapcar #'dag-draw-edge-to-node (dag-draw-graph-edges graph))))
     (--filter (not (member it target-nodes)) all-nodes)))
-
-(defun dag-draw-get-sink-nodes (graph)
-  "Get list of sink nodes (nodes with no outgoing edges) in GRAPH."
-  (let ((all-nodes (dag-draw-get-node-ids graph))
-        (source-nodes (mapcar #'dag-draw-edge-from-node (dag-draw-graph-edges graph))))
-    (--filter (not (member it source-nodes)) all-nodes)))
 
 ;;; Graph Modification
 
@@ -113,12 +83,6 @@ Returns t if valid, signals an error otherwise."
                        (eq (dag-draw-edge-to-node it) to-node))
                   (dag-draw-graph-edges graph)))
   graph)
-
-(defun dag-draw-has-edge (graph from-node to-node)
-  "Return t if there is an edge from FROM-NODE to TO-NODE in GRAPH."
-  (--any-p (and (eq (dag-draw-edge-from-node it) from-node)
-                (eq (dag-draw-edge-to-node it) to-node))
-           (dag-draw-graph-edges graph)))
 
 ;;; Graph Copying and Cloning
 
@@ -170,34 +134,6 @@ Returns t if valid, signals an error otherwise."
           (dag-draw-node-count graph)
           (dag-draw-edge-count graph)
           (or (dag-draw-graph-max-rank graph) "unset")))
-
-(defun dag-draw-print-graph (graph)
-  "Print a textual representation of GRAPH for debugging."
-  (message "=== Graph Summary ===")
-  (message (dag-draw-graph-summary graph))
-  (message "")
-  
-  (message "=== Nodes ===")
-  (ht-each (lambda (node-id node)
-             (message "Node %s: label='%s' rank=%s order=%s pos=(%s,%s)"
-                     node-id
-                     (dag-draw-node-label node)
-                     (dag-draw-node-rank node)
-                     (dag-draw-node-order node)
-                     (dag-draw-node-x-coord node)
-                     (dag-draw-node-y-coord node)))
-           (dag-draw-graph-nodes graph))
-  
-  (message "")
-  (message "=== Edges ===")
-  (dolist (edge (dag-draw-graph-edges graph))
-    (message "Edge %s -> %s: weight=%s label='%s'"
-             (dag-draw-edge-from-node edge)
-             (dag-draw-edge-to-node edge)
-             (dag-draw-edge-weight edge)
-             (or (dag-draw-edge-label edge) "")))
-  
-  (message "=== End Graph ==="))
 
 (provide 'dag-draw-core)
 
