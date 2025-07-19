@@ -615,7 +615,11 @@ Returns hash table with tree-edges, non-tree-edges, aux-source, and aux-sink."
     ;; Build spanning tree using a DFS approach
     (let ((tree-edges '())
           (non-tree-edges '())
-          (original-edges (dag-draw-graph-edges graph)))
+          (original-edges (dag-draw-graph-edges graph))
+          (parent-map (ht-create))
+          (children-map (ht-create))
+          (tree-edges-ref (list '()))
+          (roots '()))
 
       ;; Step 1: Build a spanning tree of the original graph
       ;; Use DFS to build spanning tree from original edges
@@ -632,9 +636,20 @@ Returns hash table with tree-edges, non-tree-edges, aux-source, and aux-sink."
             (when (null (dag-draw-get-successors graph node-id))
               (push node-id sink-nodes))))
 
-        ;; Build spanning tree using DFS from source nodes
+        ;; Build spanning tree using DFS from source nodes with complete GKNV structure
         (dolist (source source-nodes)
-          (setq tree-edges (dag-draw--dfs-spanning-tree graph source visited tree-edges)))
+          (push source roots)  ; Track each source as a tree root
+          (dag-draw--dfs-spanning-tree graph source visited tree-edges-ref parent-map children-map))
+        
+        ;; Convert tree-edge objects to actual graph edge objects for network simplex
+        (let ((tree-edge-objects (car tree-edges-ref)))
+          (dolist (tree-edge tree-edge-objects)
+            (let ((from-node (dag-draw-tree-edge-from-node tree-edge))
+                  (to-node (dag-draw-tree-edge-to-node tree-edge)))
+              ;; Find the corresponding edge in the graph
+              (let ((graph-edge (dag-draw-find-edge graph from-node to-node)))
+                (when graph-edge
+                  (push graph-edge tree-edges))))))
 
         ;; Separate tree and non-tree edges
         (dolist (edge original-edges)
@@ -657,34 +672,17 @@ Returns hash table with tree-edges, non-tree-edges, aux-source, and aux-sink."
                  (aux-edge (dag-draw-add-edge graph node-id aux-sink-id 1 nil aux-attrs)))
             (push aux-edge tree-edges))))
 
-      ;; Store results
+      ;; Store complete tree structure for network simplex
       (ht-set! tree-info 'tree-edges tree-edges)
       (ht-set! tree-info 'non-tree-edges non-tree-edges)
+      (ht-set! tree-info 'parent-map parent-map)
+      (ht-set! tree-info 'children-map children-map)
+      (ht-set! tree-info 'roots roots)
       (ht-set! tree-info 'aux-source aux-source-id)
       (ht-set! tree-info 'aux-sink aux-sink-id))
 
     tree-info))
 
-(defun dag-draw--dfs-spanning-tree (graph node visited tree-edges)
-  "Build spanning tree using DFS from NODE.
-Returns updated tree-edges list with new edges added."
-  (if (ht-get visited node)
-      tree-edges  ; Already visited, return unchanged
-    
-    ;; Mark as visited
-    (ht-set! visited node t)
-    
-    ;; Visit all successors and collect tree edges
-    (let ((updated-tree-edges tree-edges))
-      (dolist (successor (dag-draw-get-successors graph node))
-        (when (not (ht-get visited successor))
-          ;; Find the edge from node to successor and add to spanning tree
-          (let ((edge (dag-draw-find-edge graph node successor)))
-            (when edge
-              (push edge updated-tree-edges)
-              (setq updated-tree-edges 
-                    (dag-draw--dfs-spanning-tree graph successor visited updated-tree-edges))))))
-      updated-tree-edges)))
 
 (defun dag-draw-find-edge (graph from-node to-node)
   "Find edge from FROM-NODE to TO-NODE in GRAPH."
