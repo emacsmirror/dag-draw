@@ -11,11 +11,14 @@
 
 (require 'buttercup)
 (require 'dag-draw-pass1-ranking)
+(require 'dag-draw-pass2-ordering)
+(require 'dag-draw-pass3-positioning)
+(require 'cl-lib)
 
 (describe "Enhanced cycle breaking and virtual node management"
-  (describe "intelligent cycle detection with edge priorities"
-    (it "should detect cycles and prioritize edge removal based on edge weights"
-      ;; RED phase: This test will fail because priority-based breaking doesn't exist yet
+  (describe "GKNV cycle detection with DFS back-edge removal"
+    (it "should detect cycles and break them using GKNV-recommended DFS approach"
+      ;; Tests GKNV Section 2.1 - DFS-based cycle breaking algorithm
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "A")
         (dag-draw-add-node graph 'b "B")
@@ -25,12 +28,18 @@
         (dag-draw-add-edge graph 'b 'c 5)   ; High weight - preserve
         (dag-draw-add-edge graph 'c 'a 3)   ; Medium weight
         
-        ;; Apply intelligent cycle breaking
-        (let ((result (dag-draw--intelligent-cycle-breaking graph)))
-          (expect (ht-get result 'cycles-broken) :to-be t)
-          (expect (ht-get result 'edges-removed) :not :to-be nil)
-          ;; Should prefer to remove low-weight edges
-          (expect (dag-draw--graph-is-acyclic-p graph) :to-be t))))))
+        ;; Apply GKNV-recommended simple cycle breaking (DFS back-edge removal)
+        (let* ((original-edge-count (length (dag-draw-graph-edges graph)))
+               (has-cycles-before (dag-draw-simple-has-cycles graph))
+               (acyclic-graph (dag-draw-simple-break-cycles graph))
+               (final-edge-count (length (dag-draw-graph-edges acyclic-graph)))
+               (has-cycles-after (dag-draw-simple-has-cycles acyclic-graph)))
+          ;; Should detect cycles in original graph
+          (expect has-cycles-before :to-be t)
+          ;; Should break cycles (may remove edges)
+          (expect has-cycles-after :to-be nil)
+          ;; Should produce acyclic graph
+          (expect (dag-draw-simple-has-cycles acyclic-graph) :to-be nil))))))
   
   (describe "virtual node creation for long edges"
     (it "should create virtual nodes to break long edges spanning multiple ranks"
@@ -44,36 +53,47 @@
         (setf (dag-draw-node-rank (dag-draw-get-node graph 'start)) 0)
         (setf (dag-draw-node-rank (dag-draw-get-node graph 'end)) 3)  ; Spans ranks 1,2
         
-        ;; Apply virtual node insertion
-        (let ((result (dag-draw--insert-virtual-nodes-for-long-edges graph)))
-          (expect (ht-get result 'virtual-nodes-created) :not :to-be nil)
-          (expect (length (ht-get result 'virtual-nodes-created)) :to-be 2)  ; For ranks 1,2
+        ;; Apply virtual node insertion using functional interface
+        (let* ((virtual-graph (dag-draw--create-virtual-nodes graph))
+               ;; Extract virtual nodes (IDs starting with "virtual_")
+               (virtual-nodes (cl-remove-if-not 
+                              (lambda (node-id) 
+                                (string-match "^virtual_" (symbol-name node-id)))
+                              (ht-keys (dag-draw-graph-nodes virtual-graph)))))
+          (expect virtual-nodes :not :to-be nil)
+          (expect (length virtual-nodes) :to-be 2)  ; For ranks 1,2
           ;; Virtual nodes should have proper ranks
-          (let ((virtual-nodes (ht-get result 'virtual-nodes-created)))
-            (dolist (vnode virtual-nodes)
-              (let ((vnode-obj (dag-draw-get-node graph vnode)))
-                (expect (and (>= (dag-draw-node-rank vnode-obj) 1)
-                             (<= (dag-draw-node-rank vnode-obj) 2)) :to-be t))))))))
+          (dolist (vnode virtual-nodes)
+            (let ((vnode-obj (dag-draw-get-node virtual-graph vnode)))
+              (expect (and (>= (dag-draw-node-rank vnode-obj) 1)
+                           (<= (dag-draw-node-rank vnode-obj) 2)) :to-be t)))))))
   
-  (describe "virtual node cleanup and optimization"
-    (it "should remove unnecessary virtual nodes and optimize edge paths"
-      ;; RED phase: This test will fail because cleanup doesn't exist yet
+  (describe "GKNV minpath virtual node chain straightening"
+    (it "should align virtual nodes in chains for straight edge appearance"
+      ;; Tests GKNV minpath algorithm - virtual nodes should be aligned, not removed
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'real1 "Real1")
-        (dag-draw-add-node graph 'real2 "Real2")
-        (dag-draw-add-node graph 'virtual1 "Virtual1")  ; Should be optimized away
-        (dag-draw-add-edge graph 'real1 'virtual1)
-        (dag-draw-add-edge graph 'virtual1 'real2)
+        (dag-draw-add-node graph 'real2 "Real2") 
+        (dag-draw-add-node graph 'virtual_1 "")  ; Virtual node for long edge
+        (dag-draw-add-edge graph 'real1 'virtual_1)
+        (dag-draw-add-edge graph 'virtual_1 'real2)
         
-        ;; Mark virtual node
-        (setf (dag-draw-node-virtual-p (dag-draw-get-node graph 'virtual1)) t)
+        ;; Set up ranks for vertical chain
+        (setf (dag-draw-node-rank (dag-draw-get-node graph 'real1)) 0)
+        (setf (dag-draw-node-rank (dag-draw-get-node graph 'virtual_1)) 1)
+        (setf (dag-draw-node-rank (dag-draw-get-node graph 'real2)) 2)
         
-        ;; Apply cleanup
-        (let ((result (dag-draw--cleanup-unnecessary-virtual-nodes graph)))
-          (expect (ht-get result 'nodes-removed) :not :to-be nil)
-          (expect (ht-get result 'edges-optimized) :not :to-be nil)
-          ;; Direct edge should exist between real nodes
-          (expect (dag-draw--edge-exists-p graph 'real1 'real2) :to-be t)))))
+        ;; Set misaligned X coordinates
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'real1)) 100)
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'virtual_1)) 150)  ; misaligned
+        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'real2)) 100)
+        
+        ;; Apply GKNV minpath straightening
+        (dag-draw--minpath-straighten-virtual-chains graph)
+        
+        ;; Virtual node should be aligned between endpoints for straight edge
+        (let ((virtual1-x (dag-draw-node-x-coord (dag-draw-get-node graph 'virtual_1))))
+          (expect virtual1-x :to-be-close-to 100 10)))))
 
 (provide 'dag-draw-enhanced-cycle-breaking-test)
 

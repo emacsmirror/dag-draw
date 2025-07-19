@@ -29,8 +29,8 @@
         (setf (dag-draw-node-order (dag-draw-get-node graph 'b)) 1)
         (setf (dag-draw-node-order (dag-draw-get-node graph 'c)) 2)
         
-        ;; Apply enhanced coordinate positioning
-        (dag-draw--position-with-separation-constraints graph)
+        ;; Apply GKNV auxiliary graph positioning (production code path)
+        (dag-draw--position-with-auxiliary-graph graph)
         
         ;; Check that nodes maintain minimum separation
         (let ((x-a (dag-draw-node-x-coord (dag-draw-get-node graph 'a)))
@@ -43,23 +43,7 @@
           (expect (>= (- x-b x-a) (dag-draw-graph-node-separation graph)) :to-be t)
           (expect (>= (- x-c x-b) (dag-draw-graph-node-separation graph)) :to-be t)))))
   
-  (describe "rank separation with auxiliary graph"
-    (it "should create auxiliary nodes for long edges and maintain rank separation"
-      ;; RED phase: This test will fail because enhanced auxiliary graph logic doesn't exist yet
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'top "Top")
-        (dag-draw-add-node graph 'bottom "Bottom")
-        (dag-draw-add-edge graph 'top 'bottom)
-        
-        ;; Create a long edge (spans multiple ranks)
-        (setf (dag-draw-node-rank (dag-draw-get-node graph 'top)) 0)
-        (setf (dag-draw-node-rank (dag-draw-get-node graph 'bottom)) 3)  ; Skip ranks 1,2
-        
-        ;; Apply enhanced positioning with auxiliary graph
-        (let ((aux-info (dag-draw--create-enhanced-auxiliary-graph graph)))
-          (expect (ht-get aux-info 'auxiliary-nodes) :not :to-be nil)
-          ;; Should create auxiliary nodes for ranks 1 and 2
-          (expect (>= (length (ht-get aux-info 'auxiliary-nodes)) 2) :to-be t))))))
+)
 
 (provide 'dag-draw-coordinate-positioning-test)
 

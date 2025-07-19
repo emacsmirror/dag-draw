@@ -13,7 +13,10 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)
+(require 'dag-draw-pass2-ordering)
+(require 'cl-lib)
 (require 'dag-draw-pass1-ranking)
+(require 'test-helpers)
 
 (describe "Network Simplex Enhanced Edge Weight System"
   (describe "edge weight constraints and priorities"
@@ -99,8 +102,12 @@
           ;; First assign ranks
           (dag-draw-assign-ranks graph)
           
-          (let* ((virtual-graph (dag-draw--insert-virtual-nodes-for-long-edges graph))
-                 (virtual-nodes (dag-draw--get-virtual-nodes virtual-graph)))
+          (let* ((virtual-graph (dag-draw--create-virtual-nodes graph))
+                 ;; Extract virtual nodes (IDs starting with "virtual_")
+                 (virtual-nodes (cl-remove-if-not 
+                                (lambda (node-id) 
+                                  (string-match "^virtual_" (symbol-name node-id)))
+                                (ht-keys (dag-draw-graph-nodes virtual-graph)))))
             
             ;; Should create virtual nodes for long edges
             (expect (length virtual-nodes) :to-be-greater-than 0)

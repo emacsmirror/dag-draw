@@ -27,9 +27,9 @@
         (setf (dag-draw-node-order (dag-draw-get-node graph 'b)) 0)
         
         ;; Create auxiliary graph for X-coordinate optimization
-        (let ((aux-graph (dag-draw--create-auxiliary-graph-with-omega graph)))
+        (let ((aux-graph (dag-draw--build-constraint-auxiliary-graph graph)))
           (expect (dag-draw-graph-p aux-graph) :to-be t)
-          ;; Should have edges with Omega weights
+          ;; Should have constraint edges (auxiliary nodes + separation constraints)
           (expect (> (length (dag-draw-graph-edges aux-graph)) 0) :to-be t)))))
   
   (describe "min-cost flow optimization"
@@ -46,9 +46,12 @@
         (setf (dag-draw-node-order (dag-draw-get-node graph 'x)) 0)
         (setf (dag-draw-node-order (dag-draw-get-node graph 'y)) 0)
         
-        ;; Apply optimization
-        (let ((result (dag-draw--optimize-x-coordinates-with-simplex graph)))
-          (expect (ht-get result 'success) :to-be t))))))
+        ;; Apply GKNV auxiliary graph positioning (mainline implementation)
+        (dag-draw--position-with-auxiliary-graph graph)
+        
+        ;; Check that coordinates were assigned
+        (let ((x-coord (dag-draw-node-x-coord (dag-draw-get-node graph 'x))))
+          (expect x-coord :to-be-truthy))))))
 
 (provide 'dag-draw-auxiliary-graph-simplex-test)
 

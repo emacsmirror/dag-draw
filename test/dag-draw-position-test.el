@@ -124,12 +124,12 @@
         (dag-draw-add-node graph 'b)
         (dag-draw-add-edge graph 'a 'b)
 
-        (let ((aux-graph (dag-draw--create-auxiliary-graph-with-omega graph)))
-          ;; Should have same number of original nodes (GKNV omega approach)
-          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 2)
-
-          ;; Should have edges with omega weights
-          (expect (length (dag-draw-graph-edges aux-graph)) :to-equal 1))))
+        (let ((aux-graph (dag-draw--build-constraint-auxiliary-graph graph)))
+          ;; Should have original nodes + auxiliary nodes for each edge (GKNV constraint approach)
+          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 3) ; 2 original + 1 aux for edge
+          
+          ;; Should have constraint edges (aux node connections + separation edges)
+          (expect (> (length (dag-draw-graph-edges aux-graph)) 1) :to-be t))))
 
   (it "should handle multiple edges correctly"
       (let ((graph (dag-draw-create-graph)))
@@ -139,11 +139,12 @@
         (dag-draw-add-edge graph 'a 'b)
         (dag-draw-add-edge graph 'b 'c)
 
-        (let ((aux-graph (dag-draw--create-auxiliary-graph-with-omega graph)))
-          ;; Should have same 3 original nodes (GKNV omega approach)
-          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 3)
-          ;; Should have 2 edges with omega weights
-          (expect (length (dag-draw-graph-edges aux-graph)) :to-equal 2)))))
+        (let ((aux-graph (dag-draw--build-constraint-auxiliary-graph graph)))
+          ;; Should have original nodes + auxiliary nodes for each edge (GKNV constraint approach)
+          (expect (ht-size (dag-draw-graph-nodes aux-graph)) :to-equal 5) ; 3 original + 2 aux for edges
+          
+          ;; Should have constraint edges (aux node connections + separation edges)
+          (expect (> (length (dag-draw-graph-edges aux-graph)) 2) :to-be t)))))
 
 
  (describe

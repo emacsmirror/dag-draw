@@ -194,8 +194,8 @@ for optimal X-coordinate assignment."
   ;; First assign Y coordinates (straightforward)
   (dag-draw--assign-y-coordinates graph)
 
-  ;; Use GKNV-compliant positioning with proper separation constraints
-  (dag-draw--position-with-separation-constraints graph)
+  ;; Use GKNV auxiliary graph method for X-coordinate positioning (Section 4.2)
+  (dag-draw--position-with-auxiliary-graph graph)
 
   ;; Apply GKNV positioning enhancements
   (dag-draw--apply-gknv-positioning-enhancements graph)
@@ -236,73 +236,6 @@ This is a fallback to prevent nil coordinate errors in rendering."
 
 ;;; Coordinate normalization and adjustment
 
-
-
-;;; GKNV Enhanced Coordinate Positioning Implementation
-
-(defun dag-draw--position-with-separation-constraints (graph)
-  "Position nodes with enhanced separation constraint handling.
-Ensures minimum separation between adjacent nodes is maintained."
-  (let ((rank-to-nodes (ht-create)))
-
-    ;; Group nodes by rank
-    (ht-each (lambda (node-id node)
-               (let ((rank (or (dag-draw-node-rank node) 0)))
-                 (ht-set! rank-to-nodes rank
-                          (cons node-id (ht-get rank-to-nodes rank '())))))
-             (dag-draw-graph-nodes graph))
-
-    ;; Position nodes within each rank respecting separation constraints
-    (ht-each (lambda (rank node-list)
-               ;; Sort nodes by their order within the rank
-               (let ((sorted-nodes (sort node-list
-                                         (lambda (a b)
-                                           (let ((order-a (dag-draw-node-order (dag-draw-get-node graph a)))
-                                                 (order-b (dag-draw-node-order (dag-draw-get-node graph b))))
-                                             (< (or order-a 0) (or order-b 0))))))
-                     (current-x 0)
-                     (min-separation (dag-draw-graph-node-separation graph)))
-
-                 ;; Assign X coordinates with GKNV separation constraints
-                 (dotimes (i (length sorted-nodes))
-                   (let* ((node-id (nth i sorted-nodes))
-                          (node (dag-draw-get-node graph node-id)))
-                     (setf (dag-draw-node-x-coord node) current-x)
-                     ;; Set Y coordinate based on rank
-                     (setf (dag-draw-node-y-coord node)
-                           (* rank (dag-draw-graph-rank-separation graph)))
-
-                     ;; Calculate GKNV separation to next node
-                     (when (< i (1- (length sorted-nodes)))
-                       (let* ((next-node-id (nth (1+ i) sorted-nodes))
-                              (next-node (dag-draw-get-node graph next-node-id))
-                              ;; GKNV formula: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
-                              (separation (dag-draw--calculate-separation graph node-id next-node-id)))
-                         (setq current-x (+ current-x separation))))))))
-             rank-to-nodes)))
-
-
-;;; TDD Network Simplex for X-coordinate positioning
-
-(defun dag-draw--create-auxiliary-graph-with-omega (graph)
-  "Create auxiliary graph with proper Omega edge weights for X-coordinate optimization.
-Returns a graph with auxiliary nodes and edges weighted by Omega factors."
-  (let ((aux-graph (dag-draw-create-graph)))
-
-    ;; Add all original nodes to auxiliary graph
-    (ht-each (lambda (node-id node)
-               (dag-draw-add-node aux-graph node-id
-                                  (dag-draw-node-label node)))
-             (dag-draw-graph-nodes graph))
-
-    ;; Add edges with Omega weights
-    (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-edge-from-node edge))
-             (to-node (dag-draw-edge-to-node edge))
-             (omega-weight (dag-draw--get-omega-factor graph from-node to-node)))
-        (dag-draw-add-edge aux-graph from-node to-node omega-weight)))
-
-    aux-graph))
 
 
 ;;; GKNV Positioning Enhancements Integration
@@ -419,7 +352,7 @@ Based on GKNV paper: 'minpath straightens chains of virtual nodes by sequentiall
 finding sub-chains that may be assigned the same X coordinate.'"
   (let ((chains (dag-draw--find-virtual-node-chains graph)))
     (dolist (chain chains)
-      (when (> (length chain) 1)
+      (when (> (length chain) 0)  ; Handle both single nodes and multi-node chains
         ;; Calculate optimal X coordinate for this chain
         (let ((optimal-x (dag-draw--calculate-optimal-chain-x-coordinate graph chain)))
           ;; Align all virtual nodes in chain to optimal X
@@ -851,7 +784,27 @@ According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
              (dag-draw-graph-nodes graph))
     nodes-in-rank))
 
+(defun dag-draw--position-with-auxiliary-graph (graph)
+  "Position nodes using GKNV auxiliary graph method (Section 4.2).
+Creates constraint auxiliary graph and applies network simplex for optimal X-coordinates."
+  (let ((aux-graph (dag-draw--build-constraint-auxiliary-graph graph)))
+    ;; Apply network simplex to auxiliary graph for X-coordinate optimization
+    (dag-draw--network-simplex-x-coordinates aux-graph)
+    
+    ;; Extract X-coordinates from auxiliary graph back to original graph
+    (dag-draw--extract-x-coordinates-from-auxiliary aux-graph graph)))
 
+(defun dag-draw--extract-x-coordinates-from-auxiliary (aux-graph original-graph)
+  "Extract X-coordinates from auxiliary graph back to original graph.
+Only copies coordinates for original nodes, ignoring auxiliary edge nodes."
+  (ht-each (lambda (node-id node)
+             ;; Only copy coordinates for original nodes (not auxiliary edge nodes)
+             (unless (string-match "^aux_edge_" (symbol-name node-id))
+               (let ((original-node (dag-draw-get-node original-graph node-id)))
+                 (when original-node
+                   (setf (dag-draw-node-x-coord original-node) 
+                         (dag-draw-node-x-coord node))))))
+           (dag-draw-graph-nodes aux-graph)))
 
 (provide 'dag-draw-pass3-positioning)
 

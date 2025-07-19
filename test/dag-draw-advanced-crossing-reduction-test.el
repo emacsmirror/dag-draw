@@ -11,6 +11,8 @@
 
 (require 'buttercup)
 (require 'dag-draw-pass2-ordering)
+(require 'dag-draw-pass3-positioning)
+(require 'cl-lib)
 
 (describe "Advanced GKNV crossing reduction with weighted median"
   (describe "weighted median calculation"
@@ -37,7 +39,7 @@
         (setf (dag-draw-node-order (dag-draw-get-node graph 'd)) 1)
         
         ;; Apply weighted median heuristic
-        (let ((weighted-median (dag-draw--calculate-weighted-median graph 'c)))
+        (let ((weighted-median (dag-draw--calculate-median-position graph 'c '(a b))))
           (expect (numberp weighted-median) :to-be t)
           (expect (>= weighted-median 0) :to-be t)))))
   
@@ -66,9 +68,13 @@
         (setf (dag-draw-node-order (dag-draw-get-node graph 'y2)) 0)
         
         ;; Count initial crossings
-        (let ((initial-crossings (dag-draw--count-crossings graph 0 1)))
-          ;; Apply iterative crossing reduction
-          (let ((result (dag-draw--iterative-crossing-reduction graph)))
+        (let ((initial-crossings (dag-draw--count-crossings-between-ranks 
+                                  graph 
+                                  (dag-draw--get-nodes-in-rank graph 0)
+                                  (dag-draw--get-nodes-in-rank graph 1))))
+          ;; Apply iterative crossing reduction using mainline implementation
+          (let* ((ranks (dag-draw--organize-by-ranks graph))
+                 (result (dag-draw--crossing-reduction-with-convergence graph ranks)))
             (expect (ht-get result 'converged) :to-be t)
             (expect (ht-get result 'final-crossings) :not :to-be nil)
             ;; Final crossings should be <= initial crossings
@@ -94,8 +100,19 @@
         (setf (dag-draw-node-rank (dag-draw-get-node graph 'bot2)) 1)
         (setf (dag-draw-node-rank (dag-draw-get-node graph 'bot3)) 1)
         
-        ;; Apply two-layer crossing minimization
-        (let ((result (dag-draw--optimize-two-layer-crossings graph 0 1)))
+        ;; Apply two-layer crossing minimization using weighted median ordering
+        (let* ((rank0-nodes (dag-draw--get-nodes-in-rank graph 0))
+               (rank1-nodes (dag-draw--get-nodes-in-rank graph 1))
+               (initial-crossings (dag-draw--count-crossings-between-ranks graph rank0-nodes rank1-nodes))
+               (original-order rank1-nodes)
+               (ordered-rank1 (dag-draw--order-rank-by-median graph rank1-nodes rank0-nodes 'down))
+               ;; Update node orders in the graph based on the new ordering
+               (_ (cl-loop for i from 0
+                          for node-id in ordered-rank1
+                          do (setf (dag-draw-node-order (dag-draw-get-node graph node-id)) i)))
+               (final-crossings (dag-draw--count-crossings-between-ranks graph rank0-nodes rank1-nodes))
+               (result (ht ('optimization-applied (not (equal original-order ordered-rank1)))
+                           ('final-crossings final-crossings))))
           (expect (ht-get result 'optimization-applied) :to-be t)
           (expect (numberp (ht-get result 'final-crossings)) :to-be t)))))
 

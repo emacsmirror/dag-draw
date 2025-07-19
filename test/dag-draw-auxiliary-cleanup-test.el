@@ -110,12 +110,12 @@
         (expect (dag-draw-get-node graph 'aux-sink) :to-be nil)
         
         ;; Verify original edges are intact
-        (expect (dag-draw--edge-exists-p graph 'a 'b) :to-be t)
-        (expect (dag-draw--edge-exists-p graph 'b 'c) :to-be t)
+        (expect (dag-draw-find-edge graph 'a 'b) :to-be-truthy)
+        (expect (dag-draw-find-edge graph 'b 'c) :to-be-truthy)
         
         ;; Verify auxiliary edges are removed
-        (expect (dag-draw--edge-exists-p graph 'aux-source 'a) :to-be nil)
-        (expect (dag-draw--edge-exists-p graph 'c 'aux-sink) :to-be nil))))
+        (expect (dag-draw-find-edge graph 'aux-source 'a) :to-be nil)
+        (expect (dag-draw-find-edge graph 'c 'aux-sink) :to-be nil))))
   
   (it "should handle graphs with no auxiliary elements gracefully"
     ;; RED: Test cleanup on graphs that don't have auxiliary elements

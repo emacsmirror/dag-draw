@@ -164,6 +164,58 @@ Uses robust spatial validation instead of overly strict regex patterns."
       ;; Return errors if any, otherwise nil (success)
       (if errors errors nil))))
 
+;;; Virtual Node Validation Helpers
+
+(defun dag-draw--virtual-nodes-properly-ranked-p (graph virtual-nodes)
+  "Test helper: Check if virtual nodes are properly ranked according to GKNV.
+Virtual nodes must have valid ranks that maintain proper sequencing between
+their source and target real nodes."
+  (cl-every (lambda (vnode)
+              (let ((vnode-rank (dag-draw-node-rank (dag-draw-get-node graph vnode))))
+                ;; Basic validation: virtual node has a valid rank
+                (and vnode-rank 
+                     (>= vnode-rank 0)
+                     ;; Additional validation: virtual node should be between its neighbors
+                     (dag-draw--virtual-node-rank-valid-p graph vnode))))
+            virtual-nodes))
+
+(defun dag-draw--virtual-node-rank-valid-p (graph vnode)
+  "Test helper: Check if a single virtual node's rank is valid.
+Virtual node rank should be between the ranks of its immediate neighbors."
+  (let* ((vnode-rank (dag-draw-node-rank (dag-draw-get-node graph vnode)))
+         (incoming-edges (dag-draw-get-edges-to graph vnode))
+         (outgoing-edges (dag-draw-get-edges-from graph vnode)))
+    
+    ;; Check that virtual node rank is properly positioned relative to neighbors
+    (and 
+     ;; All incoming edges should come from nodes with lower or equal rank
+     (cl-every (lambda (edge)
+                 (let ((source-rank (dag-draw-node-rank 
+                                   (dag-draw-get-node graph (dag-draw-edge-from-node edge)))))
+                   (<= source-rank vnode-rank)))
+               incoming-edges)
+     
+     ;; All outgoing edges should go to nodes with higher or equal rank  
+     (cl-every (lambda (edge)
+                 (let ((target-rank (dag-draw-node-rank 
+                                   (dag-draw-get-node graph (dag-draw-edge-to-node edge)))))
+                   (>= target-rank vnode-rank)))
+               outgoing-edges))))
+
+(defun dag-draw--all-edges-unit-length-p (graph)
+  "Test helper: Check if all edges in graph are unit length (span ≤ 1 rank).
+This validates that virtual node insertion has properly broken long edges.
+Core GKNV requirement from Section 2.1: 'edges between nodes more than one 
+rank apart are replaced by chains of unit length edges'."
+  (cl-every (lambda (edge)
+              (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+                     (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+                     (from-rank (dag-draw-node-rank from-node))
+                     (to-rank (dag-draw-node-rank to-node))
+                     (rank-span (abs (- to-rank from-rank))))
+                (<= rank-span 1)))
+            (dag-draw-graph-edges graph)))
+
 (provide 'test-helpers)
 
 ;;; test-helpers.el ends here
