@@ -89,6 +89,55 @@ Returns list of compaction operations for this rank."
              (dag-draw-graph-nodes graph))
     (sort ranks '<)))
 
+;;; Network Simplex Test Helpers
+
+(defun dag-draw--contains-high-weight-edge-p (tree-edges from-node to-node)
+  "Test helper: Check if tree edges contain a high-weight edge from FROM-NODE to TO-NODE.
+Returns t if the spanning tree contains an edge between the specified nodes with weight > 2."
+  (cl-some (lambda (edge)
+             (and (dag-draw-tree-edge-p edge)
+                  (eq (dag-draw-tree-edge-from-node edge) from-node)
+                  (eq (dag-draw-tree-edge-to-node edge) to-node)
+                  (> (dag-draw-tree-edge-weight edge) 2)))
+           tree-edges))
+
+(defun dag-draw--cost-reflects-weight-distance-product-p (graph spanning-tree network-cost)
+  "Test helper: Check if network cost correctly reflects weight-distance product.
+Verifies that the network cost is calculated using the GKNV formula: Σ(weight × length)."
+  (let* ((tree-edges (dag-draw-spanning-tree-edges spanning-tree))
+         (expected-cost 0))
+    
+    ;; Calculate expected cost using same formula as dag-draw--calculate-network-cost
+    (dolist (edge tree-edges)
+      (let* ((from-node (dag-draw-tree-edge-from-node edge))
+             (to-node (dag-draw-tree-edge-to-node edge))
+             (weight (dag-draw-tree-edge-weight edge))
+             (original-edge (dag-draw--find-graph-edge graph from-node to-node))
+             (edge-length (if original-edge
+                              (dag-draw-edge-min-length original-edge)
+                            1)))
+        (setq expected-cost (+ expected-cost (* weight edge-length)))))
+    
+    ;; Network cost should match our expected calculation
+    (= network-cost expected-cost)))
+
+(defun dag-draw--uses-high-weight-edges-effectively-p (spanning-tree)
+  "Test helper: Check if spanning tree uses high-weight edges effectively.
+Returns t if the spanning tree avoids including high-weight edges where possible,
+indicating effective network simplex optimization."
+  (let ((tree-edges (dag-draw-spanning-tree-edges spanning-tree))
+        (high-weight-count 0)
+        (total-weight 0))
+    ;; Count high-weight edges and total weight
+    (dolist (edge tree-edges)
+      (let ((weight (dag-draw-tree-edge-weight edge)))
+        (setq total-weight (+ total-weight weight))
+        (when (> weight 5)  ; Consider weight > 5 as high
+          (cl-incf high-weight-count))))
+    ;; Effective use means: few high-weight edges relative to total
+    (and (< high-weight-count 3)  ; At most 2 high-weight edges
+         (< total-weight 20))))   ; Keep total weight reasonable
+
 (provide 'dag-draw-test-helpers)
 
 ;;; dag-draw-test-helpers.el ends here
