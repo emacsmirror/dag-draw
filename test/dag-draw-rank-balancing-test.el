@@ -148,14 +148,17 @@
       
       (dag-draw-assign-ranks graph)
       
-      ;; Calculate initial cost (sum of weight × rank_distance)
-      (let ((initial-cost (dag-draw--calculate-rank-assignment-cost graph)))
+      ;; Calculate initial cost using GKNV objective function
+      ;; Create spanning tree from current graph state to use with dag-draw--calculate-network-cost
+      (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+             (initial-cost (dag-draw--calculate-network-cost graph spanning-tree)))
         
         ;; Apply balancing
         (dag-draw-balance-ranks graph)
         
-        ;; Cost should be unchanged
-        (let ((final-cost (dag-draw--calculate-rank-assignment-cost graph)))
+        ;; Cost should be unchanged (GKNV requirement)
+        (let* ((final-spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+               (final-cost (dag-draw--calculate-network-cost graph final-spanning-tree)))
           (expect final-cost :to-equal initial-cost))))))
 
 (provide 'dag-draw-rank-balancing-test)

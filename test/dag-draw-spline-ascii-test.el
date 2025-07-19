@@ -28,7 +28,7 @@
         
         ;; Get the edge to verify spline data exists
         (let* ((edge (car (dag-draw-graph-edges graph)))
-               (spline-points (dag-draw-get-edge-spline-points edge)))
+               (spline-points (dag-draw-edge-spline-points edge)))
           
           ;; Should have spline points generated
           (expect spline-points :not :to-be nil)
@@ -54,7 +54,7 @@
         
         ;; Verify the edge has spline data that could be used for ASCII
         (let* ((edge (car (dag-draw-graph-edges graph)))
-               (spline-points (dag-draw-get-edge-spline-points edge)))
+               (spline-points (dag-draw-edge-spline-points edge)))
           ;; Should have adequate sample points for ASCII grid (optimized to avoid over-sampling)
           (expect (length spline-points) :to-be-greater-than 2)
           
