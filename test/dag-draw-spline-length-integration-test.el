@@ -51,7 +51,7 @@
       (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'b)) 50)
 
       ;; Generate splines
-      (dag-draw-make-splines graph)
+      (dag-draw-generate-splines graph)
 
       ;; Verify that splines were created
       (let ((edges (dag-draw-graph-edges graph)))
