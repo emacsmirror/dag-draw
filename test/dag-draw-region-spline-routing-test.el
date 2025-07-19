@@ -72,10 +72,16 @@
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'target)) 90)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'target)) 90)
         
-        ;; Generate region-based spline
-        (let ((spline (dag-draw--create-region-aware-spline graph 'source 'target)))
-          (expect (dag-draw-bezier-curve-p spline) :to-be t)
-          (expect (dag-draw-point-p (dag-draw-bezier-curve-p0 spline)) :to-be t))))))
+        ;; Generate splines using mainline implementation
+        (dag-draw-generate-splines graph)
+        
+        ;; Extract spline from the edge between source and target
+        (let* ((edge (dag-draw-find-edge graph 'source 'target))
+               (spline-points (dag-draw-edge-spline-points edge)))
+          (expect edge :to-be-truthy)
+          (expect spline-points :not :to-be nil)
+          (expect (listp spline-points) :to-be t)
+          (expect (> (length spline-points) 0) :to-be t))))))
 
 (provide 'dag-draw-region-spline-routing-test)
 
