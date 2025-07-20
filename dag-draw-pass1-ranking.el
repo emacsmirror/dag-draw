@@ -274,10 +274,9 @@ This implements the full GKNV algorithm Pass 1 with network simplex from Figure 
 
     ;; Step 3: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
     (let ((optimization-result (dag-draw--optimize-network-simplex tree-info graph)))
-      (message "Network simplex optimization: %s in %d iterations (cost: %s)"
+      (message "Network simplex optimization: %s in %d iterations"
                (if (ht-get optimization-result 'converged) "converged" "stopped")
-               (ht-get optimization-result 'iterations)
-               (ht-get optimization-result 'final-cost))
+               (ht-get optimization-result 'iterations))
 
     ;; Step 4: Clean up auxiliary nodes created during optimization
     (dag-draw--cleanup-auxiliary-elements graph)
@@ -851,9 +850,6 @@ Implements complete GKNV Figure 2-1 optimization loop."
     ;; Store final results
     (ht-set! result 'converged converged)
     (ht-set! result 'iterations iterations)
-    ;; Use GKNV-compliant network cost calculation
-    (let ((final-spanning-tree (dag-draw--tree-info-to-spanning-tree tree-info)))
-      (ht-set! result 'final-cost (dag-draw--calculate-network-cost graph final-spanning-tree)))
     (ht-set! result 'final-tree-info tree-info)
 
     result))
@@ -864,65 +860,6 @@ Implements complete GKNV Figure 2-1 optimization loop."
 
 
 
-;;; Network Cost Calculation Functions
-
-(defun dag-draw--calculate-network-cost (graph spanning-tree)
-  "Calculate total network cost using GKNV objective function.
-
-According to GKNV paper lines 447-449: 'min Σ ω(v,w) × (λ(w) - λ(v))'
-Network cost = Σ(weight(e) × length(e)) for ALL edges e in graph.
-
-The spanning tree induces a ranking λ, and we calculate the cost of this
-ranking across all edges in the graph (not just spanning tree edges).
-
-Input:
-- GRAPH: The original graph with all edges and weights
-- SPANNING-TREE: The spanning tree that induces the ranking
-
-Output:
-- Numeric cost representing total weighted edge length per GKNV formula"
-  (let ((total-cost 0))
-
-    ;; First, get ranking from spanning tree
-    (let ((ranking (dag-draw--spanning-tree-to-ranking graph spanning-tree)))
-
-      ;; GKNV objective: sum over ALL edges in graph (not just spanning tree)
-      (dolist (edge (dag-draw-graph-edges graph))
-        (let* ((from-node (dag-draw-edge-from-node edge))
-               (to-node (dag-draw-edge-to-node edge))
-               (weight (dag-draw-edge-weight edge))
-               (from-rank (or (ht-get ranking from-node) 0))
-               (to-rank (or (ht-get ranking to-node) 0))
-               (edge-length (- to-rank from-rank))) ; λ(w) - λ(v)
-
-          ;; GKNV formula: ω(v,w) × (λ(w) - λ(v))
-          (setq total-cost (+ total-cost (* weight edge-length))))))
-
-    total-cost))
-
-
-
-(defun dag-draw--tree-info-to-spanning-tree (tree-info)
-  "Convert tree-info hash table back to dag-draw-spanning-tree struct."
-  (let ((spanning-tree (make-dag-draw-spanning-tree)))
-    ;; Convert graph edge objects back to dag-draw-tree-edge structs
-    (let ((tree-edge-structs '()))
-      (dolist (graph-edge (ht-get tree-info 'tree-edges))
-        (let ((tree-edge (make-dag-draw-tree-edge
-                           :from-node (dag-draw-edge-from-node graph-edge)
-                           :to-node (dag-draw-edge-to-node graph-edge)
-                           :weight (dag-draw-edge-weight graph-edge)
-                           :cut-value 0    ; Could calculate if needed
-                           :is-tight t)))  ; Assume tight after optimization
-          (push tree-edge tree-edge-structs)))
-      (setf (dag-draw-spanning-tree-edges spanning-tree) tree-edge-structs))
-
-    ;; Copy other tree structure
-    (setf (dag-draw-spanning-tree-parent spanning-tree) (ht-get tree-info 'parent-map))
-    (setf (dag-draw-spanning-tree-children spanning-tree) (ht-get tree-info 'children-map))
-    (setf (dag-draw-spanning-tree-roots spanning-tree) (ht-get tree-info 'roots))
-
-    spanning-tree))
 
 (provide 'dag-draw-pass1-ranking)
 
