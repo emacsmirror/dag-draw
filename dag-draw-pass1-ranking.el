@@ -575,47 +575,6 @@ This includes cycle breaking, rank assignment, normalization, and balancing."
 ;;; Network Simplex Iteration Functions
 
 
-(defun dag-draw--get-non-tree-edges (graph spanning-tree)
-  "Get all edges that are not currently in the spanning tree."
-  (let ((tree-edges (dag-draw-spanning-tree-edges spanning-tree)))
-    (cl-remove-if (lambda (edge)
-                    (dag-draw--is-tree-edge-p edge tree-edges))
-                  (dag-draw-graph-edges graph))))
-
-(defun dag-draw--is-tree-edge-p (edge tree-edges)
-  "Check if a graph edge corresponds to any tree edge in the spanning tree."
-  (cl-some (lambda (tree-edge)
-             (dag-draw--edges-equivalent-p edge tree-edge))
-           tree-edges))
-
-(defun dag-draw--edges-equivalent-p (graph-edge tree-edge)
-  "Check if a graph edge and tree edge represent the same connection."
-  (and (eq (dag-draw-edge-from-node graph-edge)
-           (dag-draw-tree-edge-from-node tree-edge))
-       (eq (dag-draw-edge-to-node graph-edge)
-           (dag-draw-tree-edge-to-node tree-edge))))
-
-
-(defun dag-draw--copy-spanning-tree (spanning-tree)
-  "Create a deep copy of spanning tree for modification."
-  (let ((new-tree (copy-dag-draw-spanning-tree spanning-tree)))
-    (setf (dag-draw-spanning-tree-edges new-tree)
-          (copy-sequence (dag-draw-spanning-tree-edges spanning-tree)))
-    new-tree))
-
-(defun dag-draw--remove-tree-edge (spanning-tree tree-edge)
-  "Remove a tree edge from the spanning tree."
-  (setf (dag-draw-spanning-tree-edges spanning-tree)
-        (cl-remove tree-edge (dag-draw-spanning-tree-edges spanning-tree))))
-
-(defun dag-draw--add-tree-edge (spanning-tree graph-edge)
-  "Add a graph edge to the spanning tree as a tree edge."
-  (let ((new-tree-edge (make-dag-draw-tree-edge
-                        :from-node (dag-draw-edge-from-node graph-edge)
-                        :to-node (dag-draw-edge-to-node graph-edge)
-                        :cut-value 0    ; Will be recalculated
-                        :is-tight t)))  ; Assume tight initially
-    (push new-tree-edge (dag-draw-spanning-tree-edges spanning-tree))))
 
 
 
