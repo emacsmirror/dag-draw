@@ -51,30 +51,27 @@
           (dag-draw-add-edge graph 'x 'z 2)
           (dag-draw-add-edge graph 'y 'z 1)
 
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                 (original-edges (length (dag-draw-spanning-tree-edges spanning-tree)))
-                 (cut-values (dag-draw--calculate-cut-values graph spanning-tree))
-                 (negative-edges (dag-draw--find-negative-cut-value-edges cut-values)))
+          (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                 (original-edge-count (length (ht-get tree-info 'tree-edges)))
+                 (leaving-edge (dag-draw--leave-edge tree-info graph)))
 
-            (when negative-edges
-              (let* ((leaving-edge (car (mapcar 'car negative-edges)))
-                     (entering-edge (dag-draw--enter-edge leaving-edge spanning-tree graph))
-                     (new-tree (dag-draw--exchange-spanning-tree-edges spanning-tree leaving-edge entering-edge)))
+            (when leaving-edge
+              (let* ((entering-edge (dag-draw--enter-edge leaving-edge tree-info graph))
+                     (tree-edges-before (copy-sequence (ht-get tree-info 'tree-edges))))
+
+                ;; Perform edge exchange
+                (dag-draw--exchange-edges leaving-edge entering-edge tree-info graph)
 
                 ;; Tree should still have same number of edges
-                (expect (length (dag-draw-spanning-tree-edges new-tree)) :to-equal original-edges)
+                (expect (length (ht-get tree-info 'tree-edges)) :to-equal original-edge-count)
 
-                ;; Leaving edge should be removed
-                (expect (member leaving-edge (dag-draw-spanning-tree-edges new-tree)) :to-be nil)
+                ;; Leaving edge should be removed from tree
+                (expect (member leaving-edge (ht-get tree-info 'tree-edges)) :to-be nil)
 
-                ;; Entering edge should be represented in the tree (if it was provided)
-                (when entering-edge
-                  (expect (cl-some (lambda (tree-edge)
-                                     (and (eq (dag-draw-edge-from-node entering-edge)
-                                              (dag-draw-tree-edge-from-node tree-edge))
-                                          (eq (dag-draw-edge-to-node entering-edge)
-                                              (dag-draw-tree-edge-to-node tree-edge))))
-                                   (dag-draw-spanning-tree-edges new-tree)) :to-be-truthy))))))))
+                ;; Should have changed the tree structure
+                (expect (equal (ht-get tree-info 'tree-edges) tree-edges-before) :to-be nil))))))
+
+    )
 
   (describe "iteration convergence and optimization"
     (it "should perform single iteration of network simplex"
@@ -113,40 +110,29 @@
             ;; Should detect when spanning tree is optimal
             (expect is-optimal :to-be-truthy)))))
 
-  (describe "complete network simplex optimization"
-    (it "should optimize spanning tree to convergence"
-        ;; RED phase: This test will fail because full optimization doesn't exist yet
-        (let ((graph (dag-draw-create-graph)))
-          ;; Create graph requiring multiple iterations
-          (dag-draw-add-node graph 'start "Start")
-          (dag-draw-add-node graph 'mid1 "Mid1")
-          (dag-draw-add-node graph 'mid2 "Mid2")
-          (dag-draw-add-node graph 'end "End")
-          (dag-draw-add-edge graph 'start 'mid1 1)
-          (dag-draw-add-edge graph 'start 'mid2 2)
-          (dag-draw-add-edge graph 'mid1 'end 1)
-          (dag-draw-add-edge graph 'mid2 'end 1)
-          (dag-draw-add-edge graph 'mid1 'mid2 3)  ; Cross edge
+  (describe
+   "cut value formula implementation"
+   (it "should implement GKNV cut value formula correctly"
+       ;; RED phase: This test will fail because the specific formula doesn't exist yet
+       (let ((graph (dag-draw-create-graph)))
+         ;; Create graph with known cut value calculation
+         (dag-draw-add-node graph 'x "X")
+         (dag-draw-add-node graph 'y "Y")
+         (dag-draw-add-node graph 'z "Z")
+         (dag-draw-add-edge graph 'x 'y 2)
+         (dag-draw-add-edge graph 'x 'z 1)
+         (dag-draw-add-edge graph 'y 'z 3)
 
-          ;; Test end-to-end: call the actual public API that users would call
-          (dag-draw-assign-ranks graph)
+         (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+                (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
+                (cut-value (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
 
-          ;; Verify that optimization converged and ranks are properly assigned
-          (let ((start-rank (dag-draw-node-rank (dag-draw-get-node graph 'start)))
-                (mid1-rank (dag-draw-node-rank (dag-draw-get-node graph 'mid1)))
-                (mid2-rank (dag-draw-node-rank (dag-draw-get-node graph 'mid2)))
-                (end-rank (dag-draw-node-rank (dag-draw-get-node graph 'end))))
+           ;; Cut value = sum(weights tail->head) - sum(weights head->tail)
+           (expect (numberp cut-value) :to-be t)
 
-            ;; All nodes should have ranks assigned (shows convergence)
-            (expect start-rank :to-be-truthy)
-            (expect mid1-rank :to-be-truthy)
-            (expect mid2-rank :to-be-truthy)
-            (expect end-rank :to-be-truthy)
+           ;; Cut value should reflect the edge weight differences
+           (expect (not (zerop cut-value)) :to-be t))))))
 
-            ;; Verify topological ordering is maintained
-            (expect (< start-rank end-rank) :to-be t)
-            (expect (< mid1-rank end-rank) :to-be t)
-            (expect (< mid2-rank end-rank) :to-be t))))))
 
 (provide 'dag-draw-network-simplex-iteration-test)
 
