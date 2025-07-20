@@ -3,7 +3,7 @@
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.;;; Commentary:;; ASCII edge drawing, routing, and arrow placement for dag-draw graphs.
 ;; This module handles the complex logic of drawing edges between nodes
-;; with proper collision detection, occupancy map respect, and arrow placement.
+;; with proper collision detection and arrow placement.
 ;;
 ;; ASCII COORDINATE CONTEXT: Direct character placement with unified coordinates.
 ;; The ASCII coordinate context eliminates negative coordinates and provides
@@ -67,7 +67,6 @@ Returns the node if point is inside node area, nil otherwise."
             (end-x (max x1 x2))
             (direction (if (< x1 x2) 'right 'left)))
         ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors
-        ;; Check occupancy before drawing each segment
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
             (when (not (dag-draw--is-node-interior-position grid x y1))
@@ -79,7 +78,6 @@ Returns the node if point is inside node area, nil otherwise."
             (end-y (max y1 y2))
             (direction (if (< y1 y2) 'down 'up)))
         ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors
-        ;; Check occupancy before drawing each segment
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
             (when (and (>= x1 0) (< x1 grid-width)
@@ -107,7 +105,7 @@ Returns the node if point is inside node area, nil otherwise."
            (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
       (when (and (>= int-x 0) (< int-x grid-width) (>= int-y 0) (< int-y grid-height))
-        ;; GKNV Section 5.2 COMPLIANCE: Check occupancy before arrow placement
+        ;; GKNV Section 5.2 COMPLIANCE: Boundary-aware arrow placement
         (if (dag-draw--is-node-interior-position grid int-x int-y)
             (message "ARROW-BLOCKED: Arrow %c blocked at occupied position (%d,%d)" arrow-char int-x int-y)
           (let ((current-char (aref (aref grid int-y) int-x)))
@@ -132,7 +130,7 @@ ASCII coordinate context ensures coordinates are always valid."
          (int-y (round y))
          (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (when (and (>= int-x 0) (< int-x grid-width) (>= int-y 0) (< int-y grid-height))
-      ;; GKNV Section 5.2 COMPLIANCE: Check occupancy before any character placement
+      ;; GKNV Section 5.2 COMPLIANCE: Boundary-aware character placement
       (if (dag-draw--is-node-interior-position grid int-x int-y)
           (message "CHAR-BLOCKED: Character %c blocked at occupied position (%d,%d)" char int-x int-y)
         (let ((current-char (aref (aref grid int-y) int-x)))
@@ -164,7 +162,7 @@ ASCII coordinate context ensures coordinates are always valid."
   "Check if position (X,Y) is inside a node's interior area.
 Returns t if position is in node interior, nil if boundary or empty space.
 GKNV Section 5.2: Edges should not route through node text areas."
-  ;; CRITICAL FIX: Use direct node boundary calculation instead of relying on global occupancy map
+  ;; CRITICAL FIX: Use direct node boundary calculation
   ;; This ensures consistency with GKNV edge routing requirements
   (when (and dag-draw--current-graph dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)
     (dag-draw--point-inside-node-p x y dag-draw--current-graph
@@ -218,7 +216,7 @@ Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint
          (manual-y (dag-draw-node-y-coord node))
          (has-manual-coords (and manual-x manual-y))
          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-         ;; GKNV Section 5.2 FIX: Use same coordinate priority as occupancy map
+         ;; GKNV Section 5.2 FIX: Use consistent coordinate priority
          ;; Prioritize manual coordinates over adjusted coordinates to match visual rendering
          (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
                           (ht-get adjusted-positions node-id)
@@ -270,7 +268,7 @@ GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering."
            (manual-y (dag-draw-node-y-coord node))
            (has-manual-coords (and manual-x manual-y))
            (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-           ;; GKNV Section 5.2 FIX: Use same coordinate priority as occupancy map and intersection detection
+           ;; GKNV Section 5.2 FIX: Use consistent coordinate priority and intersection detection
            ;; Prioritize manual coordinates over adjusted coordinates to match visual rendering
            (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
                             (ht-get adjusted-positions node-id)

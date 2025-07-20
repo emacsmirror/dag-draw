@@ -9,7 +9,7 @@
 
 ;;; Commentary:
 
-;; ASCII grid creation, coordinate conversion, and occupancy map management
+;; ASCII grid creation and coordinate conversion
 ;; for dag-draw graphs. This module handles the foundational grid infrastructure
 ;; that other ASCII rendering modules depend on.
 
@@ -234,10 +234,6 @@ GRAPH and NODE-ID are optional for hierarchy-aware collision resolution."
 
           (list best-x best-y))))))
 
-;;; Global Occupancy Map
-
-(defvar dag-draw--global-occupancy-map nil
-  "Global occupancy map for comprehensive collision detection.")
 
 ;;; Grid Coordinate Utilities
 

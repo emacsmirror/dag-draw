@@ -223,45 +223,7 @@
           
           (message "===============================")))))
   
-  (describe "occupancy map debugging"
-    (it "should debug occupancy map creation and collision detection"
-      ;; Debug test to understand why collision detection isn't working
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'start "Start")
-        (dag-draw-add-node graph 'middle "Middle")
-        (dag-draw-add-node graph 'end "End")
-        (dag-draw-add-edge graph 'start 'end)
-        (dag-draw-layout-graph graph)
-        
-        ;; Position nodes to force collision (like failing test)
-        (let* ((start-node (dag-draw-get-node graph 'start))
-               (middle-node (dag-draw-get-node graph 'middle))
-               (end-node (dag-draw-get-node graph 'end)))
-          (setf (dag-draw-node-x-coord start-node) 50.0)
-          (setf (dag-draw-node-y-coord start-node) 50.0)
-          (setf (dag-draw-node-x-coord middle-node) 100.0)
-          (setf (dag-draw-node-y-coord middle-node) 50.0)
-          (setf (dag-draw-node-x-coord end-node) 150.0)
-          (setf (dag-draw-node-y-coord end-node) 50.0)
-          
-          (let ((ascii-output (dag-draw-render-ascii graph)))
-            (message "=== OCCUPANCY MAP DEBUG TEST ===")
-            (message "%s" ascii-output)
-            
-            ;; Debug: Show node coordinates
-            (message "Start node: world=(%.1f,%.1f)" 
-                     (dag-draw-node-x-coord start-node) (dag-draw-node-y-coord start-node))
-            (message "Middle node: world=(%.1f,%.1f)" 
-                     (dag-draw-node-x-coord middle-node) (dag-draw-node-y-coord middle-node))
-            (message "End node: world=(%.1f,%.1f)" 
-                     (dag-draw-node-x-coord end-node) (dag-draw-node-y-coord end-node))
-            
-            ;; The key insight: if occupancy map worked, we should see all node text intact
-            (expect ascii-output :to-match "Start")
-            (expect ascii-output :to-match "Middle")
-            (expect ascii-output :to-match "End")
-            
-            (message "==================================")))))))
+)
 
 (provide 'dag-draw-collision-detection-test)
 

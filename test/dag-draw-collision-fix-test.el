@@ -183,23 +183,6 @@
           (expect ascii-output :not :to-match "Right[─│┼]")
           (expect ascii-output :not :to-match "Bottom[─│┼]")))))
 
-  (describe "Occupancy map accuracy"
-    (it "should create occupancy map that matches node drawing coordinates"
-      ;; This test will help debug coordinate mismatches
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'test "Test Node")
-        
-        ;; Run layout to set ranks
-        (dag-draw-layout-graph graph)
-        
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'test)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'test)) 100)
-        
-        ;; The test should pass without throwing errors
-        (expect (dag-draw-render-ascii graph) :to-be-truthy)
-        ;; Basic check that rendering produces expected content
-        (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "Test Node")
-          (expect output :to-match "┌"))))))
+)
 
 ;;; dag-draw-collision-fix-test.el ends here

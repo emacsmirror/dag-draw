@@ -540,7 +540,7 @@ Returns list of edges that connect to auxiliary nodes."
 Implements GKNV Figure 2-1 step 8: balance() function.
 Moves nodes with equal in/out weights to less crowded feasible ranks."
   (when (dag-draw-graph-max-rank graph)
-    ;; Build rank occupancy map
+    ;; Build rank node counts
     (let ((rank-counts (make-vector (1+ (dag-draw-graph-max-rank graph)) 0)))
 
       ;; Count nodes per rank

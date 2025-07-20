@@ -17,43 +17,8 @@
  "ASCII Edge Routing - GKNV Algorithm Implementation"
 
  (describe
-  "Occupancy Map Calculation"
+  "Coordinate System Transformation"
 
-  (it "creates correct occupancy map for single node"
-      (let ((graph (dag-draw-create-graph)))
-        ;; Add single node with known position and size
-        (dag-draw-add-node graph 'test "Test Node")
-        (let ((node (dag-draw-get-node graph 'test)))
-          ;; Set explicit coordinates and size for deterministic test
-          (setf (dag-draw-node-x-coord node) 100)
-          (setf (dag-draw-node-y-coord node) 100)
-          (setf (dag-draw-node-x-size node) 80)
-          (setf (dag-draw-node-y-size node) 40))
-
-        ;; Create minimal grid and test occupancy map
-        (let* ((min-x 50) (min-y 50) (scale 2)
-               (grid-width 30) (grid-height 30)
-               (grid (make-vector grid-height nil)))
-
-          ;; Initialize grid
-          (dotimes (y grid-height)
-            (aset grid y (make-vector grid-width ?\s)))
-
-          ;; Create occupancy map
-          (let ((occupancy-map (dag-draw--create-node-occupancy-map graph grid min-x min-y scale)))
-
-            ;; Verify occupancy map structure
-            (expect (length occupancy-map) :to-equal grid-height)
-            (expect (length (aref occupancy-map 0)) :to-equal grid-width)
-
-            ;; Verify some cells are marked as occupied
-            (let ((occupied-count 0))
-              (dotimes (y grid-height)
-                (dotimes (x grid-width)
-                  (when (aref (aref occupancy-map y) x)
-                    (setq occupied-count (1+ occupied-count)))))
-
-              (expect occupied-count :to-be-greater-than 0))))))
 
   (it "handles coordinate system transformation correctly"
       ;; Test the coordinate transformation functions
