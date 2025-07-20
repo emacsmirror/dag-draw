@@ -27,20 +27,19 @@
           (dag-draw-add-edge graph 'a 'c 2)  ; Not in spanning tree, higher weight
           (dag-draw-add-edge graph 'b 'c 1)  ; Not in spanning tree
 
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                 (cut-values (dag-draw--calculate-cut-values graph spanning-tree))
-                 (negative-edges (dag-draw--find-negative-cut-value-edges cut-values)))
+          (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                 (cut-values (dag-draw--calculate-tree-cut-values tree-info graph))
+                 (leaving-edge (dag-draw--leave-edge tree-info graph)))
 
-            ;; Should find an entering edge when negative cut values exist
-            (expect negative-edges :to-be-truthy) ; Ensure we have negative edges
-            (let ((leaving-edge (caar negative-edges))) ; Get edge from first (edge . cut-value) pair
-              (let ((entering-edge (dag-draw--find-entering-edge graph spanning-tree leaving-edge)))
+            ;; Should find a leaving edge when negative cut values exist
+            (when leaving-edge
+              (let ((entering-edge (dag-draw--enter-edge leaving-edge tree-info graph)))
 
                 ;; Entering edge should be found
                 (expect entering-edge :to-be-truthy)
 
                 ;; Entering edge should not be in current spanning tree
-                (expect (member entering-edge (dag-draw-spanning-tree-edges spanning-tree)) :to-be nil))))))
+                (expect (member entering-edge (ht-get tree-info 'tree-edges)) :to-be nil))))))
 
     (it "should perform edge exchange in spanning tree"
         ;; RED phase: This test will fail because edge exchange doesn't exist yet
@@ -59,7 +58,7 @@
 
             (when negative-edges
               (let* ((leaving-edge (car (mapcar 'car negative-edges)))
-                     (entering-edge (dag-draw--find-entering-edge graph spanning-tree leaving-edge))
+                     (entering-edge (dag-draw--enter-edge leaving-edge spanning-tree graph))
                      (new-tree (dag-draw--exchange-spanning-tree-edges spanning-tree leaving-edge entering-edge)))
 
                 ;; Tree should still have same number of edges

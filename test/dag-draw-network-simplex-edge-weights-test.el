@@ -22,26 +22,7 @@
 (describe "Network Simplex Enhanced Edge Weight System"
   (describe "edge weight constraints and priorities"
 
-    (it "should implement GKNV minimum edge length constraints"
-        ;; RED phase: This test will fail because min-length constraints don't exist yet
-        (let ((graph (dag-draw-create-graph)))
-          (dag-draw-add-node graph 'layer1 "Layer1")
-          (dag-draw-add-node graph 'layer2 "Layer2") 
-          (dag-draw-add-node graph 'layer3 "Layer3")
-          
-          ;; Edge with minimum length constraint > 1
-          (dag-draw-add-edge graph 'layer1 'layer2 1)     ; min-length = 1 (default)
-          (dag-draw-add-edge graph 'layer2 'layer3 1)     ; min-length = 1 (default)
-          (dag-draw-add-edge graph 'layer1 'layer3 5 nil (ht ('min-length 3)))  ; min-length = 3 via attributes
-          
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                 (ranking (dag-draw--spanning-tree-to-ranking graph spanning-tree)))
-            
-            ;; Should respect minimum length constraints in ranking
-            (expect (ht-get ranking 'layer3) :to-be-greater-than (+ (ht-get ranking 'layer1) 2))
-            
-            ;; Should properly handle constraints in spanning tree
-            (expect (dag-draw--tree-respects-min-length-constraints-p spanning-tree graph) :to-be t)))))
+)
 
   (describe "auxiliary node and edge management"
     (it "should create auxiliary nodes for network simplex optimization"

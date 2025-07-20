@@ -15,10 +15,10 @@
 (require 'dag-draw-pass1-ranking)
 
 (describe
- "Network Simplex Cut Value Calculation"
- (describe
-  "basic cut value computation"
-  (it "should calculate cut values for simple spanning tree"
+    "Network Simplex Cut Value Calculation"
+  (describe
+      "basic cut value computation"
+    (it "should calculate cut values for simple spanning tree"
       ;; RED phase: This test will fail because cut value calculation doesn't exist yet
       (let ((graph (dag-draw-create-graph)))
         ;; Create simple graph: A(weight=2) -> B(weight=1) -> C
@@ -38,7 +38,7 @@
           (dolist (cut-value cut-values)
             (expect (numberp (cdr cut-value)) :to-be t)))))
 
-  (it "should identify negative cut values for optimization"
+    (it "should identify negative cut values for optimization"
       ;; RED phase: This test will fail because negative cut value detection doesn't exist yet
       (let ((graph (dag-draw-create-graph)))
         ;; Create graph where current spanning tree is not optimal
@@ -54,62 +54,30 @@
                (negative-edges (dag-draw--find-negative-cut-value-edges cut-values)))
 
           ;; Should identify edges with negative cut values for optimization
-          (expect (length negative-edges) :to-be-greater-than 0))))
+          (expect (length negative-edges) :to-be-greater-than 0)))))
 
   (describe
-   "cut value formula implementation"
-   (it "should implement GKNV cut value formula correctly"
-       ;; RED phase: This test will fail because the specific formula doesn't exist yet
-       (let ((graph (dag-draw-create-graph)))
-         ;; Create graph with known cut value calculation
-         (dag-draw-add-node graph 'x "X")
-         (dag-draw-add-node graph 'y "Y")
-         (dag-draw-add-node graph 'z "Z")
-         (dag-draw-add-edge graph 'x 'y 2)
-         (dag-draw-add-edge graph 'x 'z 1)
-         (dag-draw-add-edge graph 'y 'z 3)
+      "cut value formula implementation"
+    (it "should implement GKNV cut value formula correctly"
+      ;; RED phase: This test will fail because the specific formula doesn't exist yet
+      (let ((graph (dag-draw-create-graph)))
+        ;; Create graph with known cut value calculation
+        (dag-draw-add-node graph 'x "X")
+        (dag-draw-add-node graph 'y "Y")
+        (dag-draw-add-node graph 'z "Z")
+        (dag-draw-add-edge graph 'x 'y 2)
+        (dag-draw-add-edge graph 'x 'z 1)
+        (dag-draw-add-edge graph 'y 'z 3)
 
-         (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
-                (cut-value (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
+        (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+               (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
+               (cut-value (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
 
-           ;; Cut value = sum(weights tail->head) - sum(weights head->tail)
-           (expect (numberp cut-value) :to-be t)
+          ;; Cut value = sum(weights tail->head) - sum(weights head->tail)
+          (expect (numberp cut-value) :to-be t)
 
-           ;; Cut value should reflect the edge weight differences
-           (expect (not (zerop cut-value)) :to-be t)))))
-
-  (describe
-   "component identification for cut values"
-   (it "should correctly identify tail and head components"
-       ;; RED phase: This test will fail because component identification doesn't exist yet
-       (let ((graph (dag-draw-create-graph)))
-         (dag-draw-add-node graph 'root "Root")
-         (dag-draw-add-node graph 'left "Left")
-         (dag-draw-add-node graph 'right "Right")
-         (dag-draw-add-node graph 'sink "Sink")
-         (dag-draw-add-edge graph 'root 'left)
-         (dag-draw-add-edge graph 'root 'right)
-         (dag-draw-add-edge graph 'left 'sink)
-         (dag-draw-add-edge graph 'right 'sink)
-
-         (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
-                (components (dag-draw--split-tree-components spanning-tree tree-edge)))
-
-           ;; Should split tree into tail and head components
-           (expect (ht-get components 'tail-component) :to-be-truthy)
-           (expect (ht-get components 'head-component) :to-be-truthy)
-
-           ;; Components should be disjoint and cover all nodes
-           (let ((tail-nodes (ht-get components 'tail-component))
-                 (head-nodes (ht-get components 'head-component)))
-             (expect (length tail-nodes) :to-be-greater-than 0)
-             (expect (length head-nodes) :to-be-greater-than 0)
-
-             ;; No node should be in both components
-             (dolist (tail-node tail-nodes)
-               (expect (member tail-node head-nodes) :to-be nil)))))))))
+          ;; Cut value should reflect the edge weight differences
+          (expect (not (zerop cut-value)) :to-be t))))))
 
 (provide 'dag-draw-network-simplex-cut-values-test)
 

@@ -29,7 +29,8 @@
         (dag-draw-add-edge graph 'c 'd)
 
         ;; Apply simplified network simplex (current implementation)
-        (let ((result (dag-draw--network-simplex-optimize graph)))
+        (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+               (result (dag-draw--optimize-network-simplex tree-info graph)))
           ;; Should return optimization result info (simplified implementation)
           (expect (ht-get result 'converged) :to-equal t)  ; Simplified version always "converges"
           (expect (ht-get result 'iterations) :to-equal 1)  ; Simplified version runs 1 iteration
@@ -52,7 +53,7 @@
         ;; Set up initial feasible solution
         (let ((tree-info (dag-draw--construct-feasible-tree graph)))
           ;; Test leaving edge selection (edge with negative cut value)
-          (let ((leaving-edge (dag-draw--select-leaving-edge graph tree-info)))
+          (let ((leaving-edge (dag-draw--leave-edge tree-info graph)))
             (when leaving-edge
               (expect (dag-draw-edge-p leaving-edge) :to-be t))))))))
 

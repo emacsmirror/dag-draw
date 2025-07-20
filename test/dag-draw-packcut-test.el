@@ -225,6 +225,7 @@
   (it "should handle single node graph"
     (let ((graph (dag-draw-create-graph)))
       (dag-draw-add-node graph 'single "Single Node")
+      (setf (dag-draw-node-rank (dag-draw-get-node graph 'single)) 0)
       (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'single)) 100)
       
       ;; Should not change single node position
