@@ -116,7 +116,7 @@
  4. Character Rendering: Draw nodes as boxes, edges as lines, arrows at endpoints
     FUNCTIONS: 
     - `dag-draw--draw-node-text-and-border` - Node boxes with ┌─┐│└┘ characters
-    - `dag-draw--ascii-draw-edges` - Edge lines with ─│ characters  
+    - `dag-draw--draw-edges-gknv-compliant` - Edge lines with ─│ characters  
     - `dag-draw--draw-arrow` - Directional arrows ▲▼◀▶
     - `dag-draw--post-process-junction-characters` - Junction characters ┼├┤┬┴
     STATE: 2D character grid stored as vector of vectors: `(aref (aref grid y) x)`
