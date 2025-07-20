@@ -549,11 +549,6 @@ Implements GKNV Figure 2-1 steps 3-6."
      (t
       0.1))))  ; Small positive value to eventually converge
 
-
-
-;; TEMPORARY: Remove complex functions to fix syntax error
-
-
 ;;; Public Interface
 
 (defun dag-draw-rank-graph (graph)
@@ -838,119 +833,6 @@ Returns hash table mapping edges to their cut values."
                (dag-draw--calculate-edge-cut-value edge tree-info graph)))
 
     cut-values))
-
-(defun dag-draw--leave-edge (tree-info graph)
-  "Find tree edge with negative cut value to leave spanning tree.
-Returns edge to remove per GKNV Figure 2-1 step 3, or nil if optimal."
-  (let ((tree-edges (ht-get tree-info 'tree-edges))
-        (leaving-edge nil))
-
-    ;; Find first tree edge with negative cut value
-    (dolist (edge tree-edges)
-      (when (and (not leaving-edge)
-                 (< (dag-draw--calculate-edge-cut-value edge tree-info graph) 0))
-        (setq leaving-edge edge)))
-
-    leaving-edge))
-
-(defun dag-draw--enter-edge (leaving-edge tree-info graph)
-  "Find non-tree edge to enter spanning tree.
-Returns edge to add per GKNV Figure 2-1 step 4."
-  (let ((non-tree-edges (ht-get tree-info 'non-tree-edges))
-        (best-edge nil)
-        (min-slack most-positive-fixnum))
-
-    ;; Find non-tree edge with minimal slack
-    (dolist (edge non-tree-edges)
-      (let ((slack (dag-draw--calculate-edge-slack edge graph)))
-        (when (< slack min-slack)
-          (setq min-slack slack)
-          (setq best-edge edge))))
-
-    best-edge))
-
-(defun dag-draw--exchange-edges (leaving-edge entering-edge tree-info graph)
-  "Exchange leaving and entering edges in spanning tree.
-Implements GKNV Figure 2-1 step 5: exchange(e,f)."
-  (let ((tree-edges (ht-get tree-info 'tree-edges))
-        (non-tree-edges (ht-get tree-info 'non-tree-edges)))
-
-    ;; Remove leaving edge from tree, add to non-tree
-    (setq tree-edges (remove leaving-edge tree-edges))
-    (push leaving-edge non-tree-edges)
-
-    ;; Add entering edge to tree, remove from non-tree
-    (push entering-edge tree-edges)
-    (setq non-tree-edges (remove entering-edge non-tree-edges))
-
-    ;; Update tree-info
-    (ht-set! tree-info 'tree-edges tree-edges)
-    (ht-set! tree-info 'non-tree-edges non-tree-edges)))
-
-(defun dag-draw--calculate-edge-cut-value (edge tree-info graph)
-  "Calculate cut value for a tree edge.
-Negative cut values indicate optimization opportunities."
-  (let ((from-node (dag-draw-edge-from-node edge))
-        (to-node (dag-draw-edge-to-node edge))
-        (edge-weight (dag-draw-edge-weight edge)))
-
-    ;; Auxiliary edges (to/from S_min and S_max) should not be optimized
-    ;; They have neutral cut values (0) to maintain feasibility
-    (if (or (eq from-node 'dag-draw-s-min)
-            (eq to-node 'dag-draw-s-min)
-            (eq from-node 'dag-draw-s-max)
-            (eq to-node 'dag-draw-s-max))
-        0  ; Auxiliary edges are neutral
-
-      ;; For regular edges, cut value depends on optimization opportunity
-      ;; High-weight edges should have negative cut values (be candidates for removal)
-      (if (> edge-weight 1)
-          (- edge-weight)  ; Negative for high-weight edges
-        0))))  ; Neutral for unit-weight edges
-
-(defun dag-draw--calculate-edge-slack (edge graph)
-  "Calculate slack for an edge (how much it violates optimality)."
-  (let ((from-node (dag-draw-edge-from-node edge))
-        (to-node (dag-draw-edge-to-node edge))
-        (edge-weight (dag-draw-edge-weight edge)))
-
-    ;; Get current ranks
-    (let ((from-rank (or (dag-draw-node-rank (dag-draw-get-node graph from-node)) 0))
-          (to-rank (or (dag-draw-node-rank (dag-draw-get-node graph to-node)) 0)))
-
-      ;; Slack = actual_length - minimum_length
-      (- (- to-rank from-rank) edge-weight))))
-
-(defun dag-draw--network-simplex-iteration (tree-info graph)
-  "Perform one iteration of network simplex optimization.
-Implements GKNV Figure 2-1 steps 3-6."
-  (let ((result (ht-create)))
-
-    ;; Step 3: Find leaving edge
-    (let ((leaving-edge (dag-draw--leave-edge tree-info graph)))
-
-      (if (not leaving-edge)
-          ;; No negative cut values - optimal solution found
-          (progn
-            (ht-set! result 'improved nil)
-            (ht-set! result 'converged t))
-
-        ;; Step 4: Find entering edge
-        (let ((entering-edge (dag-draw--enter-edge leaving-edge tree-info graph)))
-
-          (if (not entering-edge)
-              ;; No entering edge found - can't improve
-              (progn
-                (ht-set! result 'improved nil)
-                (ht-set! result 'converged t))
-
-            ;; Step 5: Exchange edges
-            (dag-draw--exchange-edges leaving-edge entering-edge tree-info graph)
-            (ht-set! result 'improved t)
-            (ht-set! result 'converged nil)
-            (ht-set! result 'updated-tree-info tree-info)))))
-
-    result))
 
 (defun dag-draw--optimize-network-simplex (tree-info graph)
   "Run network simplex optimization to convergence.
