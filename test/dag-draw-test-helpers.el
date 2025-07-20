@@ -138,6 +138,19 @@ indicating effective network simplex optimization."
     (and (< high-weight-count 3)  ; At most 2 high-weight edges
          (< total-weight 20))))   ; Keep total weight reasonable
 
+(defun dag-draw--sampled-points-length (points)
+  "Calculate approximate length from pre-sampled spline points.
+Test helper for verifying spline generation quality."
+  (let ((total-length 0.0))
+    (when (> (length points) 1)
+      (dotimes (i (1- (length points)))
+        (let* ((p1 (nth i points))
+               (p2 (nth (1+ i) points))
+               (dx (- (dag-draw-point-x p2) (dag-draw-point-x p1)))
+               (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
+          (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy))))))))
+    total-length))
+
 (provide 'dag-draw-test-helpers)
 
 ;;; dag-draw-test-helpers.el ends here

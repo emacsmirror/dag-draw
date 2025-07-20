@@ -12,6 +12,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-pass4-splines)
+(require 'dag-draw-test-helpers)
 
 (describe "Spline Length Integration into Mainline"
 
@@ -63,9 +64,9 @@
           (expect spline-points :not :to-be nil)
 
           ;; The spline-length function should be available for calculations
-          ;; (This tests that it's properly integrated)
+          ;; (This tests that the test helper works for spline validation)
           (when spline-points
-            (let ((calculated-length (dag-draw--spline-length (list spline-points))))
+            (let ((calculated-length (dag-draw--sampled-points-length spline-points)))
               (expect (numberp calculated-length) :to-be t)
               (expect (> calculated-length 0) :to-be t))))))))
 
