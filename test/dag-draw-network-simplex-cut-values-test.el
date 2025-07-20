@@ -28,15 +28,16 @@
         (dag-draw-add-edge graph 'a 'b 2)  ; weight = 2
         (dag-draw-add-edge graph 'b 'c 1)  ; weight = 1
 
-        (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-               (cut-values (dag-draw--calculate-cut-values graph spanning-tree)))
+        (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+               (cut-values (dag-draw--calculate-tree-cut-values tree-info graph)))
 
-          ;; Cut values should be calculated for all tree edges
-          (expect (length cut-values) :to-equal 2)
+          ;; Cut values should be calculated for all tree edges (including auxiliary)
+          (expect (> (ht-size cut-values) 2) :to-be t)
 
           ;; Cut values should be numeric
-          (dolist (cut-value cut-values)
-            (expect (numberp (cdr cut-value)) :to-be t)))))
+          (ht-each (lambda (edge cut-value)
+                     (expect (numberp cut-value) :to-be t))
+                   cut-values))))
 
     (it "should identify negative cut values for optimization"
       ;; RED phase: This test will fail because negative cut value detection doesn't exist yet
@@ -49,12 +50,17 @@
         (dag-draw-add-edge graph 'a 'c 3)  ; Higher weight - should be in tree
         (dag-draw-add-edge graph 'b 'c 1)
 
-        (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-               (cut-values (dag-draw--calculate-cut-values graph spanning-tree))
-               (negative-edges (dag-draw--find-negative-cut-value-edges cut-values)))
+        (let* ((tree-info (dag-draw--construct-feasible-tree graph)))
 
           ;; Should identify edges with negative cut values for optimization
-          (expect (length negative-edges) :to-be-greater-than 0)))))
+          ;; High-weight edges (weight > 1) should have negative cut values
+          (let ((leaving-edge (dag-draw--leave-edge tree-info graph)))
+            ;; Should find an edge with negative cut value (the high-weight edge)
+            (expect leaving-edge :to-be-truthy)
+            ;; Verify the cut value is actually negative
+            (when leaving-edge
+              (let ((cut-value (dag-draw--calculate-edge-cut-value leaving-edge tree-info graph)))
+                (expect cut-value :to-be-less-than 0))))))))
 
   (describe
       "cut value formula implementation"
@@ -69,9 +75,10 @@
         (dag-draw-add-edge graph 'x 'z 1)
         (dag-draw-add-edge graph 'y 'z 3)
 
-        (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-               (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
-               (cut-value (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
+        (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+               (tree-edges (ht-get tree-info 'tree-edges))
+               (tree-edge (car tree-edges))
+               (cut-value (dag-draw--calculate-edge-cut-value tree-edge tree-info graph)))
 
           ;; Cut value = sum(weights tail->head) - sum(weights head->tail)
           (expect (numberp cut-value) :to-be t)

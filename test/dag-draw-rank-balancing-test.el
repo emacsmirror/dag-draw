@@ -151,14 +151,16 @@
       
       ;; Calculate initial cost using GKNV objective function
       ;; Create spanning tree from current graph state to use with dag-draw--calculate-network-cost
-      (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+      (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+             (spanning-tree (dag-draw--tree-info-to-spanning-tree tree-info))
              (initial-cost (dag-draw--calculate-network-cost graph spanning-tree)))
         
         ;; Apply balancing
         (dag-draw-balance-ranks graph)
         
         ;; Cost should be unchanged (GKNV requirement)
-        (let* ((final-spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+        (let* ((final-tree-info (dag-draw--construct-feasible-tree graph))
+               (final-spanning-tree (dag-draw--tree-info-to-spanning-tree final-tree-info))
                (final-cost (dag-draw--calculate-network-cost graph final-spanning-tree)))
           (expect final-cost :to-equal initial-cost))))))
 

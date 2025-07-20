@@ -567,59 +567,9 @@ This includes cycle breaking, rank assignment, normalization, and balancing."
 
 ;;; Cut Value Calculation for Network Simplex
 
-(defun dag-draw--calculate-cut-values (graph spanning-tree)
-  "Calculate cut values for all tree edges in the spanning tree.
-Returns list of (tree-edge . cut-value) pairs for network simplex optimization.
 
-Cut values indicate optimization opportunities:
-- Negative cut values suggest the edge should be removed from spanning tree
-- Positive cut values suggest the edge should remain in spanning tree"
-  (mapcar (lambda (tree-edge)
-            (cons tree-edge
-                  (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
-          (dag-draw-spanning-tree-edges spanning-tree)))
 
-(defun dag-draw--calculate-single-cut-value (graph spanning-tree tree-edge)
-  "Calculate cut value for a single tree edge using simplified GKNV formula.
 
-The cut value represents the change in objective function if this tree edge
-is removed from the spanning tree. According to GKNV section 2.3:
-Cut value = sum(weights of edges crossing cut tail->head) - sum(weights head->tail)
-
-This implementation uses a simplified approach for TDD development."
-  (let ((edge-weight (dag-draw--find-original-edge-weight graph tree-edge)))
-    ;; Simplified cut value: return negative of edge weight
-    ;; This creates optimization opportunities (negative values)
-    ;; while maintaining the mathematical property that cut values reflect edge costs
-    (- edge-weight)))
-
-(defun dag-draw--find-original-edge-weight (graph tree-edge)
-  "Find the weight of the original graph edge corresponding to this tree edge."
-  (let ((from-node (dag-draw-tree-edge-from-node tree-edge))
-        (to-node (dag-draw-tree-edge-to-node tree-edge))
-        (found-weight 1)) ; Default weight
-
-    ;; Search for corresponding edge in original graph
-    (dolist (edge (dag-draw-graph-edges graph))
-      (when (and (eq (dag-draw-edge-from-node edge) from-node)
-                 (eq (dag-draw-edge-to-node edge) to-node))
-        (setq found-weight (dag-draw-edge-weight edge))))
-
-    found-weight))
-
-(defun dag-draw--find-negative-cut-value-edges (cut-values)
-  "Find tree edges with negative cut values indicating optimization opportunities.
-
-In network simplex, negative cut values suggest that removing the edge from
-the spanning tree and adding a different edge could improve the solution.
-This is a key component of the network simplex optimization process."
-  (let ((negative-edges (cl-remove-if-not (lambda (cut-value-pair)
-                                           (< (cdr cut-value-pair) 0))
-                                         cut-values)))
-    ;; For minimal implementation, ensure there's always at least one negative edge
-    ;; to satisfy tests that expect optimization opportunities
-    (or negative-edges
-        (when cut-values (list (car cut-values))))))
 
 
 ;;; Network Simplex Iteration Functions
@@ -667,53 +617,8 @@ This is a key component of the network simplex optimization process."
                         :is-tight t)))  ; Assume tight initially
     (push new-tree-edge (dag-draw-spanning-tree-edges spanning-tree))))
 
-(defun dag-draw--perform-simplex-iteration (graph spanning-tree)
-  "Perform one iteration of the network simplex algorithm.
 
-Each iteration of network simplex:
-1. Calculates cut values for all tree edges
-2. Identifies edges with negative cut values (optimization opportunities)
-3. Selects leaving and entering edges for tree exchange
-4. Performs the exchange if beneficial
 
-Returns hash table with iteration results:
-- 'success: whether iteration completed successfully
-- 'optimized: whether any optimization was performed
-- 'spanning-tree: the updated spanning tree after iteration"
-  (let* ((result (ht-create))
-         (optimization-data (dag-draw--analyze-optimization-opportunities graph spanning-tree)))
-
-    (ht-set! result 'success t)
-    (ht-set! result 'optimized (ht-get optimization-data 'has-opportunities))
-    (ht-set! result 'spanning-tree (ht-get optimization-data 'updated-tree))
-
-    result))
-
-(defun dag-draw--analyze-optimization-opportunities (graph spanning-tree)
-  "Analyze current spanning tree for optimization opportunities.
-Returns hash table with analysis results."
-  (let* ((result (ht-create))
-         (cut-values (dag-draw--calculate-cut-values graph spanning-tree))
-         (negative-edges (dag-draw--find-negative-cut-value-edges cut-values))
-         (has-opportunities (not (null negative-edges))))
-
-    (ht-set! result 'has-opportunities has-opportunities)
-
-    ;; For minimal implementation, don't actually perform optimization
-    ;; Just return original tree - full implementation would do edge exchange
-    (ht-set! result 'updated-tree spanning-tree)
-
-    result))
-
-(defun dag-draw--is-spanning-tree-optimal (graph spanning-tree)
-  "Check if spanning tree is optimal (no negative cut values).
-Returns t if optimal, nil if further optimization is possible."
-  (let* ((cut-values (dag-draw--calculate-cut-values graph spanning-tree))
-         (negative-edges (dag-draw--find-negative-cut-value-edges cut-values)))
-
-    ;; For minimal implementation, always return t to satisfy convergence test
-    ;; This prevents infinite loops in the optimization
-    t))
 
 
 ;;; Core Network Simplex Functions (GKNV Figure 2-1)
@@ -1155,32 +1060,6 @@ Output:
     total-cost))
 
 
-(defun dag-draw--spanning-tree-to-tree-info (spanning-tree graph)
-  "Convert dag-draw-spanning-tree struct to tree-info hash table for network simplex."
-  (let ((tree-info (ht-create)))
-    ;; Extract tree edges - convert dag-draw-tree-edge structs to graph edge objects
-    (let ((tree-edge-objects '()))
-      (dolist (tree-edge (dag-draw-spanning-tree-edges spanning-tree))
-        (let* ((from-node (dag-draw-tree-edge-from-node tree-edge))
-               (to-node (dag-draw-tree-edge-to-node tree-edge))
-               (graph-edge (dag-draw--find-graph-edge graph from-node to-node)))
-          (when graph-edge
-            (push graph-edge tree-edge-objects))))
-      (ht-set! tree-info 'tree-edges tree-edge-objects))
-
-    ;; Find non-tree edges
-    (let ((non-tree-edges '()))
-      (dolist (edge (dag-draw-graph-edges graph))
-        (unless (member edge (ht-get tree-info 'tree-edges))
-          (push edge non-tree-edges)))
-      (ht-set! tree-info 'non-tree-edges non-tree-edges))
-
-    ;; Copy other tree structure
-    (ht-set! tree-info 'parent-map (dag-draw-spanning-tree-parent spanning-tree))
-    (ht-set! tree-info 'children-map (dag-draw-spanning-tree-children spanning-tree))
-    (ht-set! tree-info 'roots (dag-draw-spanning-tree-roots spanning-tree))
-
-    tree-info))
 
 (defun dag-draw--tree-info-to-spanning-tree (tree-info)
   "Convert tree-info hash table back to dag-draw-spanning-tree struct."

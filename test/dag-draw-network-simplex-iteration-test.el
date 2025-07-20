@@ -84,17 +84,18 @@
           (dag-draw-add-edge graph 'p 'r 3)  ; Higher weight - should be optimized
           (dag-draw-add-edge graph 'q 'r 1)
 
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                 (iteration-result (dag-draw--perform-simplex-iteration graph spanning-tree)))
+          (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                 (iteration-result (dag-draw--network-simplex-iteration tree-info graph)))
 
             ;; Iteration should return result information
-            (expect (ht-get iteration-result 'success) :to-be-truthy)
+            (expect (ht-contains-p iteration-result 'converged) :to-be t)
 
             ;; Should indicate whether optimization occurred
-            (expect (ht-contains-p iteration-result 'optimized) :to-be t)
+            (expect (ht-contains-p iteration-result 'improved) :to-be t)
 
-            ;; Should return updated spanning tree
-            (expect (ht-get iteration-result 'spanning-tree) :to-be-truthy))))
+            ;; When improvement occurs, should return updated tree info
+            (when (ht-get iteration-result 'improved)
+              (expect (ht-get iteration-result 'updated-tree-info) :to-be-truthy)))))
 
     (it "should detect convergence when no negative cut values exist"
         ;; RED phase: This test will fail because convergence detection doesn't exist yet
@@ -104,11 +105,12 @@
           (dag-draw-add-node graph 'n "N")
           (dag-draw-add-edge graph 'm 'n 1)
 
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                 (is-optimal (dag-draw--is-spanning-tree-optimal graph spanning-tree)))
+          (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                 (leaving-edge (dag-draw--leave-edge tree-info graph)))
 
-            ;; Should detect when spanning tree is optimal
-            (expect is-optimal :to-be-truthy)))))
+            ;; Should detect when spanning tree is optimal (no leaving edge with negative cut value)
+            ;; For a simple unit-weight graph, there should be no negative cut values
+            (expect leaving-edge :to-be nil)))))
 
   (describe
    "cut value formula implementation"
@@ -123,15 +125,22 @@
          (dag-draw-add-edge graph 'x 'z 1)
          (dag-draw-add-edge graph 'y 'z 3)
 
-         (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
-                (tree-edge (car (dag-draw-spanning-tree-edges spanning-tree)))
-                (cut-value (dag-draw--calculate-single-cut-value graph spanning-tree tree-edge)))
+         (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                (tree-edges (ht-get tree-info 'tree-edges)))
 
-           ;; Cut value = sum(weights tail->head) - sum(weights head->tail)
-           (expect (numberp cut-value) :to-be t)
-
-           ;; Cut value should reflect the edge weight differences
-           (expect (not (zerop cut-value)) :to-be t))))))
+           ;; Find a high-weight edge (weight > 1) which should have negative cut value
+           (let ((high-weight-edge nil))
+             (dolist (edge tree-edges)
+               (when (and (> (dag-draw-edge-weight edge) 1)
+                         (not high-weight-edge))
+                 (setq high-weight-edge edge)))
+             
+             (when high-weight-edge
+               (let ((cut-value (dag-draw--calculate-edge-cut-value high-weight-edge tree-info graph)))
+                 ;; Cut value should be numeric  
+                 (expect (numberp cut-value) :to-be t)
+                 ;; High-weight edges should have negative cut values
+                 (expect cut-value :to-be-less-than 0)))))))))
 
 
 (provide 'dag-draw-network-simplex-iteration-test)

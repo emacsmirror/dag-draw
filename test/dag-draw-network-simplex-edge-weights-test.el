@@ -89,7 +89,8 @@
           (dag-draw-add-edge graph 'b 'c 5)  ; weight = 5
           (dag-draw-add-edge graph 'a 'c 2)  ; weight = 2
           
-          (let* ((spanning-tree (dag-draw--create-feasible-spanning-tree graph))
+          (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+                 (spanning-tree (dag-draw--tree-info-to-spanning-tree tree-info))
                  (network-cost (dag-draw--calculate-network-cost graph spanning-tree)))
             
             ;; Should calculate cost based on tree edge weights and lengths
