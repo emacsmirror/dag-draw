@@ -13,6 +13,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-pass1-ranking)
+(require 'dag-draw-topological)
 
 (describe "Real Network Simplex Implementation"
   

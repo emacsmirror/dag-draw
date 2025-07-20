@@ -23,6 +23,7 @@
 (require 'dag-draw-cycle-breaking)
 (require 'dag-draw-rank-balancing)
 (require 'dag-draw-auxiliary)
+(require 'dag-draw-topological)
 
 ;;; Network Simplex Spanning Tree Data Structures
 
@@ -260,52 +261,6 @@ This is the first pass of the GKNV algorithm with full optimization."
 
     graph))
 
-(defun dag-draw--assign-ranks-topological (graph)
-  "Assign ranks using a simple topological approach."
-  (let ((in-degree (ht-create))
-        (queue '())
-        (current-rank 0))
-
-    ;; Calculate in-degrees
-    (dolist (node-id (dag-draw-get-node-ids graph))
-      (ht-set! in-degree node-id 0))
-
-    (dolist (edge (dag-draw-graph-edges graph))
-      (let ((to-node (dag-draw-edge-to-node edge)))
-        (ht-set! in-degree to-node (1+ (ht-get in-degree to-node 0)))))
-
-    ;; Find nodes with in-degree 0
-    (dolist (node-id (dag-draw-get-node-ids graph))
-      (when (zerop (ht-get in-degree node-id))
-        (push node-id queue)))
-
-    ;; Process nodes level by level
-    (while queue
-      (let ((current-level queue))
-        (setq queue '())
-
-        ;; Debug: Show current level (comment out for cleaner output)
-        ;; (message "Topological Level %d: %s" current-rank current-level)
-
-        ;; Assign current rank to all nodes in this level
-        (dolist (node-id current-level)
-          (let ((node (dag-draw-get-node graph node-id)))
-            (setf (dag-draw-node-rank node) current-rank)))
-
-        ;; Update in-degrees and find next level
-        (dolist (node-id current-level)
-          (dolist (successor (dag-draw-get-successors graph node-id))
-            (ht-set! in-degree successor (1- (ht-get in-degree successor)))
-            (when (zerop (ht-get in-degree successor))
-              ;; (message "  Adding %s to next level (in-degree now 0)" successor)
-              (push successor queue))))
-
-        (setq current-rank (1+ current-rank))))
-
-    ;; Set max rank in graph
-    (setf (dag-draw-graph-max-rank graph) (1- current-rank))
-
-    graph))
 
 (defun dag-draw--assign-ranks-network-simplex (graph)
   "Assign ranks using complete network simplex optimization.
