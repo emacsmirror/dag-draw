@@ -18,6 +18,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-pass1-ranking)
+(require 'dag-draw-rank-balancing)
 
 (describe "GKNV Rank Balancing Implementation"
   

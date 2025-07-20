@@ -13,6 +13,7 @@
 (require 'dag-draw-core)
 (require 'dag-draw-pass1-ranking)
 (require 'dag-draw-cycle-breaking)
+(require 'dag-draw-rank-balancing)
 
 (describe
  "dag-draw-rank"
