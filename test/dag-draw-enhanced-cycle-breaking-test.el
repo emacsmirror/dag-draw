@@ -11,6 +11,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-pass1-ranking)
+(require 'dag-draw-cycle-breaking)
 (require 'dag-draw-pass2-ordering)
 (require 'dag-draw-pass3-positioning)
 (require 'cl-lib)
