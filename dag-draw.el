@@ -198,21 +198,35 @@ Returns the actual scale factor used for world-coordinates → ASCII-grid conver
   "Calculate minimum ASCII characters needed for clean edge routing.
 If GRAPH is provided, uses dynamic analysis of edge patterns for optimal spacing.
 Otherwise uses safe defaults for edge routing."
-  (let ((min-vertical (if graph
-                          ;; Dynamic calculation based on graph structure
-                          (progn
-                            (require 'dag-draw-quality)
-                            (let ((dynamic-spacing (dag-draw--calculate-max-required-rank-separation graph)))
-                              (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)" 
-                                       dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph))
-                              (dag-draw--debug-spacing-calculation graph)
-                              dynamic-spacing))
-                        ;; Safe default for edge routing  
-                        2)))
+  (let* ((min-vertical (if graph
+                           ;; Dynamic calculation based on graph structure
+                           (progn
+                             (require 'dag-draw-quality)
+                             (let ((dynamic-spacing (dag-draw--calculate-max-required-rank-separation graph)))
+                               (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)" 
+                                        dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph))
+                               (dag-draw--debug-spacing-calculation graph)
+                               dynamic-spacing))
+                         ;; Safe default for edge routing  
+                         2))
+         ;; Calculate minimum horizontal separation based on actual node sizes
+         (min-horizontal (if graph
+                             ;; Find the maximum ASCII node width in the graph and add buffer
+                             (let ((scale (dag-draw--estimate-ascii-scale graph))
+                                   (max-ascii-width 0))
+                               (ht-each (lambda (node-id node)
+                                          (let ((ascii-width (dag-draw--world-to-grid-size 
+                                                             (dag-draw-node-x-size node) scale)))
+                                            (setq max-ascii-width (max max-ascii-width ascii-width))))
+                                        (dag-draw-graph-nodes graph))
+                               ;; Use max node width plus minimum buffer for routing
+                               (+ max-ascii-width 6))
+                           ;; Safe default if no graph provided
+                           12)))
     (list 
-     :min-horizontal 6    ; Min chars between nodes for clean edge routing
-     :min-vertical min-vertical  ; Dynamic rows between ranks based on edge analysis
-     :port-offset 2)))    ; Space needed for port positioning variety
+     :min-horizontal min-horizontal  ; Dynamic horizontal spacing based on node sizes
+     :min-vertical min-vertical      ; Dynamic rows between ranks based on edge analysis
+     :port-offset 2)))               ; Space needed for port positioning variety
 
 (defun dag-draw--adjust-separations-for-ascii (graph)
   "Adjust nodesep/ranksep to ensure sufficient ASCII resolution.

@@ -286,19 +286,23 @@ Each rect is (left top right bottom)."
                                   ((= i (1- width)) ?┐)
                                   (t ?─))))
 
-      ;; Draw middle rows with label
-      (dotimes (row (- height 2))
-        (let ((actual-row (+ y row 1)))
-          ;; Left border
-          (dag-draw--set-char grid x actual-row ?│)
-          ;; Content area
-          (dotimes (col (- width 2))
-            (let ((char-pos (+ x col 1)))
-              (if (and (= row 0) (< col (length label)))
-                  (dag-draw--set-char grid char-pos actual-row (aref label col))
-                (dag-draw--set-char grid char-pos actual-row ?\s))))
-          ;; Right border
-          (dag-draw--set-char grid (+ x width -1) actual-row ?│)))
+      ;; Draw middle rows with label (supports multiline text)
+      (let ((label-lines (split-string label "\n")))  ; Split multiline labels
+        (dotimes (row (- height 2))
+          (let ((actual-row (+ y row 1))
+                (current-line (if (< row (length label-lines))
+                                (nth row label-lines)
+                              "")))  ; Empty string for rows without text
+            ;; Left border
+            (dag-draw--set-char grid x actual-row ?│)
+            ;; Content area with proper multiline text rendering
+            (dotimes (col (- width 2))
+              (let ((char-pos (+ x col 1)))
+                (if (< col (length current-line))
+                    (dag-draw--set-char grid char-pos actual-row (aref current-line col))
+                  (dag-draw--set-char grid char-pos actual-row ?\s))))
+            ;; Right border
+            (dag-draw--set-char grid (+ x width -1) actual-row ?│))))
 
       ;; Draw bottom border
       (dotimes (i width)

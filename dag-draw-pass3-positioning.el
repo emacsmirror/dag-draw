@@ -601,8 +601,8 @@ Edges between virtual nodes get higher weights to favor straightening."
 Based on GKNV: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
   (let* ((left (dag-draw-get-node graph left-node))
          (right (dag-draw-get-node graph right-node))
-         (left-width (if left (length (dag-draw-node-label left)) 3))
-         (right-width (if right (length (dag-draw-node-label right)) 3))
+         (left-width (if left (dag-draw-node-x-size left) 60))    ; Use actual node width
+         (right-width (if right (dag-draw-node-x-size right) 60)) ; Use actual node width
          (nodesep (or (dag-draw-graph-node-separation graph) 2)))
     (+ (/ (+ left-width right-width) 2.0) nodesep)))
 
@@ -766,7 +766,7 @@ According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
 (defun dag-draw--calculate-node-spacing (graph node-id)
   "Calculate spacing needed after NODE-ID for next node."
   (let* ((node (dag-draw-get-node graph node-id))
-         (node-width (if node (length (dag-draw-node-label node)) 3))
+         (node-width (if node (dag-draw-node-x-size node) 60))
          (nodesep (or (dag-draw-graph-node-separation graph) 2)))
     (+ node-width nodesep)))
 
