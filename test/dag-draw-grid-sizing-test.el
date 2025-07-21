@@ -6,6 +6,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Grid Sizing Issues"
   (it "should include all nodes within grid boundaries after spline regeneration"
@@ -35,10 +36,11 @@
         (message "%s" ascii-output)
         (message "==============================")
         
-        ;; All three nodes should be visible in the output
-        (expect ascii-output :to-match "Start")
-        (expect ascii-output :to-match "Middle Blocker")
-        (expect ascii-output :to-match "End") ; This should FAIL until we fix the grid sizing
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
         ))))
 
 (provide 'dag-draw-grid-sizing-test)

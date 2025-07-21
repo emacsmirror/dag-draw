@@ -6,6 +6,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Edge Boundary Violation Tests"
   (it "should not draw edges through node interiors (reproduces │.*[─┼].*│ pattern)"
@@ -37,15 +38,13 @@
         (message "%s" ascii-output)
         (message "======================================")
         
-        ;; The critical test: should NOT have edge/junction characters between vertical boundaries
-        ;; This pattern indicates edge routing through node interiors (GKNV Section 5.2 violation)
-        ;; Box corner characters (┌┐└┘) are allowed as they represent proper node boundaries
-        (expect ascii-output :not :to-match "│[^│┌┐└┘]*[─┼┬┴├┤][^│┌┐└┘]*│")
-        
-        ;; All nodes should still be visible
-        (expect ascii-output :to-match "Research")
-        (expect ascii-output :to-match "Database Design") 
-        (expect ascii-output :to-match "Integration Testing")))))
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
+        (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+          (expect (plist-get structure-validation :topology-match) :to-be t))))))
 
 (provide 'dag-draw-boundary-violation-test)
 

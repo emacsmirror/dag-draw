@@ -13,6 +13,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "GKNV to ASCII Coordinate Scaling Integration"
   
@@ -43,9 +44,11 @@
           ;; Test algorithm stability: nodes should be properly positioned and drawn
           (expect output :to-be-truthy)
           (expect (length output) :to-be-greater-than 100)  ; Should have substantial output
-          ;; All nodes should have rectangular boundaries (algorithm working)
-          (expect output :to-match "┌")  ; top-left corner
-          (expect output :to-match "└")  ; bottom-left corner 
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+            (expect (plist-get boundary-validation :valid) :to-be t)) 
           ;; DEFER: Full text matching deferred until algorithm fully stable per CLAUDE.local.md
           ))))
   
@@ -73,11 +76,13 @@
           ;; Algorithm stability: nodes should be properly positioned and connected
           (expect output :to-be-truthy)
           (expect (length output) :to-be-greater-than 100)
-          ;; Should have rectangular node boundaries
-          (expect output :to-match "┌")  ; node boundaries drawn
-          (expect output :to-match "└")
-          ;; Should have connecting lines (algorithm working)
-          (expect (string-match-p "[│▼]" output) :to-be-truthy)
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))
           ;; DEFER: Full text matching deferred until algorithm fully stable per CLAUDE.local.md  
           ))))
   
@@ -100,12 +105,13 @@
         (expect output :to-be-truthy)
         (expect (length output) :to-be-greater-than 200)  ; Substantial output for 3-node chain
         
-        ;; Should have rectangular node boundaries (algorithm working)
-        (expect output :to-match "┌")
-        (expect output :to-match "└")
-        
-        ;; Should have edge connections (GKNV routing working)
-        (expect (string-match-p "[│▼]" output) :to-be-truthy)
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
+        (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+          (expect (plist-get connectivity-validation :all-connected) :to-be t))
         ;; DEFER: Full text matching deferred until algorithm fully stable per CLAUDE.local.md
         
         ;; Debug output
@@ -156,11 +162,11 @@
           (expect (length complex-lines) :to-be-greater-than 40)  ; Should be larger than simple (updated for optimal compact layout)
           (expect (length complex-lines) :not :to-be-greater-than 300))  ; ASCII-appropriate for 6 nodes
         
-        ;; Both should show all nodes clearly
-        (expect simple-output :to-match "Node A")
-        (expect simple-output :to-match "Node B")
-        (expect complex-output :to-match "Top")
-        (expect complex-output :to-match "Bottom"))))
+        ;; Use test harness for node validation
+        (let ((simple-validation (dag-draw-test--validate-node-completeness simple-output simple-graph)))
+          (expect (plist-get simple-validation :complete) :to-be t))
+        (let ((complex-validation (dag-draw-test--validate-node-completeness complex-output complex-graph)))
+          (expect (plist-get complex-validation :complete) :to-be t)))))
   
   (it "should handle world coordinate boundaries correctly"
     (let ((graph (dag-draw-create-graph)))
@@ -178,9 +184,11 @@
       (let ((output (dag-draw-render-ascii graph)))
         (expect output :to-be-truthy)
         (expect (length output) :to-be-greater-than 100)  ; Should have substantial content
-        ;; Should have node boundaries showing coordinate system is working
-        (expect output :to-match "┌")
-        (expect output :to-match "└")
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
         ;; DEFER: Full text matching deferred until algorithm fully stable per CLAUDE.local.md
         ))))
 

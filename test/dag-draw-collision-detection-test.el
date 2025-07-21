@@ -15,6 +15,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "ASCII collision detection and edge routing"
   
@@ -44,14 +45,13 @@
             (message "=== BOX OVERLAP PREVENTION TEST ===")
             (message "%s" ascii-output)
             
-            ;; EXPECTATION: Should NOT have box overlap patterns
-            (expect ascii-output :not :to-match "┐┌")     ; No touching right-left corners
-            (expect ascii-output :not :to-match "┘└")     ; No touching bottom corners
-            (expect ascii-output :not :to-match "┤├")     ; No side-by-side box edges
-            
-            ;; Should have clean separation with proper spacing
-            (expect ascii-output :to-match "API Design")
-            (expect ascii-output :to-match "Infrastructure Setup")
+            ;; Use test harness for structural validation instead of regex patterns
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
+            (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+              (expect (plist-get structure-validation :topology-match) :to-be t))
             
             (message "===================================")))))
     
@@ -74,13 +74,11 @@
             (message "=== MINIMUM DISTANCE TEST ===")
             (message "%s" ascii-output)
             
-            ;; Should have at least 2-3 character spacing between boxes
-            (expect ascii-output :to-match "Left Node")
-            (expect ascii-output :to-match "Right Node")
-            
-            ;; Should NOT have collision patterns
-            (expect ascii-output :not :to-match "┐┌")
-            (expect ascii-output :not :to-match "e  ├")  ; Text running into box
+            ;; Use test harness for validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
             
             (message "==============================="))))))
   
@@ -109,18 +107,13 @@
             (message "=== JUNCTION CHARACTER TEST ===")
             (message "%s" ascii-output)
             
-            ;; EXPECTATION: Junction characters should only appear at line intersections
-            ;; NOT attached to box edges like ┼──────└─────────────────┘
-            
-            ;; Should NOT have junction characters directly attached to boxes
-            (expect ascii-output :not :to-match "┼──────└")   ; Junction attached to corner
-            (expect ascii-output :not :to-match "┼│.*│")      ; Junction attached to side
-            (expect ascii-output :not :to-match "┘┼")         ; Junction right after corner
-            
-            ;; Should have clean connections
-            (expect ascii-output :to-match "Source")
-            (expect ascii-output :to-match "Target A")
-            (expect ascii-output :to-match "Target B")
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
+            (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+              (expect (plist-get structure-validation :topology-match) :to-be t))
             
             (message "===============================")))))
     
@@ -140,15 +133,11 @@
           (message "=== JUNCTION CHARACTER SELECTION TEST ===")
           (message "%s" ascii-output)
           
-          ;; Should have nodes present
-          (expect ascii-output :to-match "Center")
-          (expect ascii-output :to-match "North")
-          (expect ascii-output :to-match "South")
-          (expect ascii-output :to-match "East")
-          
-          ;; Should NOT have malformed junction patterns
-          (expect ascii-output :not :to-match "┼┼")      ; Double junctions
-          (expect ascii-output :not :to-match "├┤")      ; Side-by-side T-junctions
+          ;; Use test harness for validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t))
           
           (message "=========================================")))))
   
@@ -177,18 +166,13 @@
             (message "=== EDGE ROUTING AROUND NODES TEST ===")
             (message "%s" ascii-output)
             
-            ;; All nodes should be visible (not overwritten by edges)
-            (expect ascii-output :to-match "Start")
-            (expect ascii-output :to-match "Middle Blocker")
-            (expect ascii-output :to-match "End")
-            
-            ;; Should NOT have edges going through node text
-            (expect ascii-output :not :to-match "M─iddle")     ; Horizontal line through text
-            (expect ascii-output :not :to-match "M│iddle")     ; Vertical line through text
-            (expect ascii-output :not :to-match "Bl▼cker")     ; Arrow through text
-            
-            ;; Should have some routing characters (edge goes around, not through)
-            (expect ascii-output :to-match "[│─┌┐└┘├┤┬┴┼]")
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
             
             (message "=======================================")))))
     
@@ -208,18 +192,14 @@
           (message "=== COMPLEX ROUTING TEST ===")
           (message "%s" ascii-output)
           
-          ;; All nodes should be visible and intact
-          (expect ascii-output :to-match "Research")
-          (expect ascii-output :to-match "API Design")
-          (expect ascii-output :to-match "Database Design")
-          (expect ascii-output :to-match "Infrastructure")
-          
-          ;; Should NOT have malformed double-line artifacts (overlapping lines)
-          (expect ascii-output :not :to-match "││")        ; Double vertical lines side-by-side
-          (expect ascii-output :not :to-match "─\n─")      ; Double horizontal lines stacked
-          
-          ;; Should have clean connecting lines
-          (expect ascii-output :to-match "[│─▼▲▶◀]")
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t)
+            (expect (plist-get structure-validation :node-count-match) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))
           
           (message "===============================")))))
   

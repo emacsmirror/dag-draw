@@ -4,6 +4,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 (require 'org)
 
 (defun test-create-parallel-path-graph ()
@@ -66,11 +67,11 @@
        (dag-draw-layout-graph graph)
        (let ((ascii-output (dag-draw-render-ascii graph)))
 
-         ;; Output should contain all node names
-         (expect ascii-output :to-match "Research")
-         (expect ascii-output :to-match "Database")
-         (expect ascii-output :to-match "API")
-         (expect ascii-output :to-match "Backend")
+         ;; Use test harness for comprehensive validation
+         (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+           (expect (plist-get node-validation :complete) :to-be t))
+         (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+           (expect (plist-get structure-validation :topology-match) :to-be t))
 
          ;; Should have proper vertical structure (multiple lines)
          (expect (length (split-string ascii-output "\n")) :to-be-greater-than 10)

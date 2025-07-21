@@ -13,6 +13,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Port-to-Port Edge Routing"
   
@@ -31,14 +32,13 @@
       ;; Generate ASCII output
       (let ((output (dag-draw-render-ascii graph)))
         
-        ;; Should show all nodes
-        (expect output :to-match "Start")
-        (expect output :to-match "Middle")
-        (expect output :to-match "End")
-        
-        ;; Should have clean vertical connections
-        (expect (string-match-p "│" output) :to-be-truthy)
-        (expect (string-match-p "▼" output) :to-be-truthy)
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+          (expect (plist-get connectivity-validation :all-connected) :to-be t))
+        (let ((arrow-validation (dag-draw-test--validate-arrows output)))
+          (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0))
         
         ;; Debug output to verify visual quality
         (message "\n=== PORT-TO-PORT ROUTING OUTPUT ===")
@@ -64,14 +64,13 @@
       ;; Generate ASCII output
       (let ((output (dag-draw-render-ascii graph)))
         
-        ;; Should show all nodes
-        (expect output :to-match "Top")
-        (expect output :to-match "Left")
-        (expect output :to-match "Right")
-        (expect output :to-match "Bottom")
-        
-        ;; Should have various connection types
-        (expect (string-match-p "[│─┌┐└┘]" output) :to-be-truthy)
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
+        (let ((structure-validation (dag-draw-test--validate-graph-structure output graph)))
+          (expect (plist-get structure-validation :topology-match) :to-be t))
         
         ;; Debug output
         (message "\n=== DIAMOND ROUTING OUTPUT ===")

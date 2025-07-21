@@ -6,6 +6,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Lower Level Edge Visibility Tests"
   (describe "Backend Implementation Edge Visibility"
@@ -18,11 +19,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          ;; Verify both nodes are present
-          (expect output :to-match "Database Design")
-          (expect output :to-match "Backend Implementation")
-          ;; FAILING TEST: Expect visible connection between them
-          (expect output :to-match "▼\\|│\\|─"))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
 
     (it "should show visible edge from API Design to Backend Implementation"
       (let ((graph (dag-draw-create-graph)))
@@ -33,10 +34,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "API Design")
-          (expect output :to-match "Backend Implementation")
-          ;; FAILING TEST: Expect visible connection
-          (expect output :to-match "▼\\|│\\|─")))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
   (describe "Frontend Implementation Edge Visibility" 
     (it "should show visible edge from API Design to Frontend Implementation"
@@ -47,10 +49,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "API Design")
-          (expect output :to-match "Frontend Implementation")
-          ;; FAILING TEST: Expect visible connection
-          (expect output :to-match "▼\\|│\\|─")))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
   (describe "Integration Testing Edge Visibility"
     (it "should show visible edge from Backend to Integration Testing"
@@ -61,10 +64,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "Backend Implementation")
-          (expect output :to-match "Integration Testing")
-          ;; FAILING TEST: Expect visible connection
-          (expect output :to-match "▼\\|│\\|─"))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
 
     (it "should show visible edge from Frontend to Integration Testing"
       (let ((graph (dag-draw-create-graph)))
@@ -74,10 +78,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "Frontend Implementation")
-          (expect output :to-match "Integration Testing")
-          ;; FAILING TEST: Expect visible connection
-          (expect output :to-match "▼\\|│\\|─")))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
   (describe "Deployment Edge Visibility"
     (it "should show visible edge from Integration Testing to Deployment"
@@ -88,10 +93,11 @@
         (dag-draw-layout-graph graph)
         
         (let ((output (dag-draw-render-ascii graph)))
-          (expect output :to-match "Integration Testing")
-          (expect output :to-match "Deployment")
-          ;; FAILING TEST: Expect visible connection
-          (expect output :to-match "▼\\|│\\|─")))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
   (describe "Complex Multi-Level Edge Visibility"
     (it "should show all edges in the full dependency graph"
@@ -118,18 +124,17 @@
         
         (dag-draw-layout-graph graph)
         (let ((output (dag-draw-render-ascii graph)))
-          ;; All nodes should be visible
-          (expect output :to-match "Backend Implementation")
-          (expect output :to-match "Frontend Implementation")
-          (expect output :to-match "Integration Testing")
-          (expect output :to-match "Deployment")
-          
-          ;; FAILING TEST: Critical lower-level edges should be visible
-          ;; Look for evidence of edges reaching the implementation level and below
-          (expect output :to-match "Backend[\\s\\S]*?[▼│─]")
-          (expect output :to-match "Frontend[\\s\\S]*?[▼│─]")
-          (expect output :to-match "Integration[\\s\\S]*?[▼│─]")
-          (expect output :to-match "Deployment[\\s\\S]*?[▼│─]")))))
+          ;; Use test harness for comprehensive validation of complex graph
+          (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t)
+            (expect (plist-get structure-validation :node-count-match) :to-be t)
+            (expect (plist-get structure-validation :edge-count-match) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))
+          (let ((arrow-validation (dag-draw-test--validate-arrows output)))
+            (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0))))))
 
   (describe "Coordinate Range Validation"
     (it "should place all nodes within ASCII grid bounds"

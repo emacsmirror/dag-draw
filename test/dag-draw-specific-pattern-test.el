@@ -2,6 +2,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe
  "Specific Problematic Patterns"
@@ -36,11 +37,13 @@
          (expect ascii-output :not :to-match "┘┼")           ; Bottom-right corner with junction right
          (expect ascii-output :not :to-match "┘─┼")          ; Specific pattern: corner-line-junction
 
-         ;; Should have all nodes visible
-         (expect ascii-output :to-match "Research")
-         (expect ascii-output :to-match "Database Design")
-         (expect ascii-output :to-match "API Design")
-         (expect ascii-output :to-match "Backend")
+         ;; Use test harness for node validation
+         (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+           (expect (plist-get node-validation :complete) :to-be t))
+         (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+           (expect (plist-get boundary-validation :valid) :to-be t))
+         (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+           (expect (plist-get structure-validation :topology-match) :to-be t))
 
          (message "============================")))))
 

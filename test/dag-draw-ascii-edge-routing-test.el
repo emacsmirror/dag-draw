@@ -20,6 +20,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe
  "ASCII Edge Routing Acceptance Tests"
@@ -110,17 +111,13 @@
             ;; ALGORITHM STABILITY: Focus on structural correctness
             ;; Our conservative 0.08 box scale prioritizes algorithm stability over text display
             
-            ;; Should have proper node boundaries (algorithm working)
-            (expect ascii-output :to-match "┌")  ; top-left corners
-            (expect ascii-output :to-match "└")  ; bottom-left corners
-            (expect ascii-output :to-match "─")  ; horizontal boundaries
-            
-            ;; Should have clean vertical connections (edge routing working)
-            (expect ascii-output :to-match "│")  ; vertical connectors
-            
-            ;; Should demonstrate edge-to-boundary connection (not center-to-center)
-            ;; This is verified by having clean box structures with proper connections
-            (expect (length ascii-output) :to-be-greater-than 200)  ; Substantial output
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
             
             ;; DEFER: Text-based node detection deferred until algorithm fully stable per CLAUDE.local.md
             ))))
@@ -144,23 +141,13 @@
           ;; Verify we get output
           (expect ascii-output :to-be-truthy)
 
-          ;; Should contain horizontal line characters (─) for orthogonal routing
-          (expect ascii-output :to-match "─")
-
-          ;; Split into lines and verify proper horizontal connection
-          (let ((lines (split-string ascii-output "\n")))
-            ;; Should have lines with horizontal characters
-            (expect (cl-some (lambda (line) (string-match-p "─" line)) lines) :to-be-truthy)
-
-            ;; Both node boxes should be present
-            (expect ascii-output :to-match "Left")
-            (expect ascii-output :to-match "Right")
-
-            ;; The connection should be orthogonal (using box-drawing chars)
-            ;; rather than chaotic L-shapes overlapping nodes
-            (expect (length (cl-remove-if-not
-                             (lambda (line) (string-match-p "─" line))
-                             lines)) :to-be-greater-than 0)))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
 
   (it "should integrate with spline system for curved routing"
       (let ((graph (dag-draw-create-graph)))
@@ -194,25 +181,18 @@
           (expect (length ascii-output) :to-be-greater-than 400)
           
           ;; Should have proper node boundaries for all three nodes
-          (expect ascii-output :to-match "┌")  ; multiple top-left corners
-          (expect ascii-output :to-match "└")  ; multiple bottom-left corners
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
           
           ;; Should have routing lines demonstrating curved/obstacle avoidance
-          (expect (or (string-match-p "─" ascii-output)
-                      (string-match-p "│" ascii-output)) :to-be-truthy)
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
           
-          ;; Should have directional arrows showing routing completion
-          (expect (or (string-match-p "▼" ascii-output)
-                      (string-match-p "▶" ascii-output)
-                      (string-match-p "◀" ascii-output)) :to-be-truthy)
-          
-          ;; The key algorithmic achievement: spline-based routing around obstacles
-          ;; This demonstrates GKNV Section 5.2 spline-to-ASCII conversion working correctly
-          (let ((lines (split-string ascii-output "\n")))
-            (expect (cl-some (lambda (line)
-                               (or (string-match-p "─" line)
-                                   (string-match-p "│" line)))
-                             lines) :to-be-truthy))
+          ;; Use test harness for comprehensive validation
+          (let ((arrow-validation (dag-draw-test--validate-arrows ascii-output)))
+            (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))
           
           ;; DEFER: Text-based node matching deferred until algorithm fully stable per CLAUDE.local.md
           )))
@@ -241,25 +221,21 @@
         (let ((ascii-output (dag-draw-render-ascii graph)))
           ;; Verify we get output with all nodes
           (expect ascii-output :to-be-truthy)
-          (expect ascii-output :to-match "A")
-          (expect ascii-output :to-match "B")
-          (expect ascii-output :to-match "C")
-
-          ;; Should have both vertical and horizontal routing
-          ;; (inter-rank edges should be vertical, flat edges horizontal)
-          (expect ascii-output :to-match "│")  ; vertical lines for inter-rank
-          (expect ascii-output :to-match "─")  ; horizontal lines for flat edges
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
 
           ;; Verify the system handles different edge types without crashing
           ;; and produces clean routing for each type
-          (let ((lines (split-string ascii-output "\n")))
-            ;; Should have multiple types of connections
-            (expect (cl-some (lambda (line) (string-match-p "│" line)) lines) :to-be-truthy)
-            (expect (cl-some (lambda (line) (string-match-p "─" line)) lines) :to-be-truthy)
-
-            ;; Overall output should be significantly cleaner than broken version
-            ;; No test for exact self-edge representation yet, but system should handle it
-            (expect (length lines) :to-be-greater-than 5))))))
+          ;; Use test harness for comprehensive validation
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t)
+            (expect (plist-get structure-validation :node-count-match) :to-be t)
+            (expect (plist-get structure-validation :edge-count-match) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
  (describe
   "Visual Quality Standards"
@@ -296,29 +272,19 @@
           ;; Basic output verification
           (expect ascii-output :to-be-truthy)
 
-          ;; All three layers should be present
-          (expect ascii-output :to-match "UI Layer")
-          (expect ascii-output :to-match "Service")
-          (expect ascii-output :to-match "Data Layer")
-
-          ;; Should use proper box-drawing characters
-          (expect ascii-output :to-match "┌")  ; top-left corner
-          (expect ascii-output :to-match "┐")  ; top-right corner
-          (expect ascii-output :to-match "└")  ; bottom-left corner
-          (expect ascii-output :to-match "┘")  ; bottom-right corner
-          (expect ascii-output :to-match "─")  ; horizontal lines
-          (expect ascii-output :to-match "│")  ; vertical lines
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t)
+            (expect (plist-get structure-validation :node-count-match) :to-be t))
 
           ;; Professional quality: clean connections between layers
-          (let ((lines (split-string ascii-output "\n")))
-            ;; Should have clean vertical connections
-            (expect (cl-some (lambda (line) (string-match-p "│" line)) lines) :to-be-truthy)
-
-            ;; Output should be substantial (professional 3-layer graph)
-            (expect (length lines) :to-be-greater-than 10)
-
-            ;; This represents a dramatic improvement from the chaotic
-            ;; center-to-center edge routing shown in the "broken" tests
-            (expect (length (remove "" lines)) :to-be-greater-than 8)))))))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t))
+          (let ((arrow-validation (dag-draw-test--validate-arrows ascii-output)))
+            (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0)))))))
 
 ;;; dag-draw-ascii-edge-routing-test.el ends here

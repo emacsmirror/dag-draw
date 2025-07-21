@@ -1,0 +1,48 @@
+;;; dag-draw-svg-renderer-test.el --- TDD tests for SVG output renderer -*- lexical-binding: t; -*-
+
+(require 'buttercup)
+(require 'dag-draw)
+
+(describe "SVG Output Renderer"
+  (describe "dag-draw-render-svg function"
+    (it "should generate valid SVG document from GKNV coordinate data"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'a "Node A")
+        (dag-draw-add-node graph 'b "Node B")
+        (dag-draw-add-edge graph 'a 'b)
+        (let ((svg-output (dag-draw-render-svg graph)))
+          (expect svg-output :to-match "<?xml version=\"1.0\"")
+          (expect svg-output :to-match "<svg")
+          (expect svg-output :to-match "</svg>"))))
+
+    (it "should position nodes correctly with text labels"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'a "Node A")
+        (dag-draw-add-node graph 'b "Node B")
+        (let ((svg-output (dag-draw-render-svg graph)))
+          (expect svg-output :to-match "<rect")
+          (expect svg-output :to-match "<text")
+          (expect svg-output :to-match "Node A")
+          (expect svg-output :to-match "Node B"))))
+
+    (it "should render edges as paths with arrowheads"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'a "A")
+        (dag-draw-add-node graph 'b "B")
+        (dag-draw-add-edge graph 'a 'b)
+        (let ((svg-output (dag-draw-render-svg graph)))
+          (expect svg-output :to-match "<path")
+          (expect svg-output :to-match "<defs")
+          (expect svg-output :to-match "arrowhead"))))
+
+    (it "should produce proportional layout matching ASCII rendering"
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'a "A")
+        (dag-draw-add-node graph 'b "B")
+        (dag-draw-add-edge graph 'a 'b)
+        (let ((svg-output (dag-draw-render-svg graph)))
+          (expect svg-output :to-match "viewBox")
+          (expect svg-output :to-match "width")
+          (expect svg-output :to-match "height"))))))
+
+;;; dag-draw-svg-renderer-test.el ends here

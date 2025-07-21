@@ -12,6 +12,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe
  "Coordinate System Alignment"
@@ -49,11 +50,9 @@
           (expect ascii-output :not :to-match "┘┼")           ; Bottom-right corner with junction right
           (expect ascii-output :not :to-match "┘─┼")          ; Specific pattern: corner-line-junction
 
-          ;; Should have all nodes visible
-          (expect ascii-output :to-match "Research")
-          (expect ascii-output :to-match "Database Design")
-          (expect ascii-output :to-match "API Design")
-          (expect ascii-output :to-match "Backend")
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
 
           (message "======================================="))))
 
@@ -77,10 +76,9 @@
           (expect ascii-output :not :to-match "┼│")              ; Junction attached to box side
           (expect ascii-output :not :to-match "│─┼")             ; Box side with floating junction
 
-          ;; Should have clean connections to node boundaries
-          (expect ascii-output :to-match "Source")
-          (expect ascii-output :to-match "Target A")
-          (expect ascii-output :to-match "Target B")
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
 
           (message "==================================="))))
 
@@ -102,10 +100,9 @@
           (expect ascii-output :not :to-match "┼┐")   ; Junction on corner
           (expect ascii-output :not :to-match "└┼")   ; Corner with junction
 
-          ;; Should have proper edge-to-box connections
-          ;; Edges should either connect to corners or extend from sides cleanly
-          (expect ascii-output :to-match "Left Node")
-          (expect ascii-output :to-match "Right Node")
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
 
           (message "===============================")))))
 
@@ -137,8 +134,9 @@
             (expect ascii-output :not :to-match " ─ │")  ; Gap between edge and box
 
             ;; Should have nodes visible (confirming collision adjustment worked)
-            (expect ascii-output :to-match "Node A")
-            (expect ascii-output :to-match "Node B")
+            ;; Use test harness for node validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
 
             ;; Should have connecting edge elements
             (expect ascii-output :to-match "[─│▶▼▲◀]")
@@ -159,8 +157,9 @@
 
           ;; Visual inspection: edges should connect smoothly to nodes
           ;; If coordinates are misaligned, we'll see gaps, overlaps, or floating elements
-          (expect ascii-output :to-match "Upstream")
-          (expect ascii-output :to-match "Downstream")
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
 
           ;; Should have some connecting elements (exact pattern depends on layout)
           (expect ascii-output :to-match "[─│▶▼▲◀┌┐└┘├┤┬┴┼]")
@@ -200,9 +199,9 @@
             (expect ascii-output :not :to-match "─     ┼")         ; Gap before junction
 
             ;; Should have all nodes visible
-            (expect ascii-output :to-match "Center")
-            (expect ascii-output :to-match "Left")
-            (expect ascii-output :to-match "Right")
+            ;; Use test harness for node validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
 
             (message "====================================")))))
 
@@ -228,10 +227,9 @@
           (expect ascii-output :not :to-match "┼ ┼")     ; Spaced junctions
 
           ;; Should have nodes visible
-          (expect ascii-output :to-match "Hub")
-          (expect ascii-output :to-match "Spoke1")
-          (expect ascii-output :to-match "Spoke2")
-          (expect ascii-output :to-match "Spoke3")
+          ;; Use test harness for node validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
 
           (message "=========================================")))))
 
@@ -267,8 +265,9 @@
             (expect ascii-output :to-match "[▶─]")     ; Rightward arrow or horizontal line
 
             ;; Should have nodes visible
-            (expect ascii-output :to-match "Source")
-            (expect ascii-output :to-match "Target")
+            ;; Use test harness for node validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
 
             (message "=====================================")))))
 
@@ -302,10 +301,9 @@
             (message "%s" ascii-output)
 
             ;; Should have all nodes visible
-            (expect ascii-output :to-match "Top")
-            (expect ascii-output :to-match "Bottom")
-            (expect ascii-output :to-match "Left")
-            (expect ascii-output :to-match "Right")
+            ;; Use test harness for node validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
 
             ;; Should have directional elements (exact arrows may vary based on routing)
             (expect ascii-output :to-match "[▶▼▲◀│─]")

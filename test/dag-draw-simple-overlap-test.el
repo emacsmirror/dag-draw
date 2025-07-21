@@ -3,6 +3,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Simple Node Overlap Test"
 
@@ -39,17 +40,16 @@
         (message "%s" output)
         (message "=============================\n")
         
-        ;; Test for actual text visibility - all node names should be fully visible
-        (expect output :to-match "API Design")  ; Should not be partially hidden
-        (expect output :to-match "Infrastructure Setup")  ; Should not hide other nodes
-        
-        ;; Look for the specific problematic pattern that indicates merged nodes
-        ;; The issue is when we get something like: │Database Design  │     │API Design│Infrastructure Setup  │
-        ;; This suggests nodes are being drawn as one continuous structure
-        (expect output :not :to-match "│[^│]*│[^│]*│[^│]*│[^│]*│")  ; More than 4 separators in one line = merged structure
-        
-        ;; Test that we don't have the "│──" pattern which indicates visual ambiguity
-        (expect output :not :to-match "│──")))))
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
+        (let ((structure-validation (dag-draw-test--validate-graph-structure output graph)))
+          (expect (plist-get structure-validation :topology-match) :to-be t)
+          (expect (plist-get structure-validation :node-count-match) :to-be t))
+        (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+          (expect (plist-get connectivity-validation :all-connected) :to-be t))))))
 
 (provide 'dag-draw-simple-overlap-test)
 

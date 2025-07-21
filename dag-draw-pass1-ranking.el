@@ -559,22 +559,7 @@ This includes cycle breaking, rank assignment, normalization, and balancing."
   (dag-draw-balance-ranks graph)
   graph)
 
-;;; Cut Value Calculation for Network Simplex
-
-
-
-
-
-
-;;; Network Simplex Iteration Functions
-
-
-
-
-
-
-
-;;; Core Network Simplex Functions (GKNV Figure 2-1)
+;;; Network Simplex Core Algorithm Functions
 
 
 
@@ -611,65 +596,6 @@ This implements step 8 from GKNV: balance nodes across ranks to reduce crowding.
   ;; For minimal implementation, this is a no-op
   ;; Full implementation would move nodes between ranks to balance layout
   graph)
-
-;;; Enhanced Edge Weight System Functions
-;;
-;; This section implements the GKNV network simplex edge weight management
-;; as described in the paper's section on optimal ranking with edge priorities.
-
-;; Edge weight classification constants
-(defconst dag-draw--high-priority-edge-weight 3
-  "Weight assigned to high-priority edges in spanning tree cost calculation.")
-
-(defconst dag-draw--medium-priority-edge-weight 2
-  "Weight assigned to medium-priority edges in spanning tree cost calculation.")
-
-(defconst dag-draw--default-edge-weight 2
-  "Default weight for edges to ensure meaningful cost differences.")
-
-
-
-(defun dag-draw--is-high-priority-connection-p (from-node to-node)
-  "Return t if connection between FROM-NODE and TO-NODE is high priority."
-  (or (and (eq from-node 'source) (eq to-node 'target))
-      (and (eq from-node 'a) (eq to-node 'c))))
-
-(defun dag-draw--is-medium-priority-connection-p (from-node to-node)
-  "Return t if connection between FROM-NODE and TO-NODE is medium priority."
-  (or (and (eq from-node 'x) (eq to-node 'z))
-      (and (eq from-node 'a) (eq to-node 'b))))
-
-
-
-;;; Auxiliary Graph Construction for Network Simplex
-;;
-;; These functions implement auxiliary source/sink construction as described
-;; in GKNV Section 2.3 for the network simplex feasible tree construction.
-
-
-
-
-
-
-
-
-
-
-
-
-
-;;; Virtual Node Management for Long Edge Breaking
-;;
-;; This section implements virtual node insertion and management for
-;; breaking long edges as described in GKNV Section 3.2.
-
-
-
-
-;;; Network Cost Calculation for Spanning Tree Optimization
-;;
-;; This section implements the GKNV network simplex cost function
-;; used to evaluate and optimize spanning tree configurations.
 
 
 
@@ -853,10 +779,6 @@ Implements complete GKNV Figure 2-1 optimization loop."
     (ht-set! result 'final-tree-info tree-info)
 
     result))
-
-
-;;; Spanning Tree Access Functions
-
 
 
 

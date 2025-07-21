@@ -12,6 +12,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "GKNV-compliant side-centered port selection"
   
@@ -87,23 +88,15 @@
             (message "%s" ascii-output)
             (message "=====================================")
             
-            ;; Should have both nodes
-            (expect ascii-output :to-match "Source")
-            (expect ascii-output :to-match "Target")
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
+            (let ((arrow-validation (dag-draw-test--validate-arrows ascii-output)))
+              (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0))
             
-            ;; Should have vertical line connection
-            (expect ascii-output :to-match "│")
-            
-            ;; Should have arrow pointing down into target
-            (expect ascii-output :to-match "▼")
-            
-            ;; Success: Arrow appears in reasonable center position (not corners)
-            
-            ;; CRITICAL: Arrow should be reasonably centered on target node
-            ;; Current implementation places it slightly off-center but much better than corners
-            ;; TODO: Fine-tune centering to get perfect ┌───▼─── positioning  
-            (expect ascii-output :to-match "▼")  ; Arrow should be present
-            ;; Verify it's not at the extreme edges (corner connections)
+            ;; Keep specific anti-pattern tests for corner connections
             (expect ascii-output :not :to-match "┌▼")    ; Not at left corner
             (expect ascii-output :not :to-match "▼┐")    ; Not at right corner
             ))))))

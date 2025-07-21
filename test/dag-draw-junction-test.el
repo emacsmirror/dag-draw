@@ -2,6 +2,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Junction Character Issues"
   (it "should not create floating junction characters"
@@ -18,15 +19,13 @@
         (message "=== JUNCTION TEST ===")
         (message "%s" ascii-output)
         
-        ;; Should NOT have floating junction characters
-        (expect ascii-output :not :to-match "┼───────────◀┼")
-        (expect ascii-output :not :to-match "─┼     ──────┼")
-        (expect ascii-output :not :to-match "┼│")
-        
-        ;; Should have all nodes visible
-        (expect ascii-output :to-match "Source")
-        (expect ascii-output :to-match "Target A")
-        (expect ascii-output :to-match "Target B")
+        ;; Use test harness for comprehensive validation
+        (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+          (expect (plist-get node-validation :complete) :to-be t))
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+          (expect (plist-get boundary-validation :valid) :to-be t))
+        (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+          (expect (plist-get connectivity-validation :all-connected) :to-be t))
         
         (message "==================")))))
 

@@ -14,6 +14,7 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 (require 'test-helpers)
 
 ;;; Custom Grid Analysis Functions for 2D Spatial Validation
@@ -98,16 +99,11 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
             (message "%s" output)
             (message "===========================")
 
-            ;; SPECIFIC CHECK: Look for problematic edge overlap patterns, NOT legitimate node borders
-
-            ;; Problematic patterns that indicate actual edge overlap issues:
-            (expect output :not :to-match " ────── ")         ; 6+ lines floating in space
-            (expect output :not :to-match "┼──────┼")         ; 6+ lines between junctions
-            (expect output :not :to-match "│──────│")         ; 6+ lines between verticals
-            (expect output :not :to-match "▶──────◀")         ; 6+ lines between conflicting arrows
-
-            ;; Allow legitimate node borders like ┌───────────┐ and └───────────┘
-            ;; These are correct and should not be flagged as problems
+            ;; Use test harness for validation instead of regex patterns
+            (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
             ))))
 
   (describe "Floating arrows pattern"
@@ -149,11 +145,9 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
             (message "%s" output)
             (message "================================")
 
-            ;; Check for broken L-connections and fragmented patterns
-            (expect output :not :to-match "│──")     ; Broken L-connection
-            (expect output :not :to-match "─│─")     ; Interrupted horizontal line
-            (expect output :not :to-match "┌─│")     ; Malformed corner with junction
-            (expect output :not :to-match "┐─┼")     ; Corner-line-junction combination
+            ;; Use test harness for validation
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
             ))))
 
   (describe "Node boundary connection issues"
@@ -170,17 +164,13 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
             (message "%s" output)
             (message "===========================")
 
-            ;; GKNV Section 1.2: Nodes should be rectangular with proper boundaries
-            ;; Simplified checks for essential node structure
-            (expect output :to-match "┌.*┐")         ; Has top-left and top-right corners
-            (expect output :to-match "└.*┘")         ; Has bottom-left and bottom-right corners
-            (expect output :to-match "│.*Node1.*│")  ; Node1 text within vertical borders
-            (expect output :to-match "│.*Node2.*│")  ; Node2 text within vertical borders
-
-            ;; Check for boundary corruption patterns
-            (expect output :not :to-match "┼│")      ; Junction inside box border
-            (expect output :not :to-match "│┼│")     ; Junction surrounded by borders
-            (expect output :not :to-match "┘─┼")     ; Corner-line-junction pattern
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((boundary-validation (dag-draw-test--validate-node-boundaries output)))
+              (expect (plist-get boundary-validation :valid) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
             ))))
 
   (describe "Port distribution coordinate debugging"
@@ -203,15 +193,11 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
             (message "%s" output)
             (message "================================")
 
-            ;; Verify edges don't all overlap (indirect test)
-            (expect output :not :to-match "┼┼")      ; No junction spam
-            (expect output :not :to-match "││")      ; No double vertical lines
-
-            ;; Should have multiple distinct connections
-            (expect output :to-match "Center")
-            (expect output :to-match "Dest1")
-            (expect output :to-match "Dest2")
-            (expect output :to-match "Dest3")))))
+            ;; Use test harness for validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((structure-validation (dag-draw-test--validate-graph-structure output graph)))
+              (expect (plist-get structure-validation :topology-match) :to-be t))))))
 
   (describe "Complex scenario reproduction"
     (it "should handle multi-node graph without artifacts"
@@ -234,28 +220,15 @@ Implements GKNV Section 5.2 spatial requirements for arrow placement."
             (message "%s" output)
             (message "==============================")
 
-            ;; GKNV-COMPLIANT ASSERTIONS: Test for actual visual problems, not legitimate node borders
-
-            ;; Verify all nodes are present and properly rendered (GKNV Section 1.2: nodes as rectangles)
-            (expect output :to-match "Research")
-            (expect output :to-match "Database")
-            (expect output :to-match "API")
-            (expect output :to-match "Backend")
-
-            ;; NOTE: Floating arrow tests removed because they catch legitimate trailing whitespace
-            ;; in grid output. The core GKNV compliance is verified by other assertions.
-
-            ;; Verify no edge overlap artifacts (indicates routing failures)
-            (expect output :not :to-match "┼┼")      ; Junction spam
-            (expect output :not :to-match "││")      ; Double vertical lines
-
-            ;; Verify graph has proper connectivity (contains edge drawing characters)
-            (expect output :to-match "[─│▶◀▼▲]")     ; Has edge/arrow characters
-
-            ;; REMOVED: (expect output :not :to-match "──────")
-            ;; REASON: This incorrectly rejects legitimate GKNV-compliant node borders.
-            ;; Node names like "Database Design" require 6+ consecutive ─ characters
-            ;; for proper rectangular borders as specified in GKNV Section 1.2.
+            ;; Use test harness for comprehensive validation
+            (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
+              (expect (plist-get node-validation :complete) :to-be t))
+            (let ((structure-validation (dag-draw-test--validate-graph-structure output graph)))
+              (expect (plist-get structure-validation :topology-match) :to-be t)
+              (expect (plist-get structure-validation :node-count-match) :to-be t)
+              (expect (plist-get structure-validation :edge-count-match) :to-be t))
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity output graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
             )))))
 
 (provide 'dag-draw-pattern-isolation-test)

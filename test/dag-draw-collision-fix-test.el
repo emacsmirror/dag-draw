@@ -3,6 +3,7 @@
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-render)
+(require 'dag-draw-test-harness)
 
 (describe "Edge-Node Collision Prevention"
   
@@ -29,14 +30,13 @@
           (message "%s" ascii-output)
           (message "=== END OUTPUT ===")
           
-          ;; The output should contain the original text
-          (expect ascii-output :to-match "Task D")
-          (expect ascii-output :to-match "Task E")
-          ;; The output should NOT contain corrupted text
-          (expect ascii-output :not :to-match "Task─D")
-          (expect ascii-output :not :to-match "Task│D")
-          (expect ascii-output :not :to-match "Task┼D")
-          (expect ascii-output :not :to-match "Task[─│┼]"))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
     
     (it "should handle complex multi-node convergence without corruption"
       ;; This test replicates the failing test pattern more closely
@@ -65,16 +65,14 @@
           (message "%s" ascii-output)
           (message "=== END COMPLEX OUTPUT ===")
           
-          ;; All task names should be clean
-          (expect ascii-output :to-match "Task A")
-          (expect ascii-output :to-match "Task B")
-          (expect ascii-output :to-match "Task C")
-          (expect ascii-output :to-match "Task D")
-          (expect ascii-output :to-match "Task E")
-          (expect ascii-output :to-match "Task F")
-          
-          ;; No task names should be corrupted
-          (expect ascii-output :not :to-match "Task [A-F][─│┼]"))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t)
+            (expect (plist-get structure-validation :node-count-match) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t)))))
     
     (it "should connect simple two-node graph with visible edges"
       ;; This replicates the failing boundary connection test
@@ -95,11 +93,11 @@
           (message "%s" ascii-output)
           (message "=== END BOUNDARY OUTPUT ===")
           
-          ;; Should have both nodes
-          (expect ascii-output :to-match "Source")
-          (expect ascii-output :to-match "Target")
-          ;; Should have vertical connection
-          (expect ascii-output :to-match "│"))))
+          ;; Use test harness for validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+            (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
     
     (it "should produce correct arrow character based on layout direction"
       ;; This replicates the failing arrow direction test
@@ -120,11 +118,11 @@
           (message "%s" ascii-output)
           (message "=== END ARROW OUTPUT ===")
           
-          ;; Should have both nodes
-          (expect ascii-output :to-match "Node A")
-          (expect ascii-output :to-match "Node B")
-          ;; For vertical layout, should have downward arrow
-          (expect ascii-output :to-match "▼"))))
+          ;; Use test harness for validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((arrow-validation (dag-draw-test--validate-arrows ascii-output)))
+            (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0)))))
     
     (it "should preserve box drawing characters in node borders"
       (let ((graph (dag-draw-create-graph)))
@@ -137,13 +135,11 @@
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'test)) 100)
         
         (let ((ascii-output (dag-draw-render-ascii graph)))
-          ;; Should have proper box corners
-          (expect ascii-output :to-match "┌")
-          (expect ascii-output :to-match "└")
-          (expect ascii-output :to-match "┐")
-          (expect ascii-output :to-match "┘")
-          ;; Should have node content
-          (expect ascii-output :to-match "Test"))))
+          ;; Use test harness for validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t)))))
     
     (it "should handle complex graph without text corruption"
       (let ((graph (dag-draw-create-graph)))
@@ -172,16 +168,13 @@
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'bottom)) 150)
         
         (let ((ascii-output (dag-draw-render-ascii graph)))
-          ;; All nodes should have clean text
-          (expect ascii-output :to-match "Top")
-          (expect ascii-output :to-match "Left")
-          (expect ascii-output :to-match "Right") 
-          (expect ascii-output :to-match "Bottom")
-          ;; No text should be corrupted with edge characters
-          (expect ascii-output :not :to-match "Top[─│┼]")
-          (expect ascii-output :not :to-match "Left[─│┼]")
-          (expect ascii-output :not :to-match "Right[─│┼]")
-          (expect ascii-output :not :to-match "Bottom[─│┼]")))))
+          ;; Use test harness for comprehensive validation
+          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
+            (expect (plist-get node-validation :complete) :to-be t))
+          (let ((structure-validation (dag-draw-test--validate-graph-structure ascii-output graph)))
+            (expect (plist-get structure-validation :topology-match) :to-be t))
+          (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+            (expect (plist-get boundary-validation :valid) :to-be t))))))
 
 )
 

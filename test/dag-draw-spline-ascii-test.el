@@ -12,6 +12,7 @@
 (require 'buttercup)
 (require 'dag-draw-render)
 (require 'dag-draw-pass4-splines)
+(require 'dag-draw-test-harness)
 
 (describe "dag-draw spline integration for ASCII"
   (describe "spline data utilization"
@@ -36,10 +37,11 @@
           
           ;; ASCII rendering should use this spline data for smoother paths
           (let ((result (dag-draw-render-ascii graph)))
-            ;; Should still have directional arrows
-            (expect result :to-match "[▶▼◀▲]")
-            ;; Should have connected paths
-            (expect result :to-match "[─│]"))))))
+            ;; Use test harness for validation
+            (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity result graph)))
+              (expect (plist-get connectivity-validation :all-connected) :to-be t))
+            (let ((arrow-validation (dag-draw-test--validate-arrows result)))
+              (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0)))))))
 
   (describe "spline sampling for ASCII grid"
     (it "should sample spline curves appropriately for ASCII character grid"
