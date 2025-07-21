@@ -1,0 +1,167 @@
+#+TITLE: Ubiquitous Language for GKNV Algorithm Implementation
+#+AUTHOR: Domain-Driven Design Lexicon  
+#+DATE: Generated from "A Technique for Drawing Directed Graphs" (Gansner et al.)
+
+This document provides the authoritative mapping between GKNV paper concepts and implementation terminology. Terms are organized by algorithm phase to clarify their bounded contexts.
+
+* Global Context - Input Model (Section 1.2)
+
+** Graph Structure
+- Attributed Graph G :: Input digraph G = (V,E) with nodes V, directed edges E, and attributes (Section 1.2)
+- Connected Graph :: Assumption that G is connected; disconnected components handled separately (Section 1.2, line 74)
+- Multi-edges :: Multiple edges between same node pair, merged by weight sum in Pass 1&2 (Section 2, line 361)
+- Self-loops :: Edges from node to itself, ignored in Pass 1&2, handled specially in Pass 4 (Sections 2, 5.1.3)
+
+** Node Attributes  
+- Node Size :: xsize(v), ysize(v) - rectangular bounding box dimensions for node v (Section 1.2, line 79)
+- Node Center :: (x(v), y(v)) - final coordinate of node v's center point (Section 1.2, line 89)
+
+** Edge Attributes
+- Edge Weight :: ω(e) - importance/preference weight, usually 1, keeps edges short and vertical (Section 1.2, line 83)
+- Minimum Edge Length :: δ(e) - minimum rank span constraint, usually 1, can be set for technical reasons (Section 2, line 356)
+
+** Layout Attributes
+- Node Separation :: nodesep(G) - minimum horizontal distance between node bounding boxes (Section 1.2, line 81)  
+- Rank Separation :: ranksep(G) - minimum vertical distance between node bounding boxes on adjacent ranks (Section 1.2, line 82)
+
+** User Constraints (Section 1.2, lines 102-105)
+- Maximum Rank Constraint :: S_max ⊆ V - nodes forced to maximum rank (bottom in top-down flow)
+- Minimum Rank Constraint :: S_min ⊆ V - nodes forced to minimum rank (top in top-down flow)  
+- Same Rank Constraints :: S₀, S₁, ..., Sₖ ⊆ V - node sets forced to same rank level
+
+* Pass 1 Context - Rank Assignment (Section 2)
+
+** Core Concepts
+- Rank Assignment :: Function λ: V → ℤ mapping each node to discrete integer rank (Section 2, line 352)
+- Edge Length :: l(e) = λ(w) - λ(v) for edge e = (v,w) - span between source and target ranks (Section 2, line 354)
+- Feasible Ranking :: Assignment where l(e) ≥ δ(e) for all edges e (Section 2.2, line 479)
+- Edge Slack :: slack(e) = l(e) - δ(e) - amount by which edge exceeds minimum length (Section 2.3, line 481)
+
+** Acyclic Graph Construction (Section 2.1) 
+- DFS Edge Classification :: Tree edges, forward edges, cross edges, back edges from depth-first traversal (Section 2.1, line 376)
+- Back Edge :: Edge from DFS descendant to ancestor, creates cycle (Section 2.1, line 381)
+- Edge Reversal :: Internal direction flip of back edges to break cycles, preserves original visual direction (Section 2.1, line 385)
+- Acyclic Graph :: Result after all back edges reversed, enables consistent rank assignment (Section 2.1)
+
+** Network Simplex Algorithm (Section 2.3)
+- Feasible Spanning Tree :: Tree subgraph where all tree edges are tight and induce feasible ranking (Section 2.3, line 487)
+- Tight Edge :: Edge e where slack(e) = 0, achieves minimum possible length (Section 2.3, line 483)
+- Cut Value :: For tree edge, sum of weights from tail component to head component minus reverse (Section 2.3, line 501)
+- Tree Exchange :: Replacing leaving tree edge with entering non-tree edge to improve solution (Section 2.3, line 513)
+
+** Specialized Procedures
+- Initial Feasible Tree :: feasible_tree() - constructs starting spanning tree for network simplex (Figure 2-2)
+- Leave Edge :: Tree edge with negative cut value selected for removal (Section 2.3, line 561)
+- Enter Edge :: Non-tree edge with minimum slack chosen to maintain feasibility (Section 2.3, line 563)
+- Rank Normalization :: Setting minimum rank to 0 (Section 2.3, line 571)
+- Rank Balancing :: Moving nodes to less crowded feasible ranks for better aspect ratio (Section 2.3, line 573)
+
+* Pass 2 Context - Node Ordering Within Ranks (Section 3)
+
+** Graph Transformation  
+- Virtual Node :: Temporary node inserted on intermediate ranks of multi-rank edges (Section 3, line 894)
+- Edge Chain :: Sequence of unit-length virtual edges replacing single multi-rank edge (Section 3, line 894)
+- Unit-Length Graph :: Transformed graph where all edges span exactly one rank (Section 3, line 896)
+
+** Vertex Ordering Problem
+- Vertex Order :: Left-to-right sequence of nodes within each rank (Section 3, line 900)
+- Edge Crossing :: Intersection of two edges between adjacent ranks (Section 3, line 901)
+- Crossing Minimization :: NP-complete problem of reducing edge intersections (Section 3, line 902)
+
+** Ordering Heuristics
+- Barycenter Method :: Vertex weight = average position of adjacent vertices on adjacent rank (Section 3, line 916)
+- Median Method :: Vertex weight = median position of adjacent vertices, performs better than barycenter (Section 3, line 920)
+- Weighted Median :: When even number of adjacents, interpolate biased toward tighter packing (Section 3.2, line 932)
+- Transposition Heuristic :: Local swapping of adjacent vertices to reduce crossings (Section 3, line 936)
+
+** Specialized Edge Handling
+- Flat Edge :: Edge between nodes on same rank, oriented left-to-right (Section 3, line 1163)
+- Transitive Closure :: Partial order that vertex ordering must respect for flat edges (Section 3, line 1177)
+
+* Pass 3 Context - Coordinate Assignment (Section 4)
+
+** Coordinate System
+- X Coordinate :: Horizontal position within rank, computed by optimization (Section 4, line 1203)
+- Y Coordinate :: Vertical position determined by rank, same for all nodes in rank (Section 4, line 1207)
+
+** Optimization Problem (Section 4, lines 1216-1235)
+- Edge Straightening Objective :: Minimize Σ Ω(e)ω(e)|x_w - x_v| over all edges (Section 4, line 1222)
+- Edge Straightening Weight :: Ω(e) - internal priority for edge alignment, higher for virtual chains (Section 4, line 1237)
+- Node Separation Constraint :: x_b - x_a ≥ ρ(a,b) for adjacent nodes in same rank (Section 4, line 1227)
+- Separation Function :: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G) (Section 4, line 1232)
+
+** Auxiliary Graph Method (Section 4.2)
+- Auxiliary Graph :: G' constructed to transform positioning problem to rank assignment (Section 4.2, line 1413)
+- Edge Cost Node :: n_e - new node in G' for each edge e in G (Section 4.2, line 1418)
+- Cost Encoding Edges :: Two edges (n_e, u) and (n_e, v) for each original edge (u,v) (Section 4.2, line 1420)
+- Separation Encoding Edges :: Edge from left neighbor to right with δ = ρ and ω = 0 (Section 4.2, line 1422)
+
+** Node Ports (Section 4.2, lines 1462-1528)
+- Node Port :: X-direction offset from node center for edge attachment (Section 4.2, line 1462)
+- Port Displacement :: Δ_u, Δ_v - specified X offsets for edge endpoints (Section 4.2, line 1509)
+- Port Delta :: d_e = Δ_v - Δ_u - constant displacement between port positions (Section 4.2, line 1512)
+
+* Pass 4 Context - Edge Drawing (Section 5)
+
+** Spline Construction
+- B-spline :: Piecewise Bezier curve defined by control points for smooth edge rendering (Section 5, line 1648)
+- Spline Region :: Polygonal area B₀,...,B_m where spline may be drawn without obstacles (Section 5, line 1645)
+- Region Box :: B_i - rectangular area component of spline routing region (Section 5, line 1646)
+- Control Points :: s₀,...,s_n - mathematical curve definition points for spline (Section 5, line 1649)
+
+** Edge Classification (Section 5.1)
+- Inter-rank Edge :: Edge between nodes on different ranks, most common case (Section 5.1.1, line 1757)
+- Flat Edge :: Edge between different nodes on same rank (Section 5.1.2, line 1820)
+- Self-edge :: Loop edge from node to itself (Section 5.1.3, line 1845)
+
+** Routing Components
+- Port Box :: Region routing spline to appropriate side of node boundary (Section 5.1.1, line 1760)
+- Virtual Node Box :: Space allocation for virtual nodes in spline region (Section 5.1.1, line 1765)
+- Inter-rank Box :: Space between ranks available for spline routing (Section 5.1.1, line 1758)
+
+** Spline Computation (Section 5.2)
+- Linear Path :: p₀,...,p_k - piecewise linear path lying entirely within region (Section 5.2, line 1951)
+- Path Subdivision :: Divide-and-conquer splitting of regions at furthest constraint (Section 5.2, line 2088)
+- Spline Fitting :: generate_spline() - computing Bezier curve approximating linear path (Section 5.2, line 2102)
+- C¹ Continuity :: Smooth joining of spline segments with matching tangent vectors (Section 5.2, line 2142)
+
+** Edge Labels (Section 5.3)
+- Edge Label Node :: Virtual node representing label text positioned along edge path (Section 5.3, line 2196)
+- Label Separation :: Doubling ranks and halving rank separation to accommodate label nodes (Section 5.3, line 2200)
+
+* Aesthetic Principles (Section 1.1, lines 43-54)
+
+- Principle A1 :: Expose hierarchical structure - aim edges in same general direction (Section 1.1, line 43)
+- Principle A2 :: Avoid visual anomalies - minimize edge crossings and sharp bends (Section 1.1, line 47)  
+- Principle A3 :: Keep edges short - aids finding related nodes and reduces complexity (Section 1.1, line 50)
+- Principle A4 :: Favor symmetry and balance - secondary consideration in algorithm (Section 1.1, line 53)
+
+* Cross-Pass Concepts
+
+- Hierarchical Flow :: Overall directional progression from source to sink nodes (Section 1.1, line 38)
+- Interactive Performance :: Algorithm efficiency suitable for real-time user interaction (Section 1, line 30)
+- Network Simplex :: Mathematical optimization technique used in both Pass 1 and Pass 3
+- Optimal Solution :: Mathematically provable best result for rank assignment and positioning
+- Heuristic Solution :: Good approximate result for NP-complete problems like crossing minimization
+
+* Lookup Examples
+
+** Example 1: Finding Paper Source for "Cut Value"
+Question: "Where in the paper is the cut value concept defined?"
+
+Lookup Process:
+1. Search document for "Cut Value"
+2. Found in "Pass 1 Context - Rank Assignment" 
+3. Definition: "For tree edge, sum of weights from tail component to head component minus reverse (Section 2.3, line 501)"
+4. Paper Reference: Section 2.3, around line 501 in the paper
+5. Context: Network Simplex Algorithm within Pass 1
+
+** Example 2: Finding Code Context for "Spline Region"  
+Question: "If I see 'spline-region' in the code, what pass does it belong to and what does it do?"
+
+Lookup Process:
+1. Search document for "Spline Region"
+2. Found in "Pass 4 Context - Edge Drawing"
+3. Definition: "Polygonal area B₀,...,B_m where spline may be drawn without obstacles (Section 5, line 1645)"
+4. Context: Pass 4 (make_splines), specifically the region-finding phase
+5. Related concepts: Region Box, Port Box, Virtual Node Box (all Pass 4 concepts)

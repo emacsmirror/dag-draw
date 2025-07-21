@@ -650,7 +650,7 @@ Draws segments between consecutive spline points per GKNV Section 5.2."
              (x2 (nth 0 next-point))
              (y2 (nth 1 next-point)))
         (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2)))));;; L-shaped path drawing
-;;; Occupancy checking functions
+
 (defun dag-draw--draw-continuous-path-segment (grid x1 y1 x2 y2)
   "Draw a continuous path segment ensuring no gaps or floating characters.
 Uses orthogonal routing (horizontal then vertical) for clean ASCII representation."
