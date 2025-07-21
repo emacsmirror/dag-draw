@@ -560,21 +560,27 @@ of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
       (let* ((from-node (dag-draw-edge-from-node edge))
              (to-node (dag-draw-edge-to-node edge))
              (edge-weight (or (dag-draw-edge-weight edge) 1))
-             (aux-node-id (intern (format "aux_edge_%s_%s" from-node to-node)))
+             ;; GKNV Section 4.2, line 1418: Edge Cost Node n_e
+             (ne-node-id (intern (format "n_e_%s_%s" from-node to-node)))
              (omega-factor (dag-draw--calculate-omega-factor from-node to-node))
              (cost-weight (* edge-weight omega-factor)))
 
-        ;; Create auxiliary node for this edge
-        (dag-draw-add-node aux-graph aux-node-id (format "Aux_%s_%s" from-node to-node))
+        ;; Create n_e edge cost node per GKNV terminology
+        (dag-draw-add-node aux-graph ne-node-id (format "n_e_%s_%s" from-node to-node))
+        
+        ;; Set n_e node to a separate rank to avoid separation edge conflicts
+        ;; Cost nodes don't participate in rank-based separation
+        (let ((ne-node (dag-draw-get-node aux-graph ne-node-id)))
+          (setf (dag-draw-node-rank ne-node) -1))  ; Use rank -1 for cost nodes
 
-        ;; Create cost edges: (aux_node, from) and (aux_node, to)
+        ;; GKNV Section 4.2, line 1420: Create cost encoding edges (n_e, u) and (n_e, v)
         ;; With δ=0 and ω=ω(e)×Ω(e) per GKNV specification
         (let ((attrs1 (ht-create))
               (attrs2 (ht-create)))
-          (ht-set attrs1 'min-length 0)  ; GKNV δ(aux→u) = 0 for cost edges
-          (ht-set attrs2 'min-length 0)  ; GKNV δ(aux→v) = 0 for cost edges
-          (dag-draw-add-edge aux-graph aux-node-id from-node cost-weight nil attrs1)
-          (dag-draw-add-edge aux-graph aux-node-id to-node cost-weight nil attrs2))))
+          (ht-set attrs1 'min-length 0)  ; GKNV δ(n_e→u) = 0 for cost encoding edges
+          (ht-set attrs2 'min-length 0)  ; GKNV δ(n_e→v) = 0 for cost encoding edges
+          (dag-draw-add-edge aux-graph ne-node-id from-node cost-weight nil attrs1)
+          (dag-draw-add-edge aux-graph ne-node-id to-node cost-weight nil attrs2))))
 
     ;; Create separation edges for adjacent nodes in same rank
     (ht-each (lambda (rank nodes-in-rank)
