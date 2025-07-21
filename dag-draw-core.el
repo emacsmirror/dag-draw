@@ -114,7 +114,7 @@
                       :from-node (dag-draw-edge-from-node edge)
                       :to-node (dag-draw-edge-to-node edge)
                       :weight (dag-draw-edge-weight edge)
-                      :min-length (dag-draw-edge-min-length edge)
+                      :min-length (dag-draw-edge-δ edge)  ; GKNV δ(e) notation
                       :label (dag-draw-edge-label edge)
                       :spline-points (copy-sequence (dag-draw-edge-spline-points edge))
                       :attributes (ht-copy (dag-draw-edge-attributes edge)))))

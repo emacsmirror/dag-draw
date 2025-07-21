@@ -133,13 +133,14 @@ Adds edges to TREE-EDGES-REF and updates parent/children relationships."
 (defun dag-draw--add-spanning-tree-edge (tree-edges-ref from-node to-node graph)
   "Add a new spanning tree edge from FROM-NODE to TO-NODE, preserving original weight."
   (let* ((original-edge (dag-draw--find-graph-edge graph from-node to-node))
-         (weight (if original-edge
-                     (dag-draw-edge-weight original-edge)
-                     1)) ; Default weight if no original edge found
+         ;; GKNV ω(e) - edge weight for optimization (Section 1.2, line 83)
+         (ω (if original-edge
+                (dag-draw-edge-ω original-edge)
+                1)) ; Default ω(e) = 1 if no original edge found
          (tree-edge (make-dag-draw-tree-edge
                      :from-node from-node
                      :to-node to-node
-                     :weight weight       ; Preserve original weight ω(e)
+                     :weight ω            ; Preserve original weight ω(e)
                      :cut-value 0         ; Will be calculated during network simplex
                      :is-tight t)))       ; Initially assume all tree edges are tight
     (setcar tree-edges-ref (cons tree-edge (car tree-edges-ref)))))
@@ -164,12 +165,13 @@ Adds edges to TREE-EDGES-REF and updates parent/children relationships."
                (edge-to-child (cl-find-if (lambda (e)
                                            (eq (dag-draw-edge-to-node e) child))
                                          edges))
-               (min-length (if edge-to-child
-                                             (dag-draw-edge-min-length edge-to-child)
-                                             1))) ; Default min-length = 1
+               ;; GKNV δ(e) - minimum edge length constraint (Section 2, line 356)
+               (δ (if edge-to-child
+                      (dag-draw-edge-δ edge-to-child)
+                      1))) ; Default δ(e) = 1
 
-          ;; Child rank = parent rank + min-length
-          (ht-set! ranking child (+ node-rank min-length))
+          ;; Child rank = parent rank + δ(e) per GKNV Section 2
+          (ht-set! ranking child (+ node-rank δ))
 
           ;; Recurse to child's children
           (dag-draw--assign-ranks-from-root graph spanning-tree child ranking))))))
@@ -214,8 +216,10 @@ Returns hash table: node-id → rank"
         (let ((edge (dag-draw--find-graph-edge graph node child)))
           (if edge
               ;; Child rank = parent rank + minimum edge length
-              (let ((min-length (dag-draw-edge-min-length edge)))
-                (ht-set! ranking child (+ node-rank min-length)))
+              ;; GKNV δ(e) - minimum edge length constraint (Section 2, line 356)
+              (let ((δ (dag-draw-edge-δ edge)))
+                ;; Child rank = parent rank + δ(e) per GKNV Section 2
+                (ht-set! ranking child (+ node-rank δ)))
             ;; Fallback: use default minimum length of 1
             (ht-set! ranking child (+ node-rank 1))))
 
@@ -284,8 +288,9 @@ This implements the full GKNV algorithm Pass 1 with network simplex from Figure 
     ;; Step 4.5: Set max rank based on assigned ranks
     (let ((max-rank 0))
       (ht-each (lambda (_node-id node)
-                 (when (dag-draw-node-rank node)
-                   (setq max-rank (max max-rank (dag-draw-node-rank node)))))
+                 ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
+                 (when (dag-draw-node-λ node)
+                   (setq max-rank (max max-rank (dag-draw-node-λ node)))))
                (dag-draw-graph-nodes graph))
       (setf (dag-draw-graph-max-rank graph) max-rank))
 
@@ -373,14 +378,14 @@ Returns hash table with tree-edges, non-tree-edges, aux-source, and aux-sink."
         ;; Connect aux-source to all source nodes
         (dolist (node-id source-nodes)
           (let* ((aux-attrs (ht-create))
-                 (_ (ht-set! aux-attrs 'min-length 0))  ; δ = 0 per GKNV spec
+                 (_ (ht-set! aux-attrs 'min-length 0))  ; GKNV δ(S_min→v) = 0 per spec
                  (aux-edge (dag-draw-add-edge graph aux-source-id node-id 1 nil aux-attrs)))
             (push aux-edge tree-edges)))
 
         ;; Connect all sink nodes to aux-sink
         (dolist (node-id sink-nodes)
           (let* ((aux-attrs (ht-create))
-                 (_ (ht-set! aux-attrs 'min-length 0))  ; δ = 0 per GKNV spec
+                 (_ (ht-set! aux-attrs 'min-length 0))  ; GKNV δ(v→S_max) = 0 per spec
                  (aux-edge (dag-draw-add-edge graph node-id aux-sink-id 1 nil aux-attrs)))
             (push aux-edge tree-edges))))
 

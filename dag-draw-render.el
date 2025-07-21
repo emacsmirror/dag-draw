@@ -115,9 +115,16 @@ Does NOT modify graph coordinates or regenerate splines."
   "Draw nodes using GKNV final coordinates without modification."
 
   (ht-each (lambda (node-id node)
-             (let* (;; Use GKNV final coordinates directly
-                    (world-x (dag-draw-node-x-coord node))
-                    (world-y (dag-draw-node-y-coord node))
+             (let* (;; GKNV Pass 3 Authority: Use protected coordinates from adjusted-positions
+                    ;; Section 4: "The third pass finds optimal coordinates for nodes"
+                    (adjusted-positions (dag-draw-graph-adjusted-positions graph))
+                    (adjusted-coords (and adjusted-positions (ht-get adjusted-positions node-id)))
+                    (world-x (if adjusted-coords
+                                 (nth 0 adjusted-coords)  ; Use protected GKNV coordinates
+                               (or (dag-draw-node-x-coord node) 0)))  ; Fallback
+                    (world-y (if adjusted-coords
+                                 (nth 1 adjusted-coords)  ; Use protected GKNV coordinates
+                               (or (dag-draw-node-y-coord node) 0)))  ; Fallback
                     (world-width (dag-draw-node-x-size node))
                     (world-height (dag-draw-node-y-size node))
                     (node-label (dag-draw-node-label node))

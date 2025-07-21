@@ -212,16 +212,18 @@ Detects when vertical lines are adjacent and merges them into proper routing."
 Returns intersection point (x,y) on the node boundary, or nil if no intersection.
 Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint node shapes'."
   (let* ((node (dag-draw-get-node graph node-id))
-         (manual-x (dag-draw-node-x-coord node))
-         (manual-y (dag-draw-node-y-coord node))
-         (has-manual-coords (and manual-x manual-y))
+         ;; GKNV Pass 3 Authority: Only use GKNV-assigned coordinates
+         ;; Section 4: "The third pass finds optimal coordinates for nodes"
+         ;; No manual coordinate override allowed - Pass 3 has sole authority
+         (gknv-x (dag-draw-node-x-coord node))
+         (gknv-y (dag-draw-node-y-coord node))
          (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-         ;; GKNV Section 5.2 FIX: Use consistent coordinate priority
-         ;; Prioritize manual coordinates over adjusted coordinates to match visual rendering
-         (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
+         (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id))
+                          ;; Use adjusted positions if available (from layout algorithm)
                           (ht-get adjusted-positions node-id)
-                        (let* ((x (or manual-x 0))
-                               (y (or manual-y 0))
+                        ;; Otherwise use GKNV Pass 3 coordinates
+                        (let* ((x (or gknv-x 0))
+                               (y (or gknv-y 0))
                                (width (dag-draw-node-x-size node))
                                (height (dag-draw-node-y-size node))
                                (grid-center-x (dag-draw--world-to-grid-coord x min-x scale))
@@ -264,19 +266,20 @@ GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering."
   (let ((int-x (round x))
         (int-y (round y)))
     (let* ((node (dag-draw-get-node graph node-id))
-           (manual-x (dag-draw-node-x-coord node))
-           (manual-y (dag-draw-node-y-coord node))
-           (has-manual-coords (and manual-x manual-y))
+           ;; GKNV Pass 3 Authority: Only use GKNV-assigned coordinates
+           ;; Section 4: "The third pass finds optimal coordinates for nodes"
+           (gknv-x (dag-draw-node-x-coord node))
+           (gknv-y (dag-draw-node-y-coord node))
            (adjusted-positions (dag-draw-graph-adjusted-positions graph))
-           ;; GKNV Section 5.2 FIX: Use consistent coordinate priority and intersection detection
-           ;; Prioritize manual coordinates over adjusted coordinates to match visual rendering
-           (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id) (not has-manual-coords))
+           ;; GKNV Section 5.2 FIX: Use GKNV coordinate authority for intersection detection
+           ;; Only use algorithm-assigned coordinates for boundary calculations
+           (node-coords (if (and adjusted-positions (ht-get adjusted-positions node-id))
                             (ht-get adjusted-positions node-id)
                           (let* ((coord-scale (or scale dag-draw-ascii-coordinate-scale))
                                  (coord-min-x (or min-x 0))
                                  (coord-min-y (or min-y 0))
-                                 (x-coord (or manual-x 0))
-                                 (y-coord (or manual-y 0))
+                                 (x-coord (or gknv-x 0))
+                                 (y-coord (or gknv-y 0))
                                  (width (dag-draw-node-x-size node))
                                  (height (dag-draw-node-y-size node))
                                  (grid-center-x (dag-draw--world-to-grid-coord x-coord coord-min-x coord-scale))

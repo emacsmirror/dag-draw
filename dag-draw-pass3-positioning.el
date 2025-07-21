@@ -83,7 +83,7 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
                                         :from-node left-node
                                         :to-node right-node
                                         :weight 0  ; No cost, just constraint
-                                        :min-length sep-distance)))
+                                        :min-length sep-distance)))  ; GKNV ρ(u,v) separation constraint
                          (push sep-edge (dag-draw-graph-edges aux-graph))))))))
              rank-to-nodes)))
 
@@ -202,6 +202,22 @@ for optimal X-coordinate assignment."
 
   ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
   (dag-draw--ensure-all-nodes-have-coordinates graph)
+
+  ;; GKNV Pass 3 Authority: Store final coordinates in protected adjusted-positions
+  ;; Section 4: "The third pass finds optimal coordinates for nodes"
+  ;; This prevents manual coordinate overrides from affecting rendering
+  (unless (dag-draw-graph-adjusted-positions graph)
+    (setf (dag-draw-graph-adjusted-positions graph) (ht-create)))
+  (ht-each (lambda (node-id node)
+             (let ((final-x (or (dag-draw-node-x-coord node) 0))
+                   (final-y (or (dag-draw-node-y-coord node) 0))
+                   (width (dag-draw-node-x-size node))
+                   (height (dag-draw-node-y-size node)))
+               ;; Store GKNV-assigned coordinates in protected location
+               ;; Format: (x y width height) - same as collision resolution format
+               (ht-set! (dag-draw-graph-adjusted-positions graph) node-id
+                        (list final-x final-y width height))))
+           (dag-draw-graph-nodes graph))
 
   ;; DEBUG: Show final node positions after X and Y coordinate assignment
   (message "NODE POSITIONS after complete positioning:")
@@ -555,8 +571,8 @@ of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
         ;; With δ=0 and ω=ω(e)×Ω(e) per GKNV specification
         (let ((attrs1 (ht-create))
               (attrs2 (ht-create)))
-          (ht-set attrs1 'min-length 0)  ; δ=0 for cost edges
-          (ht-set attrs2 'min-length 0)  ; δ=0 for cost edges
+          (ht-set attrs1 'min-length 0)  ; GKNV δ(aux→u) = 0 for cost edges
+          (ht-set attrs2 'min-length 0)  ; GKNV δ(aux→v) = 0 for cost edges
           (dag-draw-add-edge aux-graph aux-node-id from-node cost-weight nil attrs1)
           (dag-draw-add-edge aux-graph aux-node-id to-node cost-weight nil attrs2))))
 
@@ -577,7 +593,7 @@ of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
                             (separation (dag-draw--calculate-separation aux-graph left-node right-node)))
                        ;; Create separation edge: (left, right) with δ=ρ(left,right), ω=0
                        (let ((sep-attrs (ht-create)))
-                         (ht-set sep-attrs 'min-length separation)  ; δ=ρ(left,right) for separation
+                         (ht-set sep-attrs 'min-length separation)  ; GKNV δ(u,v) = ρ(u,v) separation constraint
                          (dag-draw-add-edge aux-graph left-node right-node 0 nil sep-attrs)))))))
              (dag-draw--group-nodes-by-rank aux-graph))
 

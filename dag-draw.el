@@ -415,6 +415,27 @@ Returns (min-x min-y max-x max-y)."
 
       (list min-x min-y max-x max-y))))
 
+;;; GKNV Mathematical Notation Aliases
+;; Section references from "A Technique for Drawing Directed Graphs"
+
+(defalias 'dag-draw-edge-δ 'dag-draw-edge-min-length
+  "GKNV δ(e) - minimum edge length constraint (Section 2, line 356).
+Alias for dag-draw-edge-min-length using proper Greek mathematical notation.")
+
+(defalias 'dag-draw-edge-ω 'dag-draw-edge-weight  
+  "GKNV ω(e) - edge weight for optimization (Section 1.2, line 83).
+Alias for dag-draw-edge-weight using proper Greek mathematical notation.")
+
+(defalias 'dag-draw-node-λ 'dag-draw-node-rank
+  "GKNV λ(v) - rank assignment function (Section 2, line 352).
+Alias for dag-draw-node-rank using proper Greek mathematical notation.")
+
+;; Declare ρ function for separation calculations
+(declare-function dag-draw--calculate-separation "dag-draw-pass3-positioning")
+(defalias 'dag-draw-ρ 'dag-draw--calculate-separation
+  "GKNV ρ(u,v) - minimum separation function between adjacent nodes.
+ρ(u,v) = (xsize(u) + xsize(v))/2 + nodesep(G) per Section 4.")
+
 (provide 'dag-draw)
 
 ;;; dag-draw.el ends here

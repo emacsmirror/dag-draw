@@ -47,23 +47,23 @@ MATHEMATICAL UNIFICATION FIX: Use same scale as coordinate conversion to elimina
   "Get node center coordinates directly in grid space for simple edge routing.
     VISUAL FIX: Simplified coordinate calculation to avoid conversion errors."
   (let* ((node-id (dag-draw-node-id node))
-         ;; Check if node has manually set coordinates (non-nil)
-         (manual-x (dag-draw-node-x-coord node))
-         (manual-y (dag-draw-node-y-coord node))
-         (has-manual-coords (and manual-x manual-y))
+         ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates  
+         ;; Section 4: "The third pass finds optimal coordinates for nodes"
+         (gknv-x (dag-draw-node-x-coord node))
+         (gknv-y (dag-draw-node-y-coord node))
          ;; Get adjusted coordinates from layout algorithm
          (adjusted-coords (and graph
                                (dag-draw-graph-adjusted-positions graph)
                                (ht-get (dag-draw-graph-adjusted-positions graph) node-id))))
 
-    (if (and adjusted-coords (not has-manual-coords))
-        ;; Use adjusted coordinates only if no manual coordinates are set
+    (if adjusted-coords
+        ;; Use adjusted coordinates from GKNV layout algorithm
         (dag-draw-point-create
          :x (+ (nth 0 adjusted-coords) (/ (nth 2 adjusted-coords) 2.0))
          :y (+ (nth 1 adjusted-coords) (/ (nth 3 adjusted-coords) 2.0)))
-      ;; Prioritize manual coordinates - convert world coordinates to grid coordinates
-      (let* ((world-x (or manual-x 0))
-             (world-y (or manual-y 0))
+      ;; Use GKNV Pass 3 coordinates - convert world coordinates to grid coordinates
+      (let* ((world-x (or gknv-x 0))
+             (world-y (or gknv-y 0))
              (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
              (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
         (dag-draw-point-create :x grid-x :y grid-y)))))

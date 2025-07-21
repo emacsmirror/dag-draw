@@ -27,10 +27,10 @@ This function calculates ports based on actual grid positions after coordinate
 conversion and rounding, ensuring precise alignment with rendered boxes.
 If GRAPH is provided and contains adjusted positions, uses those coordinates."
   (let* ((node-id (dag-draw-node-id node))
-         ;; Check if node has manually set coordinates
-         (manual-x (dag-draw-node-x-coord node))
-         (manual-y (dag-draw-node-y-coord node))
-         (has-manual-coords (and manual-x manual-y))
+         ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates
+         ;; Section 4: "The third pass finds optimal coordinates for nodes"
+         (gknv-x (dag-draw-node-x-coord node))
+         (gknv-y (dag-draw-node-y-coord node))
          ;; Always prioritize adjusted coordinates when available
          ;; The adjusted-positions contain the final collision-resolved positions
          (adjusted-positions-table (and graph (dag-draw-graph-adjusted-positions graph)))
@@ -39,12 +39,12 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
          (x (if adjusted-coords
                 ;; Adjusted coordinates are already in grid space: (x y width height)
                 (float (nth 0 adjusted-coords))
-              ;; Convert manual world coordinates to grid coordinates
-              (dag-draw--world-to-grid-coord (or manual-x 0) min-x scale)))
+              ;; Convert GKNV Pass 3 world coordinates to grid coordinates
+              (dag-draw--world-to-grid-coord (or gknv-x 0) min-x scale)))
          (y (if adjusted-coords
                 (float (nth 1 adjusted-coords))
-              ;; Convert manual world coordinates to grid coordinates
-              (dag-draw--world-to-grid-coord (or manual-y 0) min-y scale)))
+              ;; Convert GKNV Pass 3 world coordinates to grid coordinates
+              (dag-draw--world-to-grid-coord (or gknv-y 0) min-y scale)))
          (width (if adjusted-coords
                     (float (nth 2 adjusted-coords))
                   (dag-draw--world-to-grid-size (dag-draw-node-x-size node) scale)))
