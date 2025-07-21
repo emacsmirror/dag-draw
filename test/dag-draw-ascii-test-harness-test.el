@@ -63,7 +63,7 @@
         (dag-draw-add-node graph 'a "A")
         (dag-draw-add-node graph 'b "B")
         (dag-draw-add-edge graph 'a 'b)
-        (let ((ascii-output (dag-draw-render-ascii graph :format :ascii)))
+        (let ((ascii-output (dag-draw-render-ascii graph)))
           (let ((connectivity (dag-draw-test--validate-edge-connectivity ascii-output graph)))
             (expect (plist-get connectivity :all-connected) :to-be t)
             (expect (plist-get connectivity :missing-connections) :to-equal nil)))))
