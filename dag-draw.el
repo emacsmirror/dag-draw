@@ -436,6 +436,39 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
   "GKNV ρ(u,v) - minimum separation function between adjacent nodes.
 ρ(u,v) = (xsize(u) + xsize(v))/2 + nodesep(G) per Section 4.")
 
+;;; Standard GKNV Function Names from Figure 1-1
+;; These are the canonical entry points referenced in the GKNV paper
+
+(declare-function dag-draw-rank-graph "dag-draw-pass1-ranking")
+(defalias 'dag-draw-rank 'dag-draw-rank-graph
+  "GKNV rank(G) - main entry point for Pass 1 rank assignment (Figure 1-1).")
+
+(declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")  
+(defalias 'dag-draw-ordering 'dag-draw-order-vertices
+  "GKNV ordering(G) - main entry point for Pass 2 vertex ordering (Figure 1-1).")
+
+(declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
+(defalias 'dag-draw-position 'dag-draw-position-nodes  
+  "GKNV position(G) - main entry point for Pass 3 coordinate assignment (Figure 1-1).")
+
+(declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
+(defalias 'dag-draw-make-splines 'dag-draw-generate-splines
+  "GKNV make_splines(G) - main entry point for Pass 4 spline generation (Figure 1-1).")
+
+;; Additional canonical functions from Figure 2-2
+(declare-function dag-draw-assign-ranks "dag-draw-pass1-ranking")
+(defalias 'dag-draw-init-rank 'dag-draw-assign-ranks
+  "GKNV init_rank() - initial rank assignment from Figure 2-2.")
+
+(declare-function dag-draw--create-feasible-spanning-tree "dag-draw-pass1-ranking") 
+(defalias 'dag-draw-feasible-tree 'dag-draw--create-feasible-spanning-tree
+  "GKNV feasible_tree() - create initial spanning tree from Figure 2-2.")
+
+;; Section 5.2 spline generation
+(declare-function dag-draw--create-inter-rank-spline "dag-draw-pass4-splines")
+(defalias 'dag-draw-generate-spline 'dag-draw--create-inter-rank-spline
+  "GKNV generate_spline() - individual spline generation from Section 5.2.")
+
 (provide 'dag-draw)
 
 ;;; dag-draw.el ends here

@@ -88,7 +88,7 @@ The algorithm:
                    (ht-set! tree-data 'roots (cons node-id current-roots)))
                  (ht-set! parent-map node-id nil)
                  (dag-draw--dfs-spanning-tree graph node-id visited tree-edges-ref
-                                             parent-map children-map)))
+                                              parent-map children-map)))
              (dag-draw-graph-nodes graph))))
 
 (defun dag-draw--construct-spanning-tree (tree-data)
@@ -128,7 +128,7 @@ Adds edges to TREE-EDGES-REF and updates parent/children relationships."
 
       ;; Recurse to build subtree
       (dag-draw--dfs-spanning-tree graph successor visited tree-edges-ref
-                                  parent-map children-map))))
+                                   parent-map children-map))))
 
 (defun dag-draw--add-spanning-tree-edge (tree-edges-ref from-node to-node graph)
   "Add a new spanning tree edge from FROM-NODE to TO-NODE, preserving original weight."
@@ -136,7 +136,7 @@ Adds edges to TREE-EDGES-REF and updates parent/children relationships."
          ;; GKNV ω(e) - edge weight for optimization (Section 1.2, line 83)
          (ω (if original-edge
                 (dag-draw-edge-ω original-edge)
-                1)) ; Default ω(e) = 1 if no original edge found
+              1)) ; Default ω(e) = 1 if no original edge found
          (tree-edge (make-dag-draw-tree-edge
                      :from-node from-node
                      :to-node to-node
@@ -163,12 +163,12 @@ Adds edges to TREE-EDGES-REF and updates parent/children relationships."
         ;; Find the edge from node to child to get minimum length
         (let* ((edges (dag-draw-get-edges-from graph node))
                (edge-to-child (cl-find-if (lambda (e)
-                                           (eq (dag-draw-edge-to-node e) child))
-                                         edges))
+                                            (eq (dag-draw-edge-to-node e) child))
+                                          edges))
                ;; GKNV δ(e) - minimum edge length constraint (Section 2, line 356)
                (δ (if edge-to-child
                       (dag-draw-edge-δ edge-to-child)
-                      1))) ; Default δ(e) = 1
+                    1))) ; Default δ(e) = 1
 
           ;; Child rank = parent rank + δ(e) per GKNV Section 2
           (ht-set! ranking child (+ node-rank δ))
@@ -282,22 +282,22 @@ This implements the full GKNV algorithm Pass 1 with network simplex from Figure 
                (if (ht-get optimization-result 'converged) "converged" "stopped")
                (ht-get optimization-result 'iterations))
 
-    ;; Step 4: Clean up auxiliary nodes created during optimization
-    (dag-draw--cleanup-auxiliary-elements graph)
+      ;; Step 4: Clean up auxiliary nodes created during optimization
+      (dag-draw--cleanup-auxiliary-elements graph)
 
-    ;; Step 4.5: Set max rank based on assigned ranks
-    (let ((max-rank 0))
-      (ht-each (lambda (_node-id node)
-                 ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
-                 (when (dag-draw-node-λ node)
-                   (setq max-rank (max max-rank (dag-draw-node-λ node)))))
-               (dag-draw-graph-nodes graph))
-      (setf (dag-draw-graph-max-rank graph) max-rank))
+      ;; Step 4.5: Set max rank based on assigned ranks
+      (let ((max-rank 0))
+        (ht-each (lambda (_node-id node)
+                   ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
+                   (when (dag-draw-node-λ node)
+                     (setq max-rank (max max-rank (dag-draw-node-λ node)))))
+                 (dag-draw-graph-nodes graph))
+        (setf (dag-draw-graph-max-rank graph) max-rank))
 
-    ;; Step 5: Normalize ranks to start from 0 (GKNV step 7)
-    (dag-draw-normalize-ranks graph)
-    ;; Step 6: Balance ranks for better aspect ratio (GKNV step 8)
-    (dag-draw--balance-ranks graph))
+      ;; Step 5: Normalize ranks to start from 0 (GKNV step 7)
+      (dag-draw-normalize-ranks graph)
+      ;; Step 6: Balance ranks for better aspect ratio (GKNV step 8)
+      (dag-draw--balance-ranks graph))
 
     graph))
 
@@ -462,38 +462,140 @@ Implements GKNV Figure 2-1 step 5: exchange(e,f)."
     (ht-set! tree-info 'non-tree-edges non-tree-edges)))
 
 (defun dag-draw--calculate-edge-cut-value (edge tree-info graph)
-  "Calculate cut value for a tree edge.
+  "Calculate cut value for a tree edge using proper GKNV Section 2.3 formula.
+Cut value = sum of weights from tail component to head component minus reverse.
 Negative cut values indicate optimization opportunities."
-  (let ((from-node (dag-draw-edge-from-node edge))
-        (to-node (dag-draw-edge-to-node edge))
-        (edge-weight (dag-draw-edge-weight edge)))
+  ;; GKNV Section 2.3: Proper cut value calculation
+  (dag-draw--calculate-proper-cut-value edge tree-info graph))
 
-    ;; Auxiliary edges (to/from S_min and S_max) should not be optimized
-    ;; They have neutral cut values (0) to maintain feasibility
+(defun dag-draw--dfs-collect-component (start-node edges visited)
+  "DFS to collect all nodes reachable from start-node via edges.
+Returns list of nodes in the connected component."
+  (if (ht-get visited start-node)
+      '()  ; Already visited, return empty list
+    (progn
+      (ht-set! visited start-node t)
+      (let ((component (list start-node)))
+
+        ;; Follow all connected edges in both directions (undirected spanning tree)
+        (dolist (edge edges)
+          (let* ((edge-nodes (dag-draw--get-edge-nodes edge))
+                 (from (car edge-nodes))
+                 (to (cadr edge-nodes)))
+            (cond
+             ;; Forward edge: start-node -> to
+             ((eq from start-node)
+              (let ((sub-component (dag-draw--dfs-collect-component to edges visited)))
+                (setq component (append component sub-component))))
+             ;; Backward edge: to -> start-node (undirected tree)
+             ((eq to start-node)
+              (let ((sub-component (dag-draw--dfs-collect-component from edges visited)))
+                (setq component (append component sub-component)))))))
+
+        component))))
+
+(defun dag-draw--get-edge-nodes (edge)
+  "Get from-node and to-node from either tree edge or regular edge."
+  (if (dag-draw-tree-edge-p edge)
+      (list (dag-draw-tree-edge-from-node edge) 
+            (dag-draw-tree-edge-to-node edge))
+    (list (dag-draw-edge-from-node edge)
+          (dag-draw-edge-to-node edge))))
+
+(defun dag-draw--identify-cut-components (edge tree-edges)
+  "Identify head and tail components when tree edge is removed.
+GKNV Section 2.3: Removing tree edge creates cut dividing nodes into components.
+Returns hash table with 'head-component and 'tail-component lists."
+  (let* ((edge-nodes (dag-draw--get-edge-nodes edge))
+         (from-node (car edge-nodes))
+         (to-node (cadr edge-nodes)))
+
+    ;; Handle auxiliary edges - skip them
     (if (or (eq from-node 'dag-draw-s-min)
             (eq to-node 'dag-draw-s-min)
             (eq from-node 'dag-draw-s-max)
             (eq to-node 'dag-draw-s-max))
-        0  ; Auxiliary edges are neutral
+        nil  ; Return nil for auxiliary edges
 
-      ;; For regular edges, cut value depends on optimization opportunity
-      ;; High-weight edges should have negative cut values (be candidates for removal)
-      (if (> edge-weight 1)
-          (- edge-weight)  ; Negative for high-weight edges
-        0))))  ; Neutral for unit-weight edges
+      ;; Create modified edge list without the cut edge
+      (let ((modified-edges (cl-remove-if
+                             (lambda (e)
+                               (let* ((e-nodes (dag-draw--get-edge-nodes e))
+                                      (e-from (car e-nodes))
+                                      (e-to (cadr e-nodes)))
+                                 (and (eq e-from from-node)
+                                      (eq e-to to-node))))
+                             tree-edges))
+            (visited (ht-create))
+            (components (ht-create)))
+
+        ;; Find component starting from from-node (tail component)
+        (let ((tail-component (dag-draw--dfs-collect-component
+                               from-node modified-edges visited)))
+          (ht-set! components 'tail-component tail-component))
+
+        ;; Find component starting from to-node (head component)
+        (let ((head-component (dag-draw--dfs-collect-component
+                               to-node modified-edges visited)))
+          (ht-set! components 'head-component head-component))
+
+        components))))
+
+;; Alias for backward compatibility
+(defalias 'dag-draw--calculate-proper-cut-value 'dag-draw--gknv-cut-value-calculation
+  "GKNV cut value calculation per Section 2.3.")
+
+(defun dag-draw--gknv-cut-value-calculation (edge tree-info graph)
+  "GKNV Section 2.3: Cut value = sum of weights from tail to head minus reverse.
+This implements the proper cut value formula from Figure 2-2, line 637-642."
+  ;; Handle both hash-table tree-info and spanning-tree struct
+  (let ((tree-edges (if (dag-draw-spanning-tree-p tree-info)
+                        (dag-draw-spanning-tree-edges tree-info)
+                      (ht-get tree-info 'tree-edges))))
+
+    (let ((components (dag-draw--identify-cut-components edge tree-edges)))
+      (if (not components)
+          0  ; Fallback for auxiliary edges
+        (let ((head-component (ht-get components 'head-component))
+              (tail-component (ht-get components 'tail-component))
+              (cut-value 0))
+
+          ;; Sum all edges crossing the cut with proper signs
+          (dolist (graph-edge (dag-draw-graph-edges graph))
+            (let ((from-node (dag-draw-edge-from-node graph-edge))
+                  (to-node (dag-draw-edge-to-node graph-edge))
+                  (weight (dag-draw-edge-ω graph-edge)))
+
+              (cond
+               ;; Edge from tail to head component (positive contribution)
+               ((and (member from-node tail-component)
+                     (member to-node head-component))
+                (setq cut-value (+ cut-value weight)))
+
+               ;; Edge from head to tail component (negative contribution)
+               ((and (member from-node head-component)
+                     (member to-node tail-component))
+                (setq cut-value (- cut-value weight))))))
+
+          cut-value)))))
+
+(defun dag-draw--is-tight-edge (edge graph)
+  "Check if edge is tight (slack = 0) per GKNV Section 2.3."
+  (= (dag-draw--calculate-edge-slack edge graph) 0))
 
 (defun dag-draw--calculate-edge-slack (edge graph)
-  "Calculate slack for an edge (how much it violates optimality)."
+  "Calculate edge slack per GKNV Section 2.3: slack(e) = l(e) - δ(e).
+Where l(e) is actual rank span and δ(e) is minimum required span."
   (let ((from-node (dag-draw-edge-from-node edge))
         (to-node (dag-draw-edge-to-node edge))
-        (edge-weight (dag-draw-edge-weight edge)))
+        (min-length (dag-draw-edge-δ edge)))  ; Use δ (delta) not ω (omega)
 
-    ;; Get current ranks
+    ;; Get current ranks - λ(w) - λ(v) for edge (v,w)
     (let ((from-rank (or (dag-draw-node-rank (dag-draw-get-node graph from-node)) 0))
           (to-rank (or (dag-draw-node-rank (dag-draw-get-node graph to-node)) 0)))
 
-      ;; Slack = actual_length - minimum_length
-      (- (- to-rank from-rank) edge-weight))))
+      ;; GKNV Section 2.3: slack(e) = l(e) - δ(e) = (λ(w) - λ(v)) - δ(e)
+      (- (- to-rank from-rank) min-length))))
 
 
 (defun dag-draw--network-simplex-iteration (tree-info graph)
@@ -628,11 +730,11 @@ index-ref is a list containing the current index value for modification."
         (dag-draw--tarjan-strongconnect
          graph successor index-ref stack indices lowlinks on-stack components)
         (ht-set! lowlinks node-id (min (ht-get lowlinks node-id)
-                                      (ht-get lowlinks successor))))
+                                       (ht-get lowlinks successor))))
        ((ht-get on-stack successor)
         ;; Successor is in stack and hence in the current SCC
         (ht-set! lowlinks node-id (min (ht-get lowlinks node-id)
-                                      (ht-get indices successor))))))
+                                       (ht-get indices successor))))))
 
     ;; If node-id is a root node, pop the stack and create SCC
     (when (= (ht-get lowlinks node-id) (ht-get indices node-id))
@@ -665,7 +767,7 @@ index-ref is a list containing the current index value for modification."
         (visited (ht-create)))
 
     (dag-draw--dfs-find-paths graph start-node end-node scc-nodes
-                             (list start-node) visited paths-ref)
+                              (list start-node) visited paths-ref)
     (car paths-ref)))
 
 (defun dag-draw--dfs-find-paths (graph current target scc-nodes path visited paths-ref)
@@ -683,7 +785,7 @@ paths-ref is a list reference for accumulating results."
                (not (ht-get visited successor))
                (< (length path) 10))  ; Prevent infinite loops
       (dag-draw--dfs-find-paths graph successor target scc-nodes
-                               (cons successor path) visited paths-ref)))
+                                (cons successor path) visited paths-ref)))
 
   (ht-remove! visited current))
 
