@@ -49,9 +49,8 @@
       (dag-draw-add-edge graph 'b 'c 5)   ; High weight - should prefer shorter path
       (dag-draw-add-edge graph 'a 'c 2)   ; Alternative path
 
-      ;; Create feasible tree and assign basic ranks
+      ;; Create feasible tree (includes initial ranking via GKNV Figure 2-2)
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Should find an edge to leave for optimization
         (let ((leaving-edge (dag-draw--leave-edge tree-info graph)))
@@ -71,7 +70,6 @@
       (dag-draw-add-edge graph 'a 'c 2)   ; Non-tree edge - better path
 
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Find edge to leave
         (let ((leaving-edge (dag-draw--leave-edge tree-info graph)))
@@ -94,7 +92,6 @@
       (dag-draw-add-edge graph 'a 'c 3)
 
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Store original counts
         (let ((original-tree-count (length (ht-get tree-info 'tree-edges)))
@@ -128,7 +125,6 @@
       (dag-draw-add-edge graph 'a 'c 5)   ; Suboptimal - high weight
 
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Calculate cut values for all tree edges
         (let ((cut-values (dag-draw--calculate-tree-cut-values tree-info graph)))
@@ -150,7 +146,6 @@
       (dag-draw-add-edge graph 'start 'end 10) ; High weight - should be avoided
 
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Perform one optimization iteration
         (let ((iteration-result (dag-draw--network-simplex-iteration tree-info graph)))
@@ -177,7 +172,6 @@
       (dag-draw-add-edge graph 'a 'd 10) ; Should be avoided in optimal solution
 
       (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-        (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
         ;; Run optimization to convergence
         (let ((final-result (dag-draw--optimize-network-simplex tree-info graph)))

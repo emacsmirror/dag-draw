@@ -22,7 +22,6 @@
 (require 'dag-draw-core)
 (require 'dag-draw-cycle-breaking)
 (require 'dag-draw-rank-balancing)
-(require 'dag-draw-auxiliary)
 (require 'dag-draw-topological)
 (require 'dag-draw-aesthetic-principles)
 
@@ -256,8 +255,6 @@ This is the first pass of the GKNV algorithm with full optimization."
     (error
      ;; Fallback to topological ordering if network simplex fails
      (message "Network simplex failed (%s), falling back to topological ordering" (error-message-string err))
-     ;; Clean up any auxiliary nodes that might have been created
-     (dag-draw--cleanup-auxiliary-elements graph)
      (dag-draw--assign-ranks-topological graph)))
 
   graph)
@@ -267,22 +264,17 @@ This is the first pass of the GKNV algorithm with full optimization."
   "Assign ranks using complete network simplex optimization.
 This implements the full GKNV algorithm Pass 1 with network simplex from Figure 2-1."
 
-  ;; Step 1: Create initial feasible spanning tree with auxiliary nodes (GKNV Figure 2-2)
+  ;; Step 1: Create initial feasible spanning tree using GKNV Figure 2-2 (includes init_rank)
   (let ((tree-info (dag-draw--construct-feasible-tree graph)))
 
-    ;; Step 2: Assign initial basic ranks maintaining auxiliary constraints
-    (dag-draw--assign-basic-ranks-with-auxiliary graph tree-info)
 
-    ;; Step 3: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
+    ;; Step 2: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
     (let ((optimization-result (dag-draw--optimize-network-simplex tree-info graph)))
       (message "Network simplex optimization: %s in %d iterations"
                (if (ht-get optimization-result 'converged) "converged" "stopped")
                (ht-get optimization-result 'iterations))
 
-      ;; Step 4: Clean up auxiliary nodes created during optimization
-      (dag-draw--cleanup-auxiliary-elements graph)
-
-      ;; Step 4.5: Set max rank based on assigned ranks
+      ;; Step 3: Set max rank based on assigned ranks
       (let ((max-rank 0))
         (ht-each (lambda (_node-id node)
                    ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
