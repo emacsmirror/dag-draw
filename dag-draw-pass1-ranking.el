@@ -594,6 +594,195 @@ Where l(e) is actual rank span and δ(e) is minimum required span."
       ;; GKNV Section 2.3: slack(e) = l(e) - δ(e) = (λ(w) - λ(v)) - δ(e)
       (- (- to-rank from-rank) min-length))))
 
+(defun dag-draw--tight-tree (graph fixed-node)
+  "Find maximal tree of tight edges containing FIXED-NODE.
+Returns number of nodes in the tree per GKNV Figure 2-2.
+
+GKNV Section 2.3: 'The function tight_tree finds a maximal tree of tight edges
+containing some fixed node and returns the number of nodes in the tree.'"
+  (let ((visited (ht-create))
+        (tree-edges '())
+        (tree-nodes (list fixed-node))
+        (queue (list fixed-node)))
+
+    ;; Mark fixed node as visited
+    (ht-set! visited fixed-node t)
+
+    ;; BFS to find maximal tree of tight edges
+    (while queue
+      (let ((current-node (pop queue)))
+        ;; Check all edges from current node
+        (dolist (edge (dag-draw-get-edges-from graph current-node))
+          (let ((target-node (dag-draw-edge-to-node edge)))
+            (when (and (not (ht-get visited target-node))
+                       (dag-draw--is-tight-edge edge graph))
+              ;; Found tight edge to unvisited node - add to tree
+              (ht-set! visited target-node t)
+              (push edge tree-edges)
+              (push target-node tree-nodes)
+              (push target-node queue))))
+
+        ;; Check all edges to current node (undirected tree search)
+        (dolist (edge (dag-draw-get-edges-to graph current-node))
+          (let ((source-node (dag-draw-edge-from-node edge)))
+            (when (and (not (ht-get visited source-node))
+                       (dag-draw--is-tight-edge edge graph))
+              ;; Found tight edge from unvisited node - add to tree
+              (ht-set! visited source-node t)
+              (push edge tree-edges)
+              (push source-node tree-nodes)
+              (push source-node queue))))))
+
+    ;; Return number of nodes in maximal tight tree
+    (length tree-nodes)))
+
+(defun dag-draw--construct-feasible-tree-gknv (graph)
+  "Construct feasible spanning tree using GKNV Figure 2-2 algorithm.
+Implements the complete tight_tree() expansion algorithm from the paper."
+  (let ((tree-info (ht-create))
+        (total-nodes (length (dag-draw-get-node-ids graph)))
+        (current-tree-size 0)
+        (fixed-node nil))
+
+    ;; Step 1: Initialize ranks (GKNV Figure 2-2, line 2: init_rank())
+    (dag-draw--assign-initial-ranks graph)
+
+    ;; Step 2: Pick any node as starting point for tight tree
+    (setq fixed-node (car (dag-draw-get-node-ids graph)))
+
+    ;; Step 3: GKNV Figure 2-2 algorithm - while tight_tree() < V do
+    (let ((iteration-count 0)
+          (max-iterations (* total-nodes total-nodes))) ; Prevent infinite loops
+      (while (and (< current-tree-size total-nodes)
+                  (< iteration-count max-iterations))
+        (setq current-tree-size (dag-draw--tight-tree graph fixed-node))
+
+        (when (< current-tree-size total-nodes)
+          ;; Step 4-9: Find non-tree edge with minimal slack and adjust ranks
+          (dag-draw--expand-tight-tree graph fixed-node))
+        
+        (cl-incf iteration-count))
+      
+      (when (>= iteration-count max-iterations)
+        (error "GKNV tight tree expansion failed to converge after %d iterations" max-iterations)))
+
+    ;; Step 10: Initialize cut values (GKNV Figure 2-2, line 10: init_cutvalues())
+    (let ((tree-edges (dag-draw--collect-tight-tree-edges graph fixed-node)))
+      (ht-set! tree-info 'tree-edges tree-edges)
+      (ht-set! tree-info 'non-tree-edges
+               (cl-set-difference (dag-draw-graph-edges graph) tree-edges))
+      (ht-set! tree-info 'tight-tree-root fixed-node))
+
+    tree-info))
+
+(defun dag-draw--assign-initial-ranks (graph)
+  "Assign initial ranks per GKNV Figure 2-2 init_rank() function."
+  ;; Simple topological ordering for initial ranks
+  (let ((rank 0)
+        (remaining-nodes (copy-sequence (dag-draw-get-node-ids graph)))
+        (ranked-nodes (ht-create)))
+
+    ;; Assign ranks using simple topological order
+    (while remaining-nodes
+      (let ((sources (cl-remove-if (lambda (node)
+                                     (dag-draw-get-predecessors graph node))
+                                   remaining-nodes)))
+        (when (null sources)
+          ;; Handle remaining strongly connected components
+          (setq sources (list (car remaining-nodes))))
+
+        ;; Assign current rank to source nodes
+        (dolist (node sources)
+          (setf (dag-draw-node-rank (dag-draw-get-node graph node)) rank)
+          (ht-set! ranked-nodes node t)
+          (setq remaining-nodes (remove node remaining-nodes)))
+
+        (cl-incf rank)))))
+
+(defun dag-draw--expand-tight-tree (graph fixed-node)
+  "Expand tight tree by finding minimal slack edge and adjusting ranks.
+Implements GKNV Figure 2-2 lines 4-9."
+  (let ((tree-nodes (dag-draw--get-tight-tree-nodes graph fixed-node))
+        (min-slack most-positive-fixnum)
+        (selected-edge nil)
+        (selected-is-incident-to-head nil))
+
+    ;; Step 4-5: Find non-tree edge incident on tree with minimal slack
+    (dolist (node tree-nodes)
+      ;; Check outgoing edges from tree nodes
+      (dolist (edge (dag-draw-get-edges-from graph node))
+        (let ((target (dag-draw-edge-to-node edge)))
+          (when (not (member target tree-nodes))
+            (let ((slack (dag-draw--calculate-edge-slack edge graph)))
+              (when (< slack min-slack)
+                (setq min-slack slack
+                      selected-edge edge
+                      selected-is-incident-to-head t))))))
+
+      ;; Check incoming edges to tree nodes
+      (dolist (edge (dag-draw-get-edges-to graph node))
+        (let ((source (dag-draw-edge-from-node edge)))
+          (when (not (member source tree-nodes))
+            (let ((slack (dag-draw--calculate-edge-slack edge graph)))
+              (when (< slack min-slack)
+                (setq min-slack slack
+                      selected-edge edge
+                      selected-is-incident-to-head nil)))))))
+
+    ;; Step 6-8: Adjust ranks to make selected edge tight
+    (when selected-edge
+      (let ((delta min-slack))
+        ;; GKNV Figure 2-2, line 7: if incident node is e.head then delta = -delta
+        (when selected-is-incident-to-head
+          (setq delta (- delta)))
+
+        ;; GKNV Figure 2-2, line 8: for v in Tree do v.rank = v.rank + delta
+        (dolist (node tree-nodes)
+          (let ((current-rank (dag-draw-node-rank (dag-draw-get-node graph node))))
+            (setf (dag-draw-node-rank (dag-draw-get-node graph node))
+                  (+ current-rank delta))))))))
+
+(defun dag-draw--get-tight-tree-nodes (graph fixed-node)
+  "Get all nodes in the maximal tight tree containing FIXED-NODE."
+  (let ((visited (ht-create))
+        (tree-nodes (list fixed-node))
+        (queue (list fixed-node)))
+
+    (ht-set! visited fixed-node t)
+
+    ;; BFS to find all tight tree nodes
+    (while queue
+      (let ((current-node (pop queue)))
+        ;; Check all connected edges
+        (dolist (edge (append (dag-draw-get-edges-from graph current-node)
+                              (dag-draw-get-edges-to graph current-node)))
+          (let* ((other-node (if (eq (dag-draw-edge-from-node edge) current-node)
+                                 (dag-draw-edge-to-node edge)
+                               (dag-draw-edge-from-node edge))))
+            (when (and (not (ht-get visited other-node))
+                       (dag-draw--is-tight-edge edge graph))
+              (ht-set! visited other-node t)
+              (push other-node tree-nodes)
+              (push other-node queue))))))
+
+    tree-nodes))
+
+(defun dag-draw--collect-tight-tree-edges (graph fixed-node)
+  "Collect all tight edges in the maximal tight tree containing FIXED-NODE."
+  (let ((tree-nodes (dag-draw--get-tight-tree-nodes graph fixed-node))
+        (tree-edges '()))
+
+    ;; Collect all tight edges between tree nodes
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let ((from-node (dag-draw-edge-from-node edge))
+            (to-node (dag-draw-edge-to-node edge)))
+        (when (and (member from-node tree-nodes)
+                   (member to-node tree-nodes)
+                   (dag-draw--is-tight-edge edge graph))
+          (push edge tree-edges))))
+
+    tree-edges))
+
 
 (defun dag-draw--network-simplex-iteration (tree-info graph)
   "Perform one iteration of network simplex optimization.

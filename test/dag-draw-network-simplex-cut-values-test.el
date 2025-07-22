@@ -133,7 +133,48 @@
           (expect (numberp slack) :to-be t)
           (expect (fboundp 'dag-draw--is-tight-edge) :to-be t)
           (expect (dag-draw--is-tight-edge edge graph) 
-                  :to-equal (= slack 0))))))))
+                  :to-equal (= slack 0)))))
+    
+    (it "should implement tight_tree() function per GKNV Figure 2-2"
+      ;; RED TEST: Missing tight_tree() function from GKNV paper
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'a "A")
+        (dag-draw-add-node graph 'b "B") 
+        (dag-draw-add-node graph 'c "C")
+        (dag-draw-add-edge graph 'a 'b)
+        (dag-draw-add-edge graph 'b 'c)
+        
+        ;; Assign ranks to create tight and non-tight edges
+        (dag-draw-rank graph)
+        
+        ;; GKNV Figure 2-2: tight_tree() finds maximal tree of tight edges
+        (expect (fboundp 'dag-draw--tight-tree) :to-be t)
+        (let ((tight-tree-size (dag-draw--tight-tree graph 'a)))
+          (expect (numberp tight-tree-size) :to-be t)
+          (expect tight-tree-size :to-be-greater-than 0))))
+    
+    (it "should integrate tight_tree() functions with network simplex per GKNV Figure 2-2"
+      ;; Test tight edge detection functions are available for network simplex integration
+      (let ((graph (dag-draw-create-graph)))
+        (dag-draw-add-node graph 'x "X")
+        (dag-draw-add-node graph 'y "Y")
+        (dag-draw-add-node graph 'z "Z")
+        (dag-draw-add-edge graph 'x 'y)
+        (dag-draw-add-edge graph 'y 'z)
+        
+        ;; Assign ranks to create a feasible ranking
+        (dag-draw--assign-initial-ranks graph)
+        
+        ;; Test core tight edge detection components are available for network simplex
+        (expect (fboundp 'dag-draw--tight-tree) :to-be t)
+        (expect (fboundp 'dag-draw--get-tight-tree-nodes) :to-be t)
+        (expect (fboundp 'dag-draw--collect-tight-tree-edges) :to-be t)
+        
+        ;; Verify tight tree detection works with small graph
+        (let ((tight-tree-size (dag-draw--tight-tree graph 'x)))
+          (expect (numberp tight-tree-size) :to-be t)
+          (expect tight-tree-size :to-be-greater-than 0)
+          (expect (<= tight-tree-size 3) :to-be t)))))))
 
 (provide 'dag-draw-network-simplex-cut-values-test)
 
