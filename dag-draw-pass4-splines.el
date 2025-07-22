@@ -972,23 +972,130 @@ GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity."
   (when (< (length linear-path) 2)
     (error "Linear path must have at least 2 points"))
   
-  (let ((spline-curves '()))
-    ;; Convert each segment of linear path to Bezier curve
-    (dotimes (i (1- (length linear-path)))
-      (let* ((p0 (nth i linear-path))
-             (p1 (nth (1+ i) linear-path))
-             ;; Create smooth Bezier curve between p0 and p1
+  (if (= (length linear-path) 2)
+      ;; Single segment case - no junction points
+      (let* ((p0 (nth 0 linear-path))
+             (p1 (nth 1 linear-path))
              (control1 (dag-draw--compute-control-point p0 p1 0.33 theta-start))
              (control2 (dag-draw--compute-control-point p0 p1 0.67 theta-end)))
-        
-        (push (dag-draw-bezier-curve-create
-               :p0 p0
-               :p1 control1
-               :p2 control2
-               :p3 p1)
-              spline-curves)))
+        (list (dag-draw-bezier-curve-create
+               :p0 p0 :p1 control1 :p2 control2 :p3 p1)))
     
-    (nreverse spline-curves)))
+    ;; Multiple segments - ensure C¹ continuity at junctions
+    ;; GKNV Section 5.2: "force the two splines to have the same unit tangent vector at that point"
+    (let* ((spline-curves '())
+           (segment-count (1- (length linear-path)))
+           ;; Pre-compute tangents at ALL junction points for consistency
+           (junction-tangents (make-vector (1+ segment-count) 0)))
+      
+      ;; Initialize tangent values at each point
+      (dotimes (i (1+ segment-count))
+        (aset junction-tangents i
+              (cond
+               ;; First point uses provided start angle
+               ((= i 0) theta-start)
+               ;; Last point uses provided end angle
+               ((= i segment-count) theta-end)
+               ;; Interior points: compute smooth junction tangent
+               (t (dag-draw--compute-junction-tangent linear-path i)))))
+      
+      ;; Create curves ensuring end tangent of curve[i] = start tangent of curve[i+1]
+      (dotimes (i segment-count)
+        (let* ((p0 (nth i linear-path))
+               (p1 (nth (1+ i) linear-path))
+               ;; CRITICAL: Use SAME tangent value at shared junction point
+               (start-tangent (aref junction-tangents i))
+               (end-tangent (aref junction-tangents (1+ i)))
+               ;; Create curve with explicit tangent control
+               (curve (dag-draw--create-c1-continuous-bezier-curve 
+                      p0 p1 start-tangent end-tangent)))
+          
+          (push curve spline-curves)))
+      
+      (nreverse spline-curves))))
+
+(defun dag-draw--compute-junction-tangent (linear-path index)
+  "Compute tangent direction at junction point for C¹ continuity.
+GKNV Section 5.2: Junction tangent ensures smooth spline segment joining."
+  (let* ((p-prev (nth (1- index) linear-path))
+         (p-curr (nth index linear-path))
+         (p-next (nth (1+ index) linear-path)))
+    (cond
+     ;; If we have both previous and next points, average the tangents
+     ((and p-prev p-next)
+      (let* ((dx1 (- (dag-draw-point-x p-curr) (dag-draw-point-x p-prev)))
+             (dy1 (- (dag-draw-point-y p-curr) (dag-draw-point-y p-prev)))
+             (dx2 (- (dag-draw-point-x p-next) (dag-draw-point-x p-curr)))
+             (dy2 (- (dag-draw-point-y p-next) (dag-draw-point-y p-curr)))
+             ;; Normalize both tangent directions
+             (len1 (sqrt (+ (* dx1 dx1) (* dy1 dy1))))
+             (len2 (sqrt (+ (* dx2 dx2) (* dy2 dy2))))
+             (nx1 (if (> len1 0.001) (/ dx1 len1) 0))
+             (ny1 (if (> len1 0.001) (/ dy1 len1) 0))
+             (nx2 (if (> len2 0.001) (/ dx2 len2) 1))
+             (ny2 (if (> len2 0.001) (/ dy2 len2) 0))
+             ;; Average the normalized tangents for smooth transition
+             (avg-x (/ (+ nx1 nx2) 2.0))
+             (avg-y (/ (+ ny1 ny2) 2.0)))
+        ;; Convert back to angle
+        (atan avg-y avg-x)))
+     ;; Fallback to simple direction
+     (p-next
+      (let ((dx (- (dag-draw-point-x p-next) (dag-draw-point-x p-curr)))
+            (dy (- (dag-draw-point-y p-next) (dag-draw-point-y p-curr))))
+        (atan dy dx)))
+     (t 0))))
+
+(defun dag-draw--create-c1-continuous-bezier-curve (start-point end-point start-tangent end-tangent)
+  "Create Bezier curve ensuring C¹ continuity at endpoints.
+GKNV Section 5.2: Explicitly constructs control points to match tangent vectors."
+  (let* ((p0 start-point)
+         (p3 end-point)
+         ;; Distance for tangent influence
+         (dx (- (dag-draw-point-x p3) (dag-draw-point-x p0)))
+         (dy (- (dag-draw-point-y p3) (dag-draw-point-y p0)))
+         (segment-length (sqrt (+ (* dx dx) (* dy dy))))
+         (tangent-strength (* 0.3 segment-length))  ; Scale with segment length
+         
+         ;; P1 controls start tangent direction
+         (p1 (if start-tangent
+                 (dag-draw-point-create
+                  :x (+ (dag-draw-point-x p0) (* tangent-strength (cos start-tangent)))
+                  :y (+ (dag-draw-point-y p0) (* tangent-strength (sin start-tangent))))
+               ;; Default control point
+               (dag-draw-point-create
+                :x (+ (dag-draw-point-x p0) (* 0.33 dx))
+                :y (+ (dag-draw-point-y p0) (* 0.33 dy)))))
+         
+         ;; P2 controls end tangent direction (note: tangent direction is INTO the point)
+         (p2 (if end-tangent
+                 (dag-draw-point-create
+                  :x (- (dag-draw-point-x p3) (* tangent-strength (cos end-tangent)))
+                  :y (- (dag-draw-point-y p3) (* tangent-strength (sin end-tangent))))
+               ;; Default control point
+               (dag-draw-point-create
+                :x (+ (dag-draw-point-x p0) (* 0.67 dx))
+                :y (+ (dag-draw-point-y p0) (* 0.67 dy))))))
+    
+    (dag-draw-bezier-curve-create :p0 p0 :p1 p1 :p2 p2 :p3 p3)))
+
+(defun dag-draw--compute-control-point-with-tangent (start end fraction theta)
+  "Compute Bezier control point with explicit tangent direction for C¹ continuity.
+GKNV Section 5.2: Uses consistent tangent angles to ensure smooth segment joining."
+  (let* ((x1 (dag-draw-point-x start))
+         (y1 (dag-draw-point-y start))
+         (x2 (dag-draw-point-x end))
+         (y2 (dag-draw-point-y end))
+         (dx (* fraction (- x2 x1)))
+         (dy (* fraction (- y2 y1)))
+         ;; Apply tangent influence with stronger effect for continuity
+         (tangent-factor 0.5)  ; Increased from 0.3 for better tangent control
+         (tx (* tangent-factor (cos theta)))
+         (ty (* tangent-factor (sin theta))))
+    
+    (dag-draw-point-create
+     :x (+ x1 dx tx)
+     :y (+ y1 dy ty))))
 
 (defun dag-draw--compute-control-point (start end fraction theta)
   "Compute Bezier control point between start and end points."
