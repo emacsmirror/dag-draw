@@ -29,18 +29,23 @@
         (dag-draw-add-edge graph 'b 'c 5)   ; High weight - preserve
         (dag-draw-add-edge graph 'c 'a 3)   ; Medium weight
         
-        ;; Apply GKNV-recommended simple cycle breaking (DFS back-edge removal)
+        ;; Apply GKNV DFS edge classification cycle breaking (reverses back edges)
         (let* ((original-edge-count (length (dag-draw-graph-edges graph)))
-               (has-cycles-before (dag-draw-simple-has-cycles graph))
-               (acyclic-graph (dag-draw-simple-break-cycles graph))
-               (final-edge-count (length (dag-draw-graph-edges acyclic-graph)))
-               (has-cycles-after (dag-draw-simple-has-cycles acyclic-graph)))
+               (has-cycles-before (dag-draw-simple-has-cycles graph)))
           ;; Should detect cycles in original graph
           (expect has-cycles-before :to-be t)
-          ;; Should break cycles (may remove edges)
-          (expect has-cycles-after :to-be nil)
-          ;; Should produce acyclic graph
-          (expect (dag-draw-simple-has-cycles acyclic-graph) :to-be nil))))))
+          
+          ;; Apply GKNV cycle breaking (modifies graph in-place)
+          (dag-draw--break-cycles-using-gknv-classification graph)
+          
+          (let ((final-edge-count (length (dag-draw-graph-edges graph)))
+                (has-cycles-after (dag-draw-simple-has-cycles graph)))
+            ;; GKNV preserves all edges (reverses back edges, doesn't remove)
+            (expect final-edge-count :to-equal original-edge-count)
+            ;; Should break cycles by reversing back edges
+            (expect has-cycles-after :to-be nil)
+            ;; Should produce acyclic graph
+            (expect (dag-draw-simple-has-cycles graph) :to-be nil))))))
   
   (describe "virtual node creation for long edges"
     (it "should create virtual nodes to break long edges spanning multiple ranks"
@@ -94,7 +99,7 @@
         
         ;; Virtual node should be aligned between endpoints for straight edge
         (let ((virtual1-x (dag-draw-node-x-coord (dag-draw-get-node graph 'virtual_1))))
-          (expect virtual1-x :to-be-close-to 100 10)))))
+          (expect virtual1-x :to-be-close-to 100 10))))))
 
 (provide 'dag-draw-enhanced-cycle-breaking-test)
 

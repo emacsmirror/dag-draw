@@ -41,17 +41,20 @@
 
         (expect (dag-draw-simple-has-cycles graph) :to-be t)))
 
-  (it "should break cycles"
+  (it "should break cycles using GKNV DFS edge classification"
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a)
         (dag-draw-add-node graph 'b)
         (dag-draw-add-edge graph 'a 'b)
         (dag-draw-add-edge graph 'b 'a)  ; Creates cycle
 
-        (let ((acyclic (dag-draw-simple-break-cycles graph)))
-          (expect (dag-draw-simple-has-cycles acyclic) :to-be nil)
-          ;; Original should be unchanged
-          (expect (dag-draw-simple-has-cycles graph) :to-be t)))))
+        ;; GKNV approach: modifies graph in-place by reversing back edges
+        (let ((original-edge-count (length (dag-draw-graph-edges graph))))
+          (dag-draw--break-cycles-using-gknv-classification graph)
+          ;; GKNV preserves all edges (reverses back edges, doesn't remove)
+          (expect (length (dag-draw-graph-edges graph)) :to-equal original-edge-count)
+          ;; Graph should now be acyclic
+          (expect (dag-draw-simple-has-cycles graph) :to-be nil)))))
 
  (describe
   "rank assignment"
