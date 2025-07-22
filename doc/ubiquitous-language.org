@@ -56,6 +56,14 @@ This document provides the authoritative mapping between GKNV paper concepts and
 - Rank Normalization :: Setting minimum rank to 0 (Section 2.3, line 571)
 - Rank Balancing :: Moving nodes to less crowded feasible ranks for better aspect ratio (Section 2.3, line 573)
 
+** Figure 2-2 Feasible Tree Construction (Section 2.3)
+- init_rank() :: Initial feasible ranking using topological ordering (Figure 2-2, line 2)
+- tight_tree(fixed_node) :: Finds maximal tree of tight edges containing fixed node, returns node count (Figure 2-2, line 3)
+- Incident Node :: Tree node that connects to non-tree node via boundary edge (Figure 2-2, line 7)
+- Tree Growth :: Process of expanding tight tree by making boundary edges tight (Figure 2-2, lines 4-9)
+- Boundary Edge :: Non-tree edge connecting tree node to non-tree node with minimal slack (Figure 2-2, lines 4-5)
+- Delta Adjustment :: Rank modification to make boundary edge tight: +slack for tail incident, -slack for head incident (Figure 2-2, lines 6-8)
+
 * Pass 2 Context - Node Ordering Within Ranks (Section 3)
 
 ** Graph Transformation  
