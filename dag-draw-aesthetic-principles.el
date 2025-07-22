@@ -37,22 +37,22 @@ Returns score from 0-1 indicating hierarchical clarity."
          (total-edges (length (dag-draw-graph-edges graph)))
          (forward-edges 0))
     
-    (when (zerop total-edges)
-      (return 1.0))  ; Perfect hierarchy with no edges
-    
-    ;; Count edges that follow hierarchical flow (rank increase)
-    (dolist (edge (dag-draw-graph-edges graph))
-      (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-            (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
-        (when (and from-node to-node
-                   (dag-draw-node-rank from-node)
-                   (dag-draw-node-rank to-node)
-                   (< (dag-draw-node-rank from-node)
-                      (dag-draw-node-rank to-node)))
-          (setq forward-edges (1+ forward-edges)))))
-    
-    ;; A1 score: proportion of edges following hierarchical flow
-    (/ (float forward-edges) total-edges)))
+    (if (zerop total-edges)
+        1.0  ; Perfect hierarchy with no edges
+      ;; Count edges that follow hierarchical flow (rank increase)
+      (progn
+        (dolist (edge (dag-draw-graph-edges graph))
+          (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+            (when (and from-node to-node
+                       (dag-draw-node-rank from-node)
+                       (dag-draw-node-rank to-node)
+                       (< (dag-draw-node-rank from-node)
+                          (dag-draw-node-rank to-node)))
+              (setq forward-edges (1+ forward-edges)))))
+        
+        ;; A1 score: proportion of edges following hierarchical flow
+        (/ (float forward-edges) total-edges)))))
 
 (defun dag-draw--measure-directional-consistency (graph)
   "Measure A1 directional consistency: edges in same general direction.
@@ -302,33 +302,43 @@ Focuses on A1 (hierarchy) and A3 (short edges)."
   (let ((a1-score (dag-draw--validate-hierarchical-structure graph))
         (a3-score (ht-get (dag-draw--measure-edge-lengths graph) 'average-length)))
     
-    ;; Combine A1 and A3 for ranking evaluation
-    (+ (* 0.7 a1-score)  ; A1 is primary for ranking
-       (* 0.3 (if a3-score (max 0 (min 1 (- 1 (/ a3-score 100)))) 0)))))
+    ;; Return plist with individual scores
+    (list :hierarchical-score a1-score
+          :edge-length-score (if a3-score (max 0 (min 1 (- 1 (/ a3-score 100)))) 0)
+          :overall-score (+ (* 0.7 a1-score)  ; A1 is primary for ranking
+                           (* 0.3 (if a3-score (max 0 (min 1 (- 1 (/ a3-score 100)))) 0))))))
 
 (defun dag-draw--evaluate-ordering-aesthetics (graph)
   "Evaluate aesthetic principles in ordering decisions (Pass 2).
 Focuses on A2 (crossing minimization)."
-  (let ((crossings (dag-draw--count-edge-crossings graph))
+  (let ((crossings (or (dag-draw--count-edge-crossings graph) 0))
         (total-edges (length (dag-draw-graph-edges graph))))
     
-    ;; A2 score: fewer crossings = better score
-    (if (zerop total-edges) 1.0
-      (max 0.0 (- 1.0 (/ crossings (* total-edges total-edges)))))))
+    ;; Return plist with individual scores
+    (list :crossing-count crossings
+          :total-edges total-edges
+          :crossing-score (if (zerop total-edges) 1.0
+                           (max 0.0 (- 1.0 (/ crossings (* total-edges total-edges))))))))
 
 (defun dag-draw--evaluate-positioning-aesthetics (graph)
   "Evaluate aesthetic principles in positioning decisions (Pass 3).
 Focuses on A3 (edge length) and A4 (balance)."
   (let* ((a3-metrics (dag-draw--measure-edge-lengths graph))
          (a4-metrics (dag-draw--measure-layout-balance graph))
-         (a3-score (if (ht-get a3-metrics 'average-length)
-                       (max 0 (min 1 (- 1 (/ (ht-get a3-metrics 'average-length) 100))))
+         (avg-edge-length (or (ht-get a3-metrics 'average-length) 0))
+         (symmetry-score (or (ht-get a4-metrics 'symmetry-score) 1.0))
+         (a3-score (if (> avg-edge-length 0)
+                       (max 0 (min 1 (- 1 (/ avg-edge-length 100))))
                      1.0))
          (a4-score (or (ht-get a4-metrics 'overall-balance) 1.0)))
     
-    ;; Combine A3 and A4 for positioning evaluation
-    (+ (* 0.6 a3-score)  ; A3 is primary for positioning
-       (* 0.4 a4-score))))
+    ;; Return plist with individual scores
+    (list :average-edge-length avg-edge-length
+          :symmetry-score symmetry-score
+          :edge-length-score a3-score
+          :balance-score a4-score
+          :overall-score (+ (* 0.6 a3-score)  ; A3 is primary for positioning
+                           (* 0.4 a4-score)))))
 
 (provide 'dag-draw-aesthetic-principles)
 

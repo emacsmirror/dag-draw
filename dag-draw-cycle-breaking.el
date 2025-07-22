@@ -90,11 +90,13 @@ Returns updated time counter."
   (1+ time-counter))
 
 (defun dag-draw--break-cycles-using-gknv-classification (graph)
-  "Break cycles by reversing back edges per GKNV Section 2.1."
+  "Break cycles by reversing back edges per GKNV Section 2.1.
+Returns the modified graph."
   (let ((classification (dag-draw--classify-edges-gknv graph)))
     (dolist (back-edge (ht-get classification 'back-edges))
       ;; Reverse back edge to break cycle
-      (dag-draw--reverse-edge graph back-edge))))
+      (dag-draw--reverse-edge graph back-edge)))
+  graph)
 
 (defun dag-draw--reverse-edge (graph edge)
   "Reverse an edge in the graph (internal direction only).

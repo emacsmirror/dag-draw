@@ -188,36 +188,50 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--create-downward-spline (graph edge from-node to-node)
   "Create downward spline from higher rank to lower rank.
-  Uses GKNV Section 5.2 three-stage process: L-array → s-array → bboxes."
+  Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
   (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
          (end-port (dag-draw--get-node-port to-node 'top graph edge))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
          (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region obstacles from-node to-node graph edge))
+         ;; Enhanced: Use GKNV box intersection approach when obstacles present
+         (L-array (if obstacles
+                      (dag-draw--compute-L-array-gknv-enhanced region obstacles from-node to-node graph edge)
+                    (dag-draw--compute-L-array region obstacles from-node to-node graph edge)))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
-         (splines (dag-draw--compute-s-array L-array start-port end-port))
+         ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
+         (splines (dag-draw--compute-s-array L-array start-port end-port 
+                                            (not (null obstacles)) ; enhanced-mode when obstacles present
+                                            0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
-         (bboxes (dag-draw--compute-bboxes splines)))
+         ;; Use enhanced tight bbox calculation when obstacles require precise computation
+         (bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
 
     ;; Return splines with proper GKNV compliance
     splines))
 
 (defun dag-draw--create-upward-spline (graph edge from-node to-node)
   "Create upward spline for reversed edges.
-  Uses GKNV Section 5.2 three-stage process: L-array → s-array → bboxes."
+  Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
   (let* ((start-port (dag-draw--get-node-port from-node 'top graph edge))
          (end-port (dag-draw--get-node-port to-node 'bottom graph edge))
          ;; GKNV Stage 1: Find region and compute linear path
          (region (dag-draw--find-spline-region graph from-node to-node))
          (obstacles (dag-draw--find-intervening-obstacles graph from-node to-node))
-         (L-array (dag-draw--compute-L-array region obstacles from-node to-node graph edge))
+         ;; Enhanced: Use GKNV box intersection approach when obstacles present
+         (L-array (if obstacles
+                      (dag-draw--compute-L-array-gknv-enhanced region obstacles from-node to-node graph edge)
+                    (dag-draw--compute-L-array region obstacles from-node to-node graph edge)))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
-         (splines (dag-draw--compute-s-array L-array start-port end-port))
+         ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
+         (splines (dag-draw--compute-s-array L-array start-port end-port 
+                                            (not (null obstacles)) ; enhanced-mode when obstacles present
+                                            0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
-         (bboxes (dag-draw--compute-bboxes splines)))
+         ;; Use enhanced tight bbox calculation when obstacles require precise computation
+         (bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
 
     ;; Return splines with proper GKNV compliance
     splines))
@@ -547,45 +561,55 @@ This implements the compute_L_array function from GKNV Figure 5-2."
        (dag-draw-point-create :x (/ (+ x-min x-max) 2) :y (/ (+ y-min y-max) 2))
        (dag-draw-point-create :x x-max :y y-max)))))
 
-(defun dag-draw--compute-s-array (L-array start-point end-point)
+(defun dag-draw--compute-s-array (L-array start-point end-point &optional enhanced-mode theta-start theta-end)
   "GKNV Stage 2: Compute Bézier spline using path as hints.
-This implements the compute_s_array function from GKNV Figure 5-2."
-  (if (< (length L-array) 2)
-      ;; Single segment - create simple curve
-      (list (dag-draw-bezier-curve-create
-             :p0 start-point
-             :p1 (dag-draw-point-create 
-                  :x (+ (dag-draw-point-x start-point) 
-                        (* 0.3 (- (dag-draw-point-x end-point) (dag-draw-point-x start-point))))
-                  :y (+ (dag-draw-point-y start-point)
-                        (* 0.3 (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))))
-             :p2 (dag-draw-point-create
-                  :x (+ (dag-draw-point-x start-point)
-                        (* 0.7 (- (dag-draw-point-x end-point) (dag-draw-point-x start-point))))
-                  :y (+ (dag-draw-point-y start-point)
-                        (* 0.7 (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))))
-             :p3 end-point))
-    ;; Multiple segments - create curve through waypoints using L-array as hints
-    (let ((curves '()))
-      (dotimes (i (1- (length L-array)))
-        (let* ((p0 (if (= i 0) start-point (nth i L-array)))
-               (p3 (if (= i (- (length L-array) 2)) end-point (nth (1+ i) L-array)))
-               (dx (- (dag-draw-point-x p3) (dag-draw-point-x p0)))
-               (dy (- (dag-draw-point-y p3) (dag-draw-point-y p0)))
-               (p1 (dag-draw-point-create :x (+ (dag-draw-point-x p0) (* 0.3 dx))
-                                          :y (+ (dag-draw-point-y p0) (* 0.3 dy))))
-               (p2 (dag-draw-point-create :x (+ (dag-draw-point-x p0) (* 0.7 dx))
-                                          :y (+ (dag-draw-point-y p0) (* 0.7 dy)))))
-          (push (dag-draw-bezier-curve-create :p0 p0 :p1 p1 :p2 p2 :p3 p3) curves)))
-      (nreverse curves))))
+This implements the compute_s_array function from GKNV Figure 5-2.
+When ENHANCED-MODE is non-nil, uses GKNV C¹ continuity with tangent control."
+  (if enhanced-mode
+      ;; Use GKNV enhanced approach with C¹ continuity
+      (dag-draw--compute-s-array-gknv L-array (or theta-start 0) (or theta-end 0))
+    ;; Use basic approach for backward compatibility
+    (if (< (length L-array) 2)
+        ;; Single segment - create simple curve
+        (list (dag-draw-bezier-curve-create
+               :p0 start-point
+               :p1 (dag-draw-point-create 
+                    :x (+ (dag-draw-point-x start-point) 
+                          (* 0.3 (- (dag-draw-point-x end-point) (dag-draw-point-x start-point))))
+                    :y (+ (dag-draw-point-y start-point)
+                          (* 0.3 (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))))
+               :p2 (dag-draw-point-create
+                    :x (+ (dag-draw-point-x start-point)
+                          (* 0.7 (- (dag-draw-point-x end-point) (dag-draw-point-x start-point))))
+                    :y (+ (dag-draw-point-y start-point)
+                          (* 0.7 (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))))
+               :p3 end-point))
+      ;; Multiple segments - create curve through waypoints using L-array as hints
+      (let ((curves '()))
+        (dotimes (i (1- (length L-array)))
+          (let* ((p0 (if (= i 0) start-point (nth i L-array)))
+                 (p3 (if (= i (- (length L-array) 2)) end-point (nth (1+ i) L-array)))
+                 (dx (- (dag-draw-point-x p3) (dag-draw-point-x p0)))
+                 (dy (- (dag-draw-point-y p3) (dag-draw-point-y p0)))
+                 (p1 (dag-draw-point-create :x (+ (dag-draw-point-x p0) (* 0.3 dx))
+                                            :y (+ (dag-draw-point-y p0) (* 0.3 dy))))
+                 (p2 (dag-draw-point-create :x (+ (dag-draw-point-x p0) (* 0.7 dx))
+                                            :y (+ (dag-draw-point-y p0) (* 0.7 dy)))))
+            (push (dag-draw-bezier-curve-create :p0 p0 :p1 p1 :p2 p2 :p3 p3) curves)))
+        (nreverse curves)))))
 
-(defun dag-draw--compute-bboxes (splines)
+(defun dag-draw--compute-bboxes (splines &optional enhanced-mode)
   "GKNV Stage 3: Compute actual bounding boxes used by curve.
-This implements the compute_bboxes function from GKNV Figure 5-2."
-  (mapcar (lambda (spline)
-            (let ((points (dag-draw--sample-spline spline 10)))
-              (dag-draw--spline-bounds (list spline))))
-          splines))
+This implements the compute_bboxes function from GKNV Figure 5-2.
+When ENHANCED-MODE is non-nil, uses GKNV tight bounding box calculation."
+  (if enhanced-mode
+      ;; Use GKNV enhanced tight bounding box calculation
+      (dag-draw--compute-bboxes-gknv splines)
+    ;; Use basic sampling-based approach for backward compatibility
+    (mapcar (lambda (spline)
+              (let ((points (dag-draw--sample-spline spline 10)))
+                (dag-draw--spline-bounds (list spline))))
+            splines)))
 
 ;;; TDD Region-based Spline Routing Implementation
 
@@ -781,6 +805,64 @@ RECT is (left top right bottom). Returns (x y) of intersection point or nil."
                  (dy (- (dag-draw-point-y p2) (dag-draw-point-y p1))))
             (setq total-length (+ total-length (sqrt (+ (* dx dx) (* dy dy)))))))))
     total-length))
+
+;;; Enhanced GKNV Integration Functions
+
+(defun dag-draw--compute-L-array-gknv-enhanced (region obstacles from-node to-node graph edge)
+  "Enhanced GKNV Stage 1: Uses box intersection approach for complex obstacle avoidance.
+This bridges the current system with proper GKNV Section 5.2 box intersection logic."
+  ;; Convert obstacles to box array for GKNV processing
+  (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
+         (end-port (dag-draw--get-node-port to-node 'top graph edge))
+         (boxes '()))
+    
+    ;; Create boxes for start region, obstacles, and end region
+    (push (dag-draw--create-node-box from-node) boxes)
+    
+    ;; Add obstacle boxes
+    (dolist (obstacle obstacles)
+      (push (dag-draw--create-node-box obstacle) boxes))
+    
+    (push (dag-draw--create-node-box to-node) boxes)
+    
+    ;; Use GKNV box intersection approach
+    (let ((intersection-lines (dag-draw--compute-L-array-gknv boxes)))
+      (if intersection-lines
+          ;; Convert intersection lines to path points
+          (dag-draw--convert-intersection-lines-to-path intersection-lines start-port end-port)
+        ;; Fallback to basic L-shaped path
+        (dag-draw--compute-L-array region nil from-node to-node graph edge)))))
+
+(defun dag-draw--create-node-box (node)
+  "Create bounding box for a node for GKNV box intersection processing."
+  (let ((x (or (dag-draw-node-x-coord node) 0))
+        (y (or (dag-draw-node-y-coord node) 0))
+        (width (dag-draw-node-x-size node))
+        (height (dag-draw-node-y-size node)))
+    (dag-draw-box-create
+     :x-min (- x (/ width 2))
+     :y-min (- y (/ height 2))
+     :x-max (+ x (/ width 2))
+     :y-max (+ y (/ height 2)))))
+
+(defun dag-draw--convert-intersection-lines-to-path (intersection-lines start-port end-port)
+  "Convert GKNV intersection line segments to path points for spline generation."
+  (let ((path-points (list start-port)))
+    
+    ;; Add points from intersection lines
+    (dolist (line intersection-lines)
+      (when (and (listp line) (= (length line) 2))
+        ;; Add midpoint of intersection line
+        (let* ((p1 (car line))
+               (p2 (cadr line))
+               (mid-x (/ (+ (dag-draw-point-x p1) (dag-draw-point-x p2)) 2.0))
+               (mid-y (/ (+ (dag-draw-point-y p1) (dag-draw-point-y p2)) 2.0)))
+          (push (dag-draw-point-create :x mid-x :y mid-y) path-points))))
+    
+    ;; Add end point
+    (push end-port path-points)
+    
+    (nreverse path-points)))
 
 ;;; GKNV Three-Stage Spline Computation (Section 5.2)
 

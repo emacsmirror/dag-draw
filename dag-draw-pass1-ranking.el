@@ -24,6 +24,7 @@
 (require 'dag-draw-rank-balancing)
 (require 'dag-draw-auxiliary)
 (require 'dag-draw-topological)
+(require 'dag-draw-aesthetic-principles)
 
 ;;; Network Simplex Spanning Tree Data Structures
 
@@ -242,28 +243,24 @@ Helper function for spanning tree to ranking conversion."
 (defun dag-draw-assign-ranks (graph)
   "Assign ranks to nodes in GRAPH using enhanced GKNV network simplex algorithm.
 This is the first pass of the GKNV algorithm with full optimization."
-  ;; First, break any cycles to make the graph acyclic
-  (let ((acyclic (if (dag-draw-simple-has-cycles graph)
-                     (dag-draw-simple-break-cycles graph)
-                   graph)))
+  ;; First, break any cycles to make the graph acyclic using GKNV DFS classification
+  ;; GKNV Section 2.1: "Edge Reversal :: Internal direction flip of back edges to break cycles"
+  (when (dag-draw-simple-has-cycles graph)
+    (dag-draw--break-cycles-using-gknv-classification graph))
 
-    ;; Copy the acyclic structure back to the original graph
-    (unless (eq acyclic graph)
-      (setf (dag-draw-graph-edges graph) (dag-draw-graph-edges acyclic)))
+  ;; Try network simplex optimization for better rank assignment
+  (condition-case err
+      (progn
+        ;; Use full network simplex algorithm as described in GKNV paper
+        (dag-draw--assign-ranks-network-simplex graph))
+    (error
+     ;; Fallback to topological ordering if network simplex fails
+     (message "Network simplex failed (%s), falling back to topological ordering" (error-message-string err))
+     ;; Clean up any auxiliary nodes that might have been created
+     (dag-draw--cleanup-auxiliary-elements graph)
+     (dag-draw--assign-ranks-topological graph)))
 
-    ;; Try network simplex optimization for better rank assignment
-    (condition-case err
-        (progn
-          ;; Use full network simplex algorithm as described in GKNV paper
-          (dag-draw--assign-ranks-network-simplex graph))
-      (error
-       ;; Fallback to topological ordering if network simplex fails
-       (message "Network simplex failed (%s), falling back to topological ordering" (error-message-string err))
-       ;; Clean up any auxiliary nodes that might have been created
-       (dag-draw--cleanup-auxiliary-elements graph)
-       (dag-draw--assign-ranks-topological graph)))
-
-    graph))
+  graph)
 
 
 (defun dag-draw--assign-ranks-network-simplex (graph)
@@ -497,7 +494,7 @@ Returns list of nodes in the connected component."
 (defun dag-draw--get-edge-nodes (edge)
   "Get from-node and to-node from either tree edge or regular edge."
   (if (dag-draw-tree-edge-p edge)
-      (list (dag-draw-tree-edge-from-node edge) 
+      (list (dag-draw-tree-edge-from-node edge)
             (dag-draw-tree-edge-to-node edge))
     (list (dag-draw-edge-from-node edge)
           (dag-draw-edge-to-node edge))))
@@ -659,11 +656,19 @@ Implements GKNV Figure 2-1 steps 3-6."
 
 (defun dag-draw-rank-graph (graph)
   "Complete rank assignment process for GRAPH.
-This includes cycle breaking, rank assignment, normalization, and balancing."
+This includes cycle breaking, rank assignment, normalization, and balancing.
+Enhanced with GKNV aesthetic principles A1-A4 evaluation per Section 1.1."
   (dag-draw-assign-ranks graph)
   (dag-draw-normalize-ranks graph)
   ;; Re-enabled balancing with fixed constraint validation
   (dag-draw-balance-ranks graph)
+
+  ;; GKNV Section 1.1: Evaluate aesthetic principles to guide algorithm decisions
+  (let ((ranking-aesthetics (dag-draw--evaluate-ranking-aesthetics graph)))
+    (when (< (plist-get ranking-aesthetics :hierarchical-score) 0.7)
+      (message "GKNV A1: Hierarchical structure score %.2f - consider rank rebalancing"
+               (plist-get ranking-aesthetics :hierarchical-score))))
+
   graph)
 
 ;;; Network Simplex Core Algorithm Functions

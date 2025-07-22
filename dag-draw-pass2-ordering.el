@@ -20,6 +20,7 @@
 (require 'cl-lib)
 (require 'dag-draw)
 (require 'dag-draw-core)
+(require 'dag-draw-aesthetic-principles)
 
 ;;; Virtual Nodes for Long Edges
 
@@ -400,7 +401,8 @@ If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
 
 (defun dag-draw-order-vertices (graph)
   "Order vertices within ranks to minimize edge crossings.
-This is the second pass of the GKNV algorithm with enhanced convergence detection."
+This is the second pass of the GKNV algorithm with enhanced convergence detection.
+Enhanced with GKNV aesthetic principles A1-A4 evaluation per Section 1.1."
   (let* ((graph-with-virtuals (dag-draw--create-virtual-nodes graph))
          (ranks (dag-draw--organize-by-ranks graph-with-virtuals))
          (convergence-result (dag-draw--crossing-reduction-with-convergence
@@ -414,6 +416,12 @@ This is the second pass of the GKNV algorithm with enhanced convergence detectio
              (ht-get convergence-result 'iterations)
              (ht-get convergence-result 'final-crossings)
              (ht-get convergence-result 'converged))
+
+    ;; GKNV Section 1.1: Evaluate aesthetic principles for ordering decisions
+    (let ((ordering-aesthetics (dag-draw--evaluate-ordering-aesthetics graph)))
+      (when (> (plist-get ordering-aesthetics :crossing-count) 0)
+        (message "GKNV A2: Edge crossings detected (%d) - visual anomalies present" 
+                 (plist-get ordering-aesthetics :crossing-count))))
 
     graph))
 

@@ -291,8 +291,8 @@
         ;; Run complete pipeline (should handle cycle breaking)
         (expect (dag-draw-layout-graph graph) :not :to-throw)
 
-        ;; Should have splines for all edges (cycle breaking removes 1 edge)
-        (expect (length (dag-draw-graph-edges graph)) :to-equal 2)
+        ;; Should have splines for all edges (GKNV DFS reverses back edges, preserves all edges)
+        (expect (length (dag-draw-graph-edges graph)) :to-equal 3)
         (dolist (edge (dag-draw-graph-edges graph))
           (expect (dag-draw-edge-spline-points edge) :to-be-truthy)))))
 

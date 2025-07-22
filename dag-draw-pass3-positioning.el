@@ -22,6 +22,7 @@
 (require 'cl-lib)
 (require 'dag-draw)
 (require 'dag-draw-core)
+(require 'dag-draw-aesthetic-principles)
 (require 'dag-draw-quality)
 
 ;;; Y-coordinate assignment (straightforward)
@@ -228,6 +229,15 @@ for optimal X-coordinate assignment."
                       (or (dag-draw-node-y-coord node) 0)
                       (or (dag-draw-node-rank node) "nil")))
            (dag-draw-graph-nodes graph))
+
+  ;; GKNV Section 1.1: Evaluate aesthetic principles for positioning decisions
+  (let ((positioning-aesthetics (dag-draw--evaluate-positioning-aesthetics graph)))
+    (when (> (plist-get positioning-aesthetics :average-edge-length) 200)
+      (message "GKNV A3: Average edge length %.1f exceeds threshold - consider tighter layout" 
+               (plist-get positioning-aesthetics :average-edge-length)))
+    (when (< (plist-get positioning-aesthetics :symmetry-score) 0.5)
+      (message "GKNV A4: Layout symmetry score %.2f - consider balance improvements" 
+               (plist-get positioning-aesthetics :symmetry-score))))
 
   graph)
 
