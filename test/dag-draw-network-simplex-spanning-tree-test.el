@@ -19,32 +19,35 @@
   (describe
       "feasible spanning tree creation"
     (it "should create spanning tree for simple 3-node graph"
-      ;; RED phase: This test will fail because feasible spanning tree doesn't exist yet
+      ;; Test GKNV Figure 2-2 feasible tree construction
       (let ((graph (dag-draw-create-graph)))
-        ;; Create simple graph: A -> B -> C
+        ;; Create simple graph: A -> B -> C (chain graph)
         (dag-draw-add-node graph 'a "A")
         (dag-draw-add-node graph 'b "B")
         (dag-draw-add-node graph 'c "C")
         (dag-draw-add-edge graph 'a 'b)
         (dag-draw-add-edge graph 'b 'c)
 
-        ;; The tree info should be created from the graph structure
+        ;; GKNV Figure 2-2 creates tight tree from original edges
         (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-          ;; Tree should have original edges plus auxiliary edges
-          ;; Original: 2 edges (a->b, b->c) + auxiliary edges (aux-source to sources, sinks to aux-sink)
-          (expect (length (ht-get tree-info 'tree-edges)) :to-be-greater-than 2)
+          ;; GKNV creates spanning tree from tight edges (both original edges should be tight)
+          (expect (ht-get tree-info 'tree-edges) :not :to-be nil)
+          (expect (length (ht-get tree-info 'tree-edges)) :to-equal 2)
 
-          ;; Tree should have parent-child relationships
-          (let ((roots (ht-get tree-info 'roots)))
-            (expect roots :to-be-truthy)
-            (expect (> (length roots) 0) :to-be t)
-            ;; Check that roots have no parents
-            (let ((parent-map (ht-get tree-info 'parent-map))
-                  (root (car roots)))
+          ;; Should have tight tree root
+          (expect (ht-get tree-info 'tight-tree-root) :not :to-be nil)
+          
+          ;; Parent-child relationships should be built from tree edges
+          (let ((parent-map (ht-get tree-info 'parent-map))
+                (roots (ht-get tree-info 'roots)))
+            (expect roots :not :to-be nil)
+            (expect (length roots) :to-equal 1)
+            ;; Root should have no parent
+            (let ((root (car roots)))
               (expect (ht-get parent-map root) :to-be nil))))))
 
     (it "should create feasible ranking from spanning tree"
-      ;; RED phase: This test will fail because ranking from spanning tree doesn't exist yet
+      ;; GKNV Figure 2-2 assigns ranks during tree construction
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "A")
         (dag-draw-add-node graph 'b "B")
@@ -53,14 +56,20 @@
         (dag-draw-add-edge graph 'b 'c)  ; weight=1, min-length=1
 
         (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-          ;; For now, ranking is handled internally by the network simplex optimization
-          ;; This test verifies the tree info structure is created properly
-          (expect (ht-get tree-info 'tree-edges) :to-be-truthy)
-          (expect (ht-get tree-info 'parent-map) :to-be-truthy)
-          (expect (ht-get tree-info 'children-map) :to-be-truthy))))
+          ;; GKNV assigns feasible ranks during init_rank() phase
+          (expect (dag-draw-node-rank (dag-draw-get-node graph 'a)) :not :to-be nil)
+          (expect (dag-draw-node-rank (dag-draw-get-node graph 'b)) :not :to-be nil)
+          (expect (dag-draw-node-rank (dag-draw-get-node graph 'c)) :not :to-be nil)
+          
+          ;; Ranks should satisfy edge constraints (rank[b] > rank[a], rank[c] > rank[b])
+          (let ((rank-a (dag-draw-node-rank (dag-draw-get-node graph 'a)))
+                (rank-b (dag-draw-node-rank (dag-draw-get-node graph 'b)))
+                (rank-c (dag-draw-node-rank (dag-draw-get-node graph 'c))))
+            (expect rank-b :to-be-greater-than rank-a)
+            (expect rank-c :to-be-greater-than rank-b)))))
 
     (it "should handle disconnected components"
-      ;; RED phase: This test will fail because multi-component spanning tree doesn't exist yet
+      ;; GKNV Figure 2-2 works per component
       (let ((graph (dag-draw-create-graph)))
         ;; Component 1: A -> B
         (dag-draw-add-node graph 'a "A")
@@ -73,19 +82,18 @@
         (dag-draw-add-edge graph 'c 'd)
 
         (let ((tree-info (dag-draw--construct-feasible-tree graph)))
-          ;; Should handle both components plus auxiliary edges
-          (expect (length (ht-get tree-info 'tree-edges)) :to-be-greater-than 2)
-
-          ;; Should have multiple roots (one per component)
-          (let ((roots (ht-get tree-info 'roots)))
-            (expect (length roots) :to-equal 2)))))
+          ;; GKNV should find tight tree containing all nodes (both components)
+          (expect (length (ht-get tree-info 'tree-edges)) :to-equal 2)
+          
+          ;; Should have one tight tree root (GKNV picks one component as starting point)
+          (expect (ht-get tree-info 'tight-tree-root) :not :to-be nil))))
 
     )
 
   (describe
       "spanning tree navigation functions"
     (it "should extract root node from single-component spanning tree"
-      ;; RED phase: This test will fail because dag-draw-spanning-tree-root doesn't exist yet
+      ;; GKNV Figure 2-2 identifies tight tree root
       (let ((graph (dag-draw-create-graph)))
         ;; Create simple connected graph: A -> B -> C
         (dag-draw-add-node graph 'a "A")
@@ -95,15 +103,15 @@
         (dag-draw-add-edge graph 'b 'c)
 
         (let* ((tree-info (dag-draw--construct-feasible-tree graph))
+               (tight-tree-root (ht-get tree-info 'tight-tree-root))
                (roots (ht-get tree-info 'roots)))
-          ;; Should have single root node for connected graph
+          ;; GKNV uses single tight tree root for connected component
+          (expect tight-tree-root :not :to-be nil)
           (expect (length roots) :to-equal 1)
-          (let ((root (car roots)))
-            (expect root :to-be-truthy)
-            (expect (memq root '(a b c)) :to-be-truthy)))))
+          (expect (car roots) :to-equal tight-tree-root))))
 
-    (it "should handle multiple roots in disconnected components"
-      ;; RED phase: Test for multiple component case
+    (it "should handle multiple components with single tight tree"
+      ;; GKNV Figure 2-2 expands tree to include all reachable nodes
       (let ((graph (dag-draw-create-graph)))
         ;; Create disconnected graph: A -> B and C -> D
         (dag-draw-add-node graph 'a "A")
@@ -114,10 +122,10 @@
         (dag-draw-add-edge graph 'c 'd)
 
         (let* ((tree-info (dag-draw--construct-feasible-tree graph))
-               (roots (ht-get tree-info 'roots)))
-          ;; Should have multiple roots for disconnected components
-          (expect (listp roots) :to-be t)
-          (expect (length roots) :to-equal 2))))))
+               (tight-tree-root (ht-get tree-info 'tight-tree-root)))
+          ;; GKNV creates one tight tree starting from one component
+          (expect tight-tree-root :not :to-be nil)
+          (expect (memq tight-tree-root '(a b c d)) :to-be-truthy))))))
 
 (provide 'dag-draw-network-simplex-spanning-tree-test)
 

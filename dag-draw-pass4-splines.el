@@ -1101,6 +1101,57 @@ GKNV refine_spline() optimization process."
    :x (* (dag-draw-point-x point) smooth-factor)
    :y (* (dag-draw-point-y point) smooth-factor)))
 
+;;; Edge Label Virtual Nodes (GKNV Section 5.3)
+
+(defun dag-draw--create-edge-label-virtual-nodes (graph)
+  "Create virtual nodes for edge labels per GKNV Section 5.3.
+GKNV: 'edge labels on inter-rank edges are represented as off-center virtual nodes'."
+  ;; Implementation: Create virtual nodes for edges with labels
+  (dolist (edge (dag-draw-graph-edges graph))
+    (when (dag-draw-edge-label edge)
+      (dag-draw--create-single-label-virtual-node graph edge))))
+
+(defun dag-draw--create-single-label-virtual-node (graph edge)
+  "Create a single virtual node for an edge label."
+  (let* ((label-text (dag-draw-edge-label edge))
+         (virtual-node-id (intern (format "label-%s-%s" 
+                                          (dag-draw-edge-from-node edge)
+                                          (dag-draw-edge-to-node edge))))
+         (virtual-node (dag-draw-node-create 
+                        :id virtual-node-id
+                        :label label-text
+                        :virtual-p t
+                        :attributes (ht-create))))
+    
+    ;; Add virtual node to graph
+    (ht-set! (dag-draw-graph-nodes graph) virtual-node-id virtual-node)
+    
+    ;; Store reference for retrieval
+    (let ((attrs (dag-draw-edge-attributes edge)))
+      (unless attrs
+        (setq attrs (ht-create))
+        (setf (dag-draw-edge-attributes edge) attrs))
+      (ht-set! attrs 'label-virtual-node virtual-node-id))
+    
+    virtual-node))
+
+(defun dag-draw--get-label-virtual-nodes (graph)
+  "Get all label virtual nodes in the graph."
+  (let ((label-nodes '()))
+    (ht-each (lambda (_id node)
+               (when (dag-draw-node-virtual-p node)
+                 (push node label-nodes)))
+             (dag-draw-graph-nodes graph))
+    label-nodes))
+
+(defun dag-draw--apply-label-edge-length-compensation (graph)
+  "Apply GKNV Section 5.3 edge length compensation for labeled edges.
+GKNV: 'Setting the minimum edge length to 2 (effectively doubling the ranks)'."
+  (dolist (edge (dag-draw-graph-edges graph))
+    (when (dag-draw-edge-label edge)
+      ;; GKNV Section 5.3: Set minimum edge length δ(e) = 2 for labeled edges
+      (setf (dag-draw-edge-δ edge) 2))))
+
 (provide 'dag-draw-pass4-splines)
 
 ;;; dag-draw-pass4-splines.el ends here

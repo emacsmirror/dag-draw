@@ -104,7 +104,9 @@
                                :y-coord (dag-draw-node-y-coord node)
                                :rank (dag-draw-node-rank node)
                                :order (dag-draw-node-order node)
-                               :attributes (ht-copy (dag-draw-node-attributes node)))))
+                               :attributes (if (dag-draw-node-attributes node) 
+                                             (ht-copy (dag-draw-node-attributes node))
+                                             (ht-create)))))
                  (ht-set! (dag-draw-graph-nodes new-graph) node-id new-node)))
              (dag-draw-graph-nodes graph))
     
@@ -117,7 +119,9 @@
                       :min-length (dag-draw-edge-δ edge)  ; GKNV δ(e) notation
                       :label (dag-draw-edge-label edge)
                       :spline-points (copy-sequence (dag-draw-edge-spline-points edge))
-                      :attributes (ht-copy (dag-draw-edge-attributes edge)))))
+                      :attributes (if (dag-draw-edge-attributes edge)
+                                    (ht-copy (dag-draw-edge-attributes edge))
+                                    (ht-create)))))
         (push new-edge (dag-draw-graph-edges new-graph))))
     
     ;; Copy other graph properties

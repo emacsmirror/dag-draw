@@ -167,11 +167,31 @@ Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
     (push edge (dag-draw-graph-edges graph))
     edge))
 
+;;; Edge Label Processing (GKNV Section 5.3)
+
+(defun dag-draw--process-edge-labels (graph)
+  "Process edge labels per GKNV Section 5.3.
+Creates virtual nodes for labels and adjusts edge lengths before ranking."
+  (when (dag-draw--graph-has-edge-labels-p graph)
+    ;; GKNV Section 5.3: Create virtual nodes for edge labels
+    (dag-draw--create-edge-label-virtual-nodes graph)
+    
+    ;; GKNV Section 5.3: Set minimum edge length to 2 for labeled edges
+    (dag-draw--apply-label-edge-length-compensation graph)))
+
+(defun dag-draw--graph-has-edge-labels-p (graph)
+  "Check if any edges in GRAPH have labels."
+  (cl-some (lambda (edge) (dag-draw-edge-label edge))
+           (dag-draw-graph-edges graph)))
+
 ;;;###autoload
 (defun dag-draw-layout-graph (graph)
   "Apply the GKNV layout algorithm to GRAPH with ASCII resolution preprocessing.
 This performs the four GKNV passes with ASCII resolution after ranking:
 ranking, ASCII resolution adjustment, ordering, positioning, and spline generation."
+  ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
+  (dag-draw--process-edge-labels graph)
+  
   ;; GKNV Pass 1: Rank assignment
   (dag-draw-rank-graph graph)
   
@@ -274,6 +294,9 @@ Returns a string representation of the rendered graph."
 (declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
 (declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
 (declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
+(declare-function dag-draw--create-edge-label-virtual-nodes "dag-draw-pass4-splines")
+(declare-function dag-draw--apply-label-edge-length-compensation "dag-draw-pass4-splines")
+(declare-function dag-draw--get-label-virtual-nodes "dag-draw-pass4-splines")
 (declare-function dag-draw-render-svg "dag-draw-render")
 (declare-function dag-draw-render-ascii "dag-draw-render")
 (declare-function dag-draw-render-dot "dag-draw-render")
@@ -283,6 +306,8 @@ Returns a string representation of the rendered graph."
 (autoload 'dag-draw-order-vertices "dag-draw-pass2-ordering" "Order vertices within ranks." nil)
 (autoload 'dag-draw-position-nodes "dag-draw-pass3-positioning" "Assign coordinates to nodes." nil)
 (autoload 'dag-draw-generate-splines "dag-draw-pass4-splines" "Generate edge splines." nil)
+(autoload 'dag-draw--create-edge-label-virtual-nodes "dag-draw-pass4-splines" "Create virtual nodes for edge labels." nil)
+(autoload 'dag-draw--apply-label-edge-length-compensation "dag-draw-pass4-splines" "Apply edge length compensation for labels." nil)
 (autoload 'dag-draw-render-svg "dag-draw-render" "Render graph as SVG." nil)
 (autoload 'dag-draw-render-ascii "dag-draw-render" "Render graph as ASCII art." nil)
 (autoload 'dag-draw-render-dot "dag-draw-render" "Render graph as DOT format." nil)
