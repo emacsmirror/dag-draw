@@ -313,7 +313,7 @@ Returns hash table with tree-edges, non-tree-edges, and auxiliary node compatibi
   ;; Use corrected GKNV Figure 2-2 implementation
   (let ((gknv-tree-info (dag-draw--construct-feasible-tree-gknv graph))
         (tree-info (ht-create))
-        (aux-source-id 'dag-draw-s-min)  ; Maintain compatibility  
+        (aux-source-id 'dag-draw-s-min)  ; Maintain compatibility
         (aux-sink-id 'dag-draw-s-max))   ; Maintain compatibility
 
     ;; Extract GKNV results
@@ -604,7 +604,7 @@ Implements the complete tight_tree() expansion algorithm from the paper."
     (let ((source-nodes (cl-remove-if (lambda (node)
                                         (dag-draw-get-predecessors graph node))
                                       (dag-draw-get-node-ids graph))))
-      (setq fixed-node (if source-nodes 
+      (setq fixed-node (if source-nodes
                            (car source-nodes)
                          (car (dag-draw-get-node-ids graph)))))
 
@@ -621,18 +621,18 @@ Implements the complete tight_tree() expansion algorithm from the paper."
         (when (< current-tree-size total-nodes)
           ;; Step 4-9: Find boundary edge with minimal slack and adjust ranks
           (dag-draw--expand-tight-tree graph fixed-node)
-)
-        
+          )
+
         (cl-incf iteration-count))
-      
+
       (cond
-        ((>= iteration-count max-iterations)
-         (error "GKNV tight tree expansion failed to converge after %d iterations" max-iterations))
-        ((<= current-tree-size previous-tree-size)
-         ;; If we're stalled but haven't reached all nodes, try connecting components
-         ;; by adjusting ranks to make cross-component edges feasible
-         (when (< current-tree-size total-nodes)
-           (dag-draw--connect-disconnected-components graph fixed-node)))))
+       ((>= iteration-count max-iterations)
+        (error "GKNV tight tree expansion failed to converge after %d iterations" max-iterations))
+       ((<= current-tree-size previous-tree-size)
+        ;; If we're stalled but haven't reached all nodes, try connecting components
+        ;; by adjusting ranks to make cross-component edges feasible
+        (when (< current-tree-size total-nodes)
+          (dag-draw--connect-disconnected-components graph fixed-node)))))
 
     ;; Step 10: Initialize cut values (GKNV Figure 2-2, line 10: init_cutvalues())
     (let ((tree-edges (dag-draw--collect-tight-tree-edges graph fixed-node)))
@@ -654,15 +654,15 @@ GKNV Section 2.3: Initial feasible ranking using topological ordering."
     ;; Assign ranks using proper topological order
     (while remaining-nodes
       ;; Find nodes with no unranked predecessors
-      (let ((sources (cl-remove-if 
+      (let ((sources (cl-remove-if
                       (lambda (node)
                         ;; Node is a source if all its predecessors are already ranked
                         (let ((predecessors (dag-draw-get-predecessors graph node)))
-                          (cl-some (lambda (pred) 
+                          (cl-some (lambda (pred)
                                      (not (ht-get ranked-nodes pred)))
                                    predecessors)))
                       remaining-nodes)))
-        
+
         (when (null sources)
           ;; Handle remaining strongly connected components or isolated nodes
           (setq sources (list (car remaining-nodes))))
@@ -686,7 +686,7 @@ Implements GKNV Figure 2-2 lines 4-9."
     ;; Step 4-5: Find boundary edge with minimal slack
     ;; GKNV: "e = a non-tree edge incident on the tree with a minimal amount of slack"
     (dolist (node tree-nodes)
-      
+
       ;; Case 1: Outgoing edges from tree (tree → non-tree)
       ;; Tree node is tail of edge, non-tree node is head
       (dolist (edge (dag-draw-get-edges-from graph node))
@@ -697,8 +697,8 @@ Implements GKNV Figure 2-2 lines 4-9."
                 (setq min-slack slack
                       selected-edge edge
                       selected-is-incident-to-head nil))))))  ; Incident node (tree node) is tail
-      
-      ;; Case 2: Incoming edges to tree (non-tree → tree) 
+
+      ;; Case 2: Incoming edges to tree (non-tree → tree)
       ;; Non-tree node is tail of edge, tree node is head
       (dolist (edge (dag-draw-get-edges-to graph node))
         (let ((source (dag-draw-edge-from-node edge)))
@@ -761,18 +761,30 @@ Implements GKNV Figure 2-2 lines 4-9."
     tree-edges))
 
 (defun dag-draw--connect-disconnected-components (graph fixed-node)
-  "Connect disconnected components by ensuring all components have tight trees.
-This extends GKNV Figure 2-2 to handle disconnected graphs."
+  "Connect disconnected components by ensuring proper ranking across components.
+Per GKNV Section 1.2 line 74: handle disconnected components separately."
   (let ((tree-nodes (dag-draw--get-tight-tree-nodes graph fixed-node))
         (all-nodes (dag-draw-get-node-ids graph)))
-    
-    ;; Find nodes not in the current tight tree
+
+    ;; Find nodes not in the current tight tree (disconnected components)
     (let ((isolated-nodes (cl-set-difference all-nodes tree-nodes)))
       (when isolated-nodes
-        ;; For disconnected components, the tight tree should include all tight edges
-        ;; The issue is that tight_tree() uses BFS from fixed-node, but disconnected
-        ;; components aren't reachable. We need to verify all edges are tight.
-))))
+        ;; For disconnected components, assign ranks based on topological ordering
+        ;; This ensures feasible ranking across all components
+        (dolist (node isolated-nodes)
+          (unless (dag-draw-node-rank (dag-draw-get-node graph node))
+            ;; Assign rank 0 to isolated nodes without predecessors
+            (let ((predecessors (dag-draw-get-predecessors graph node)))
+              (if predecessors
+                  ;; Node has predecessors - assign rank based on maximum predecessor rank + 1
+                  (let ((max-pred-rank 0))
+                    (dolist (pred predecessors)
+                      (let ((pred-rank (dag-draw-node-rank (dag-draw-get-node graph pred))))
+                        (when pred-rank
+                          (setq max-pred-rank (max max-pred-rank pred-rank)))))
+                    (setf (dag-draw-node-rank (dag-draw-get-node graph node)) (1+ max-pred-rank)))
+                ;; Node has no predecessors - assign rank 0
+                (setf (dag-draw-node-rank (dag-draw-get-node graph node)) 0)))))))))
 
 
 (defun dag-draw--network-simplex-iteration (tree-info graph)
