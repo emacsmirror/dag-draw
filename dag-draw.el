@@ -175,7 +175,7 @@ Creates virtual nodes for labels and adjusts edge lengths before ranking."
   (when (dag-draw--graph-has-edge-labels-p graph)
     ;; GKNV Section 5.3: Create virtual nodes for edge labels
     (dag-draw--create-edge-label-virtual-nodes graph)
-    
+
     ;; GKNV Section 5.3: Set minimum edge length to 2 for labeled edges
     (dag-draw--apply-label-edge-length-compensation graph)))
 
@@ -191,13 +191,13 @@ This performs the four GKNV passes with ASCII resolution after ranking:
 ranking, ASCII resolution adjustment, ordering, positioning, and spline generation."
   ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
   (dag-draw--process-edge-labels graph)
-  
+
   ;; GKNV Pass 1: Rank assignment
   (dag-draw-rank-graph graph)
-  
+
   ;; ASCII resolution preprocessing (moved after ranking for dynamic analysis)
   (dag-draw--ensure-ascii-resolution graph)
-  
+
   ;; GKNV Passes 2-4: ordering, positioning, and spline generation
   (dag-draw-order-vertices graph)
   (dag-draw-position-nodes graph)
@@ -223,11 +223,11 @@ Otherwise uses safe defaults for edge routing."
                            (progn
                              (require 'dag-draw-quality)
                              (let ((dynamic-spacing (dag-draw--calculate-max-required-rank-separation graph)))
-                               (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)" 
+                               (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)"
                                         dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph))
                                (dag-draw--debug-spacing-calculation graph)
                                dynamic-spacing))
-                         ;; Safe default for edge routing  
+                         ;; Safe default for edge routing
                          2))
          ;; Calculate minimum horizontal separation based on actual node sizes
          (min-horizontal (if graph
@@ -235,7 +235,7 @@ Otherwise uses safe defaults for edge routing."
                              (let ((scale (dag-draw--estimate-ascii-scale graph))
                                    (max-ascii-width 0))
                                (ht-each (lambda (node-id node)
-                                          (let ((ascii-width (dag-draw--world-to-grid-size 
+                                          (let ((ascii-width (dag-draw--world-to-grid-size
                                                              (dag-draw-node-x-size node) scale)))
                                             (setq max-ascii-width (max max-ascii-width ascii-width))))
                                         (dag-draw-graph-nodes graph))
@@ -243,7 +243,7 @@ Otherwise uses safe defaults for edge routing."
                                (+ max-ascii-width 6))
                            ;; Safe default if no graph provided
                            12)))
-    (list 
+    (list
      :min-horizontal min-horizontal  ; Dynamic horizontal spacing based on node sizes
      :min-vertical min-vertical      ; Dynamic rows between ranks based on edge analysis
      :port-offset 2)))               ; Space needed for port positioning variety
@@ -255,13 +255,13 @@ Called BEFORE GKNV passes to ensure clean edge routing space."
          (requirements (dag-draw--calculate-min-ascii-routing-space graph))
          (min-world-nodesep (/ (float (plist-get requirements :min-horizontal)) scale))
          (min-world-ranksep (/ (float (plist-get requirements :min-vertical)) scale)))
-    
+
     ;; Increase separations if needed for ASCII resolution
     (when (< (dag-draw-graph-node-separation graph) min-world-nodesep)
-      (message "ASCII-RESOLUTION: Increasing nodesep from %.1f to %.1f for scale %.3f" 
+      (message "ASCII-RESOLUTION: Increasing nodesep from %.1f to %.1f for scale %.3f"
                (dag-draw-graph-node-separation graph) min-world-nodesep scale)
       (setf (dag-draw-graph-node-separation graph) min-world-nodesep))
-    
+
     (when (< (dag-draw-graph-rank-separation graph) min-world-ranksep)
       (message "ASCII-RESOLUTION: Increasing ranksep from %.1f to %.1f for scale %.3f"
                (dag-draw-graph-rank-separation graph) min-world-ranksep scale)
@@ -271,7 +271,7 @@ Called BEFORE GKNV passes to ensure clean edge routing space."
   "Ensure ASCII grid will have sufficient resolution for edge routing.
 Must be called BEFORE dag-draw-layout-graph to adjust parameters."
   (dag-draw--adjust-separations-for-ascii graph)
-  (message "ASCII-RESOLUTION: Graph prepared for scale %.3f" 
+  (message "ASCII-RESOLUTION: Graph prepared for scale %.3f"
            (dag-draw--estimate-ascii-scale graph)))
 
 ;;;###autoload
@@ -447,7 +447,7 @@ Returns (min-x min-y max-x max-y)."
   "GKNV δ(e) - minimum edge length constraint (Section 2, line 356).
 Alias for dag-draw-edge-min-length using proper Greek mathematical notation.")
 
-(defalias 'dag-draw-edge-ω 'dag-draw-edge-weight  
+(defalias 'dag-draw-edge-ω 'dag-draw-edge-weight
   "GKNV ω(e) - edge weight for optimization (Section 1.2, line 83).
 Alias for dag-draw-edge-weight using proper Greek mathematical notation.")
 
@@ -468,12 +468,12 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 (defalias 'dag-draw-rank 'dag-draw-rank-graph
   "GKNV rank(G) - main entry point for Pass 1 rank assignment (Figure 1-1).")
 
-(declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")  
+(declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
 (defalias 'dag-draw-ordering 'dag-draw-order-vertices
   "GKNV ordering(G) - main entry point for Pass 2 vertex ordering (Figure 1-1).")
 
 (declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
-(defalias 'dag-draw-position 'dag-draw-position-nodes  
+(defalias 'dag-draw-position 'dag-draw-position-nodes
   "GKNV position(G) - main entry point for Pass 3 coordinate assignment (Figure 1-1).")
 
 (declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
@@ -485,7 +485,7 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 (defalias 'dag-draw-init-rank 'dag-draw-assign-ranks
   "GKNV init_rank() - initial rank assignment from Figure 2-2.")
 
-(declare-function dag-draw--create-feasible-spanning-tree "dag-draw-pass1-ranking") 
+(declare-function dag-draw--create-feasible-spanning-tree "dag-draw-pass1-ranking")
 (defalias 'dag-draw-feasible-tree 'dag-draw--create-feasible-spanning-tree
   "GKNV feasible_tree() - create initial spanning tree from Figure 2-2.")
 
