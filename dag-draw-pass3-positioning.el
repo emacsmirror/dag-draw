@@ -192,17 +192,28 @@ This is a fallback when the auxiliary graph approach is too complex."
 This implements the node positioning pass using auxiliary graph construction
 for optimal X-coordinate assignment."
 
-  ;; First assign Y coordinates (straightforward)
-  (dag-draw--assign-y-coordinates graph)
+  ;; Check coordinate mode for ASCII-native behavior
+  (let ((coordinate-mode (or (dag-draw-graph-coordinate-mode graph) 'high-res)))
+    
+    ;; First assign Y coordinates (with coordinate-mode awareness)
+    (if (eq coordinate-mode 'ascii)
+        (dag-draw--assign-y-coordinates-ascii graph)
+      (dag-draw--assign-y-coordinates graph))
 
-  ;; Use GKNV auxiliary graph method for X-coordinate positioning (Section 4.2)
-  (dag-draw--position-with-auxiliary-graph graph)
+    ;; Use GKNV auxiliary graph method for X-coordinate positioning (Section 4.2)
+    (if (eq coordinate-mode 'ascii)
+        (dag-draw--position-with-auxiliary-graph-ascii graph)
+      (dag-draw--position-with-auxiliary-graph graph))
 
-  ;; Apply GKNV positioning enhancements
-  (dag-draw--apply-gknv-positioning-enhancements graph)
+    ;; Apply GKNV positioning enhancements  
+    (dag-draw--apply-gknv-positioning-enhancements graph)
 
-  ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
-  (dag-draw--ensure-all-nodes-have-coordinates graph)
+    ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
+    (dag-draw--ensure-all-nodes-have-coordinates graph)
+
+    ;; Apply ASCII coordinate rounding if in ASCII mode
+    (when (eq coordinate-mode 'ascii)
+      (dag-draw--round-coordinates-for-ascii graph)))
 
   ;; GKNV Pass 3 Authority: Store final coordinates in protected adjusted-positions
   ;; Section 4: "The third pass finds optimal coordinates for nodes"
@@ -837,6 +848,98 @@ Only copies coordinates for original nodes, ignoring auxiliary edge nodes."
                    (setf (dag-draw-node-x-coord original-node) 
                          (dag-draw-node-x-coord node))))))
            (dag-draw-graph-nodes aux-graph)))
+
+;;; ASCII-native coordinate functions
+
+(defun dag-draw--assign-y-coordinates-ascii (graph)
+  "ASCII-native Y coordinate assignment working directly in grid coordinates.
+Per GKNV Section 4: Y coordinates determined by rank, same for all nodes in rank.
+In ASCII mode, we work directly in integer grid coordinates to prevent collapse."
+  
+  ;; Get rank information from nodes
+  (let ((rank-to-nodes (ht-create))
+        (max-rank -1))
+    
+    ;; Group nodes by rank
+    (ht-each (lambda (node-id node)
+               (let ((rank (or (dag-draw-node-rank node) 0)))
+                 (setq max-rank (max max-rank rank))
+                 (unless (ht-get rank-to-nodes rank)
+                   (ht-set! rank-to-nodes rank '()))
+                 (ht-set! rank-to-nodes rank 
+                         (cons node (ht-get rank-to-nodes rank)))))
+             (dag-draw-graph-nodes graph))
+    
+    ;; Assign ASCII grid Y coordinates directly
+    ;; Start at Y=0 for rank 0, increment by minimum separation for each rank
+    (let ((ascii-rank-separation 5))  ; Minimum 5 grid units between ranks
+      (ht-each (lambda (rank nodes)
+                 (let ((ascii-y (* rank ascii-rank-separation)))
+                   (dolist (node nodes)
+                     (setf (dag-draw-node-y-coord node) ascii-y))))
+               rank-to-nodes))))
+
+(defun dag-draw--position-with-auxiliary-graph-ascii (graph)
+  "ASCII-native X coordinate positioning working directly in grid coordinates.
+Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constraints."
+  
+  ;; Start with high-resolution positioning to get optimal layout
+  (dag-draw--position-with-auxiliary-graph graph)
+  
+  ;; Convert to ASCII grid coordinates with proper spacing
+  ;; Group nodes by rank to ensure consistent horizontal spacing
+  (let ((rank-groups (ht-create))
+        (ascii-node-separation 35))  ; Minimum horizontal spacing to ensure column between boundaries
+    
+    ;; Group nodes by rank  
+    (ht-each (lambda (node-id node)
+               (let ((rank (or (dag-draw-node-rank node) 0)))
+                 (unless (ht-get rank-groups rank)
+                   (ht-set! rank-groups rank '()))
+                 (ht-set! rank-groups rank 
+                         (cons node (ht-get rank-groups rank)))))
+             (dag-draw-graph-nodes graph))
+    
+    ;; For each rank, assign ASCII X coordinates with proper spacing
+    (ht-each (lambda (rank nodes)
+               ;; Sort nodes by their computed X position
+               (let ((sorted-nodes (sort nodes 
+                                        (lambda (a b)
+                                          (< (or (dag-draw-node-x-coord a) 0)
+                                             (or (dag-draw-node-x-coord b) 0)))))
+                     (ascii-x 5))  ; Start with left padding
+                 
+                 ;; Assign evenly spaced ASCII X coordinates
+                 (dolist (node sorted-nodes)
+                   (setf (dag-draw-node-x-coord node) ascii-x)
+                   (setq ascii-x (+ ascii-x ascii-node-separation)))))
+             rank-groups)))
+
+(defun dag-draw--round-coordinates-for-ascii (graph)
+  "Round all coordinates to ASCII-friendly integer values."
+  (ht-each (lambda (node-id node)
+             (let ((x (dag-draw-node-x-coord node))
+                   (y (dag-draw-node-y-coord node)))
+               (when x (setf (dag-draw-node-x-coord node) (round x)))
+               (when y (setf (dag-draw-node-y-coord node) (round y)))))
+           (dag-draw-graph-nodes graph)))
+
+(defun dag-draw--ensure-ascii-spacing (graph)
+  "Ensure minimum ASCII spacing between nodes to prevent overlap."
+  (let ((node-list (ht-values (dag-draw-graph-nodes graph)))
+        (min-spacing 5))  ; Minimum spacing for ASCII readability
+    ;; Sort by X coordinate
+    (setq node-list (sort node-list (lambda (a b) 
+                                     (< (or (dag-draw-node-x-coord a) 0)
+                                        (or (dag-draw-node-x-coord b) 0)))))
+    
+    ;; Adjust spacing
+    (let ((current-x 5))  ; Start with padding
+      (dolist (node node-list)
+        (when (dag-draw-node-x-coord node)
+          (when (< (dag-draw-node-x-coord node) current-x)
+            (setf (dag-draw-node-x-coord node) current-x))
+          (setq current-x (+ (dag-draw-node-x-coord node) min-spacing)))))))
 
 (provide 'dag-draw-pass3-positioning)
 

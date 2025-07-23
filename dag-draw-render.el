@@ -70,8 +70,57 @@ This function respects the GKNV 4-pass algorithm and performs only coordinate co
   ;; Handle empty graphs
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
-    ;; PURE COORDINATE CONVERSION: No coordinate system changes, no regeneration
-    (dag-draw--convert-gknv-to-ascii-grid graph)))
+    
+    ;; Check coordinate mode to decide rendering approach
+    (let ((coordinate-mode (or (dag-draw-graph-coordinate-mode graph) 'high-res)))
+      (if (eq coordinate-mode 'ascii)
+          ;; ASCII-native mode: coordinates are already in grid units, no conversion needed
+          (dag-draw--render-ascii-native graph)
+        ;; High-res mode: convert GKNV coordinates to ASCII grid
+        (dag-draw--convert-gknv-to-ascii-grid graph)))))
+
+(defun dag-draw--render-ascii-native (graph)
+  "Render graph with ASCII-native coordinates - no scale conversion needed.
+Coordinates are already in grid units from ASCII-native GKNV positioning."
+  
+  ;; Calculate grid bounds directly from ASCII coordinates
+  (let* ((nodes (ht-values (dag-draw-graph-nodes graph)))
+         (min-x (apply #'min (mapcar (lambda (n) (or (dag-draw-node-x-coord n) 0)) nodes)))
+         (max-x (apply #'max (mapcar (lambda (n) (+ (or (dag-draw-node-x-coord n) 0)
+                                                     (length (dag-draw-node-label n)))) nodes)))
+         (min-y (apply #'min (mapcar (lambda (n) (or (dag-draw-node-y-coord n) 0)) nodes)))
+         (max-y (apply #'max (mapcar (lambda (n) (+ (or (dag-draw-node-y-coord n) 0) 3)) nodes)))
+         
+         ;; Create grid with padding
+         (grid-width (max 20 (+ (- max-x min-x) 10)))
+         (grid-height (max 10 (+ (- max-y min-y) 5)))
+         (grid (dag-draw--create-ascii-grid grid-width grid-height)))
+    
+    (message "\n=== ASCII-NATIVE RENDERING ===")
+    (message "Grid bounds: (%d,%d) to (%d,%d)" min-x min-y max-x max-y)
+    (message "Grid size: %dx%d" grid-width grid-height)
+    
+    ;; Draw nodes directly using ASCII coordinates
+    (dolist (node nodes)
+      (let ((x (- (or (dag-draw-node-x-coord node) 0) min-x))
+            (y (- (or (dag-draw-node-y-coord node) 0) min-y))
+            (label (dag-draw-node-label node))
+            (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
+            (height 3))  ; Standard node height
+        (dag-draw--draw-node-box grid x y width height label)))
+    
+    ;; Draw edges directly using ASCII coordinates  
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+             (from-x (- (or (dag-draw-node-x-coord from-node) 0) min-x))
+             (from-y (- (or (dag-draw-node-y-coord from-node) 0) min-y))
+             (to-x (- (or (dag-draw-node-x-coord to-node) 0) min-x))
+             (to-y (- (or (dag-draw-node-y-coord to-node) 0) min-y)))
+        (dag-draw--draw-simple-edge grid from-x from-y to-x to-y)))
+    
+    ;; Convert grid to string
+    (dag-draw--ascii-grid-to-string grid)))
 
 (defun dag-draw--convert-gknv-to-ascii-grid (graph)
   "Pure conversion of GKNV final coordinates to ASCII grid.
@@ -83,9 +132,14 @@ Does NOT modify graph coordinates or regenerate splines."
          (min-y (nth 1 bounds))
          (max-x (nth 2 bounds))
          (max-y (nth 3 bounds))
-         (scale dag-draw-ascii-coordinate-scale)
+         
+         ;; Step 2: Calculate optimal scale dynamically based on graph complexity
+         ;; Default target dimensions for ASCII rendering (reasonable terminal size)
+         (target-width 80)
+         (target-height 24)
+         (scale (dag-draw--calculate-optimal-ascii-scale graph target-width target-height))
 
-         ;; Step 2: Calculate grid size needed for GKNV coordinates
+         ;; Step 3: Calculate grid size needed for GKNV coordinates
          (width (- max-x min-x))
          (height (- max-y min-y))
          (grid-width (max 20 (+ 10 (ceiling (* width scale)))))
@@ -367,6 +421,45 @@ GKNV-compliant: splines are now pre-clipped to boundaries, so simple drawing wor
 
 ;;; Enhanced spline segment drawing functions for Phase C improvements
 
+(defun dag-draw--draw-simple-edge (grid from-x from-y to-x to-y)
+  "Draw a simple edge from (FROM-X,FROM-Y) to (TO-X,TO-Y) in GRID.
+This is a basic ASCII edge drawing for ASCII-native coordinate mode."
+  
+  ;; Calculate port positions (center bottom of from-node, center top of to-node)
+  (let* ((from-port-x from-x)
+         (from-port-y (+ from-y 3))  ; Bottom of from-node
+         (to-port-x to-x)
+         (to-port-y to-y)            ; Top of to-node
+         ;; Calculate inter-rank routing position (midway between ranks)
+         (routing-y (- to-port-y 1))) ; One row above destination node
+    
+    ;; Draw vertical line down from from-node to routing level
+    (when (< from-port-y routing-y)
+      (let ((y from-port-y))
+        (while (< y routing-y)
+          (dag-draw--set-grid-char grid from-port-x y ?│)
+          (setq y (1+ y)))))
+    
+    ;; Draw horizontal line at inter-rank routing level
+    (when (/= from-port-x to-port-x)
+      (let ((start-x (min from-port-x to-port-x))
+            (end-x (max from-port-x to-port-x)))
+        (while (<= start-x end-x)
+          (dag-draw--set-grid-char grid start-x routing-y ?─)
+          (setq start-x (1+ start-x)))))
+    
+    ;; Draw final vertical segment down to destination node
+    (when (< routing-y to-port-y)
+      (dag-draw--set-grid-char grid to-port-x routing-y ?│))
+    
+    ;; Draw arrow at destination
+    (dag-draw--set-grid-char grid to-port-x to-port-y ?▼)))
+
+(defun dag-draw--set-grid-char (grid x y char)
+  "Set character at position (X,Y) in GRID to CHAR, with bounds checking."
+  (when (and (>= x 0) (< x (length (aref grid 0)))
+             (>= y 0) (< y (length grid)))
+    (aset (aref grid y) x char)))
 
 (provide 'dag-draw-render)
 

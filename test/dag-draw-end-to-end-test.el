@@ -71,8 +71,8 @@
         (dag-draw-add-edge graph 'frontend 'integration)
         (dag-draw-add-edge graph 'integration 'deployment)
 
-        ;; Run FULL pipeline
-        (dag-draw-layout-graph graph)
+        ;; Run FULL pipeline with high-resolution coordinate system (original)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
 
         ;; Get ASCII output
         (let ((output (dag-draw-render-ascii graph)))

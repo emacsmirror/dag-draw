@@ -40,6 +40,9 @@
 (require 'dash)
 (require 'ht)
 
+;; Declare function to avoid circular dependency
+(declare-function dag-draw--world-to-grid-size "dag-draw-ascii-grid")
+
 ;;; Customization
 
 (defgroup dag-draw nil
@@ -120,6 +123,7 @@ VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
   (max-rank nil)                       ; Maximum assigned rank
   (rank-sets nil)                      ; User-specified rank constraints
   (adjusted-positions nil)             ; Hash table: id -> (x y width height) adjusted coordinates
+  (coordinate-mode 'high-res)          ; Coordinate system mode ('high-res or 'ascii)
   attributes)                          ; Graph-level attributes
 
 ;;; Public API
@@ -185,24 +189,43 @@ Creates virtual nodes for labels and adjusts edge lengths before ranking."
            (dag-draw-graph-edges graph)))
 
 ;;;###autoload
-(defun dag-draw-layout-graph (graph)
+(defun dag-draw-layout-graph (graph &rest args)
   "Apply the GKNV layout algorithm to GRAPH with ASCII resolution preprocessing.
 This performs the four GKNV passes with ASCII resolution after ranking:
-ranking, ASCII resolution adjustment, ordering, positioning, and spline generation."
-  ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
-  (dag-draw--process-edge-labels graph)
+ranking, ASCII resolution adjustment, ordering, positioning, and spline generation.
 
-  ;; GKNV Pass 1: Rank assignment
-  (dag-draw-rank-graph graph)
+Optional keyword arguments:
+  :coordinate-mode MODE - Sets coordinate system mode ('high-res or 'ascii)
+                         'high-res: Traditional GKNV coordinate system (default)
+                         'ascii: ASCII-native coordinates optimized for grid rendering"
+  ;; Parse keyword arguments
+  (let ((coordinate-mode 'high-res))  ; Default to high-resolution mode
+    (while args
+      (let ((key (pop args))
+            (value (pop args)))
+        (cond
+         ((eq key :coordinate-mode)
+          (setq coordinate-mode value))
+         (t
+          (error "Unknown keyword argument: %s" key)))))
+    
+    ;; Store coordinate mode in graph for use by GKNV passes
+    (setf (dag-draw-graph-coordinate-mode graph) coordinate-mode)
+    
+    ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
+    (dag-draw--process-edge-labels graph)
 
-  ;; ASCII resolution preprocessing (moved after ranking for dynamic analysis)
-  (dag-draw--ensure-ascii-resolution graph)
+    ;; GKNV Pass 1: Rank assignment
+    (dag-draw-rank-graph graph)
 
-  ;; GKNV Passes 2-4: ordering, positioning, and spline generation
-  (dag-draw-order-vertices graph)
-  (dag-draw-position-nodes graph)
-  (dag-draw-generate-splines graph)
-  graph)
+    ;; ASCII resolution preprocessing (moved after ranking for dynamic analysis)
+    (dag-draw--ensure-ascii-resolution graph)
+
+    ;; GKNV Passes 2-4: ordering, positioning, and spline generation
+    (dag-draw-order-vertices graph)
+    (dag-draw-position-nodes graph)
+    (dag-draw-generate-splines graph)
+    graph))
 
 ;;; ASCII Resolution Preprocessing
 
@@ -234,6 +257,8 @@ Otherwise uses safe defaults for edge routing."
                              ;; Find the maximum ASCII node width in the graph and add buffer
                              (let ((scale (dag-draw--estimate-ascii-scale graph))
                                    (max-ascii-width 0))
+                               ;; Ensure ascii-grid module is loaded
+                               (require 'dag-draw-ascii-grid)
                                (ht-each (lambda (node-id node)
                                           (let ((ascii-width (dag-draw--world-to-grid-size
                                                              (dag-draw-node-x-size node) scale)))

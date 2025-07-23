@@ -20,7 +20,166 @@
 
 ;;; Customization
 
+;;; Dynamic Scale Calculation
 
+(defun dag-draw--calculate-optimal-ascii-scale (graph target-width target-height)
+  "Calculate optimal scale factor based on graph complexity and ASCII constraints.
+GRAPH is the input graph, TARGET-WIDTH and TARGET-HEIGHT are the desired ASCII dimensions.
+
+Following GKNV paper Section 1.2: coordinates should use '72 units per inch' for high resolution,
+but ASCII has ~5 characters per inch, requiring dynamic scaling based on graph complexity."
+  (let* ((node-count (dag-draw-node-count graph))
+         (edge-count (dag-draw-edge-count graph))
+         
+         ;; Enhanced complexity analysis
+         (node-size-factor (dag-draw--calculate-node-size-complexity graph))
+         (edge-density-factor (dag-draw--calculate-edge-density-factor graph))
+         (hierarchy-depth-factor (dag-draw--estimate-hierarchy-depth graph))
+         
+         ;; Combined complexity factor with weighted components
+         (complexity-factor (+ (* node-count 0.15)
+                              (* edge-count 0.08)
+                              (* node-size-factor 0.1)
+                              (* edge-density-factor 0.05)
+                              (* hierarchy-depth-factor 0.02)))
+         
+         ;; Base scale calculation: balance between resolution and fitting
+         ;; More complex graphs need smaller scale to fit in ASCII area
+         (base-scale (/ 1.0 (max 1.0 (+ 1.5 complexity-factor))))
+         
+         ;; Adjust for target dimensions - larger ASCII area allows larger scale
+         (dimension-factor (/ (+ target-width target-height) 200.0))
+         (adjusted-scale (* base-scale dimension-factor))
+         
+         ;; Minimum scale to prevent coordinate collapse (GKNV aesthetic A2)
+         (min-scale 0.02)
+         
+         ;; Maximum scale to maintain readability
+         (max-scale 0.4))
+    
+    ;; Validate against coordinate collapse (GKNV aesthetic A2)
+    (let ((validated-scale (max min-scale (min max-scale adjusted-scale))))
+      (dag-draw--validate-scale-prevents-collapse graph validated-scale target-width target-height))))
+
+(defun dag-draw--validate-scale-prevents-collapse (graph scale target-width target-height)
+  "Validate that SCALE prevents coordinate collapse, per GKNV aesthetic A2.
+Returns adjusted scale that ensures no two nodes collapse to same grid position.
+Only validates when nodes have actual coordinates set (after layout)."
+  (if (or (= (dag-draw-node-count graph) 0)
+          ;; Only validate if nodes have coordinates (after GKNV layout)
+          (not (dag-draw--graph-has-positioned-nodes graph)))
+      scale
+    (let* ((nodes (ht-values (dag-draw-graph-nodes graph)))
+           (positions (ht-create))
+           (collapse-detected nil))
+      
+      ;; Simulate grid positioning with current scale
+      (dolist (node nodes)
+        (let* ((world-x (dag-draw-node-x-coord node))
+               (world-y (dag-draw-node-y-coord node)))
+          (when (and world-x world-y)  ; Only check nodes with coordinates
+            (let* ((grid-x (round (* world-x scale)))
+                   (grid-y (round (* world-y scale)))
+                   (grid-pos (format "%d,%d" grid-x grid-y)))
+              
+              (if (ht-get positions grid-pos)
+                  (setq collapse-detected t)
+                (ht-set! positions grid-pos t))))))
+      
+      (if collapse-detected
+          ;; Increase scale slightly to prevent collapse
+          (let ((anti-collapse-scale (* scale 1.15))) ; Smaller increment
+            (if (< anti-collapse-scale 0.4)
+                ;; Recursively validate the adjusted scale
+                (dag-draw--validate-scale-prevents-collapse graph anti-collapse-scale target-width target-height)
+              ;; If we can't prevent collapse, return minimum viable scale
+              0.02))
+        ;; No collapse detected - scale is valid
+        scale))))
+
+(defun dag-draw--graph-has-positioned-nodes (graph)
+  "Check if GRAPH has nodes with positioned coordinates (after layout)."
+  (let ((has-positioned nil))
+    (ht-each (lambda (node-id node)
+               (when (and (dag-draw-node-x-coord node)
+                         (dag-draw-node-y-coord node))
+                 (setq has-positioned t)))
+             (dag-draw-graph-nodes graph))
+    has-positioned))
+
+(defun dag-draw--calculate-node-size-complexity (graph)
+  "Calculate complexity factor based on node size variations.
+Graphs with larger or more varied node sizes need smaller scale factors."
+  (if (= (dag-draw-node-count graph) 0)
+      0.0
+    (let* ((total-size 0)
+           (size-variance 0)
+           (nodes (ht-values (dag-draw-graph-nodes graph))))
+      
+      ;; Calculate average node size
+      (dolist (node nodes)
+        (setq total-size (+ total-size 
+                           (dag-draw-node-x-size node)
+                           (dag-draw-node-y-size node))))
+      
+      (let ((avg-size (/ total-size (* 2.0 (length nodes)))))
+        ;; Calculate size variance for complexity
+        (dolist (node nodes)
+          (let ((node-size (/ (+ (dag-draw-node-x-size node)
+                                 (dag-draw-node-y-size node)) 2.0)))
+            (setq size-variance (+ size-variance 
+                                  (expt (- node-size avg-size) 2)))))
+        
+        ;; Return normalized complexity factor
+        (/ (sqrt (/ size-variance (length nodes))) 50.0)))))
+
+(defun dag-draw--calculate-edge-density-factor (graph)
+  "Calculate edge density complexity factor.
+Higher edge density relative to node count indicates more complex layout requirements."
+  (let ((node-count (dag-draw-node-count graph)))
+    (if (<= node-count 1)
+        0.0
+      (let* ((edge-count (dag-draw-edge-count graph))
+             (max-possible-edges (* node-count (1- node-count)))
+             (density (if (> max-possible-edges 0)
+                         (/ (float edge-count) max-possible-edges)
+                       0.0)))
+        ;; Scale density to reasonable complexity factor
+        (* density 2.0)))))
+
+(defun dag-draw--estimate-hierarchy-depth (graph)
+  "Estimate hierarchy depth for complexity calculation.
+Deeper hierarchies may need different scaling considerations."
+  (if (= (dag-draw-node-count graph) 0)
+      0.0
+    (let ((source-nodes (dag-draw-get-source-nodes graph)))
+      (if (null source-nodes)
+          ;; No clear hierarchy (cycles or disconnected) - moderate complexity
+          1.0
+        ;; Simple depth estimation: count nodes at different distances from sources
+        (let ((max-depth 0))
+          (dolist (source source-nodes)
+            (let ((depth (dag-draw--calculate-max-depth-from-node graph source)))
+              (setq max-depth (max max-depth depth))))
+          max-depth)))))
+
+(defun dag-draw--calculate-max-depth-from-node (graph start-node)
+  "Calculate maximum depth reachable from START-NODE in GRAPH."
+  (let ((visited (ht-create))
+        (max-depth 0))
+    (dag-draw--depth-first-search graph start-node visited 0 
+                                 (lambda (depth) 
+                                   (setq max-depth (max max-depth depth))))
+    max-depth))
+
+(defun dag-draw--depth-first-search (graph node visited current-depth callback)
+  "Perform DFS from NODE, calling CALLBACK with depth at each node."
+  (unless (ht-get visited node)
+    (ht-set! visited node t)
+    (funcall callback current-depth)
+    (let ((successors (dag-draw-get-successors graph node)))
+      (dolist (successor successors)
+        (dag-draw--depth-first-search graph successor visited (1+ current-depth) callback)))))
 
 ;;; ASCII Scaling Helper Functions
 
@@ -28,20 +187,20 @@
   "Convert GKNV world coordinate to ASCII grid coordinate with precise rounding.
 COORD is the world coordinate, MIN-COORD is the minimum coordinate for offset,
 SCALE is the grid scale factor.
-SCALE UNIFICATION: Use only dag-draw-ascii-coordinate-scale to eliminate double multiplication."
-  (float (round (* (- coord min-coord) dag-draw-ascii-coordinate-scale))))
+DYNAMIC SCALE: Uses passed scale parameter for optimal ASCII grid conversion."
+  (float (round (* (- coord min-coord) (or scale dag-draw-ascii-coordinate-scale)))))
 
 (defun dag-draw--grid-to-world-coord (grid-coord min-coord scale)
   "Convert ASCII grid coordinate back to GKNV world coordinate.
 GRID-COORD is the grid coordinate, MIN-COORD is the minimum coordinate for offset,
 SCALE is the grid scale factor. This is the inverse of dag-draw--world-to-grid-coord."
-  (+ (/ grid-coord dag-draw-ascii-coordinate-scale) min-coord))
+  (+ (/ grid-coord (or scale dag-draw-ascii-coordinate-scale)) min-coord))
 
 (defun dag-draw--world-to-grid-size (size scale)
   "Convert GKNV node size to ASCII grid size using UNIFIED scale factor.
 SIZE is the node size in world coordinates, SCALE is the grid scale factor.
-MATHEMATICAL UNIFICATION FIX: Use same scale as coordinate conversion to eliminate 6.7% mismatch."
-  (max 3 (ceiling (* size dag-draw-ascii-coordinate-scale))))
+DYNAMIC SCALE: Uses passed scale parameter for consistent coordinate conversion."
+  (max 3 (ceiling (* size (or scale dag-draw-ascii-coordinate-scale)))))
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
   "Get node center coordinates directly in grid space for simple edge routing.
@@ -251,6 +410,194 @@ lands at the true visual center of the box, not the mathematical center."
                (apply #'string (append row nil)))
              grid
              "\n"))
+
+;;; Junction Character Enhancement
+
+(defun dag-draw--get-enhanced-junction-char (context)
+  "Determine the appropriate junction character based on CONTEXT.
+CONTEXT is a plist containing junction information per CLAUDE.md specifications.
+Returns the Unicode character that should be used for the junction."
+  (let ((junction-type (plist-get context :type)))
+    (cond
+     ;; Port boundary junctions (CLAUDE.md: "At the start/end of edge, at port boundary")
+     ((eq junction-type 'port-start)
+      (let ((direction (plist-get context :direction)))
+        (cond
+         ((eq direction 'down) ?┬)  ; ─ becomes ┬ when edge starts downward
+         ((eq direction 'up) ?┴)    ; ─ becomes ┴ when edge starts upward  
+         ((eq direction 'left) ?┤)  ; │ becomes ┤ when edge starts leftward
+         ((eq direction 'right) ?├) ; │ becomes ├ when edge starts rightward
+         (t ?+))))  ; fallback
+     
+     ((eq junction-type 'port-end)
+      (let ((direction (plist-get context :direction)))
+        (cond
+         ((eq direction 'up) ?┴)     ; ─ becomes ┴ when edge ends from above
+         ((eq direction 'down) ?┬)   ; ─ becomes ┬ when edge ends from below
+         ((eq direction 'left) ?┤)   ; │ becomes ┤ when edge ends from left
+         ((eq direction 'right) ?├)  ; │ becomes ├ when edge ends from right  
+         (t ?+))))  ; fallback
+     
+     ;; Direction change junctions (CLAUDE.md: "When edge requires direction change")
+     ((eq junction-type 'direction-change)
+      (let ((from-dir (plist-get context :from-direction))
+            (to-dir (plist-get context :to-direction)))
+        (cond
+         ((and (eq from-dir 'right) (eq to-dir 'down)) ?┐)  ; right→down corner
+         ((and (eq from-dir 'left) (eq to-dir 'down)) ?┌)   ; left→down corner
+         ((and (eq from-dir 'right) (eq to-dir 'up)) ?┘)    ; right→up corner
+         ((and (eq from-dir 'left) (eq to-dir 'up)) ?└)     ; left→up corner
+         ((and (eq from-dir 'down) (eq to-dir 'right)) ?└)  ; down→right corner
+         ((and (eq from-dir 'down) (eq to-dir 'left)) ?┘)   ; down→left corner
+         ((and (eq from-dir 'up) (eq to-dir 'right)) ?┌)    ; up→right corner
+         ((and (eq from-dir 'up) (eq to-dir 'left)) ?┐)     ; up→left corner
+         (t ?+))))  ; fallback
+     
+     ;; Edge joining junctions (CLAUDE.md: "When two edges join")
+     ((eq junction-type 'edge-join)
+      (let ((outgoing-dir (plist-get context :outgoing-direction)))
+        (cond
+         ((eq outgoing-dir 'right) ?┴)   ; edges from above join rightward
+         ((eq outgoing-dir 'left) ?┴)    ; edges from above join leftward
+         ((eq outgoing-dir 'down) ?┬)    ; edges from sides join downward
+         ((eq outgoing-dir 'up) ?┴)      ; edges from sides join upward
+         (t ?┼))))  ; fallback to cross
+     
+     ;; Edge separation junctions (CLAUDE.md: "When two edges separate")
+     ((eq junction-type 'edge-split)
+      (let ((incoming-dir (plist-get context :incoming-direction)))
+        (cond
+         ((eq incoming-dir 'left) ?┬)    ; horizontal line splits downward
+         ((eq incoming-dir 'right) ?┬)   ; horizontal line splits downward
+         ((eq incoming-dir 'down) ?┴)    ; vertical line splits sideways
+         ((eq incoming-dir 'up) ?┬)      ; vertical line splits sideways
+         (t ?┼))))  ; fallback to cross
+     
+     ;; Edge crossing junctions (CLAUDE.md: "When two edges cross")
+     ((eq junction-type 'edge-cross) ?┼)  ; always use cross character
+     
+     ;; T-junction scenarios (CLAUDE.md example)
+     ((eq junction-type 't-junction)
+      (let ((main-dir (plist-get context :main-direction))
+            (branch-dir (plist-get context :branch-direction)))
+        (cond
+         ((and (eq main-dir 'down) (eq branch-dir 'right)) ?├)   ; down + right branch
+         ((and (eq main-dir 'down) (eq branch-dir 'left)) ?┤)    ; down + left branch
+         ((and (eq main-dir 'up) (eq branch-dir 'right)) ?├)     ; up + right branch
+         ((and (eq main-dir 'up) (eq branch-dir 'left)) ?┤)      ; up + left branch
+         ((and (eq main-dir 'right) (eq branch-dir 'down)) ?┬)   ; right + down branch
+         ((and (eq main-dir 'right) (eq branch-dir 'up)) ?┴)     ; right + up branch
+         ((and (eq main-dir 'left) (eq branch-dir 'down)) ?┬)    ; left + down branch
+         ((and (eq main-dir 'left) (eq branch-dir 'up)) ?┴)      ; left + up branch
+         (t ?┼))))  ; fallback to cross
+     
+     ;; Fallback for unknown junction types
+     (t ?+))))
+
+;;; Edge Analysis for Junction Detection
+
+(defun dag-draw--analyze-junction-points (graph)
+  "Analyze GRAPH to find points where junction characters are needed.
+CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
+Returns a list of junction point specifications."
+  (when graph
+    (let ((junction-points '()))
+      ;; Phase 1: Detect port boundary junctions (CLAUDE.md: "At the start/end of edge")
+      (setq junction-points (append junction-points (dag-draw--detect-port-junctions graph)))
+      
+      ;; Phase 2: Detect direction change junctions (CLAUDE.md: "When edge requires direction change")
+      (setq junction-points (append junction-points (dag-draw--detect-direction-changes graph)))
+      
+      ;; Phase 3: Detect edge intersection junctions (CLAUDE.md: "When edges join/separate/cross")
+      (setq junction-points (append junction-points (dag-draw--detect-edge-intersections graph)))
+      
+      junction-points)))
+
+(defun dag-draw--detect-port-junctions (graph)
+  "Detect junction points at node port boundaries in GRAPH.
+CLAUDE.md: 'At the start of the edge, at the port boundary'
+Returns a list of port junction specifications."
+  (when graph
+    (let ((port-junctions '()))
+      ;; Walk through all edges to find port boundary points
+      (dolist (edge (dag-draw-graph-edges graph))
+        (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+          
+          ;; Check if nodes have coordinates (positioned after GKNV layout)
+          (when (and from-node to-node
+                     (dag-draw-node-x-coord from-node) (dag-draw-node-y-coord from-node)
+                     (dag-draw-node-x-coord to-node) (dag-draw-node-y-coord to-node))
+            
+            ;; Determine edge direction from source to target
+            (let* ((from-x (dag-draw-node-x-coord from-node))
+                   (from-y (dag-draw-node-y-coord from-node))
+                   (to-x (dag-draw-node-x-coord to-node))
+                   (to-y (dag-draw-node-y-coord to-node))
+                   (direction (dag-draw--determine-edge-direction from-x from-y to-x to-y)))
+              
+              ;; Add port start junction (at source node boundary)
+              (push (list :type 'port-start
+                         :node (dag-draw-edge-from-node edge)
+                         :x from-x :y from-y
+                         :direction direction
+                         :edge edge)
+                    port-junctions)
+              
+              ;; Add port end junction (at target node boundary)  
+              (push (list :type 'port-end
+                         :node (dag-draw-edge-to-node edge)
+                         :x to-x :y to-y  
+                         :direction (dag-draw--reverse-direction direction)
+                         :edge edge)
+                    port-junctions)))))
+      
+      port-junctions)))
+
+(defun dag-draw--determine-edge-direction (from-x from-y to-x to-y)
+  "Determine primary direction of edge from (FROM-X,FROM-Y) to (TO-X,TO-Y).
+Returns one of: 'up, 'down, 'left, 'right based on dominant coordinate change."
+  (let ((dx (- to-x from-x))
+        (dy (- to-y from-y)))
+    (cond
+     ;; Vertical movement dominates
+     ((> (abs dy) (abs dx))
+      (if (> dy 0) 'down 'up))
+     ;; Horizontal movement dominates  
+     ((> (abs dx) (abs dy))
+      (if (> dx 0) 'right 'left))
+     ;; Equal movement - choose based on positive direction preference
+     ((and (> dx 0) (> dy 0)) 'down)  ; Southeast
+     ((and (< dx 0) (> dy 0)) 'down)  ; Southwest
+     ((and (> dx 0) (< dy 0)) 'up)    ; Northeast  
+     ((and (< dx 0) (< dy 0)) 'up)    ; Northwest
+     ;; Fallback
+     (t 'down))))
+
+(defun dag-draw--reverse-direction (direction)
+  "Return the opposite direction of DIRECTION."
+  (cond
+   ((eq direction 'up) 'down)
+   ((eq direction 'down) 'up)
+   ((eq direction 'left) 'right)
+   ((eq direction 'right) 'left)
+   (t direction)))
+
+(defun dag-draw--detect-direction-changes (graph)
+  "Detect points where edges require direction changes.
+CLAUDE.md: 'When the edge requires a direction change'
+Returns a list of direction change junction specifications."
+  ;; TODO: Implement spline analysis for direction changes
+  ;; For now, return empty list as this requires complex spline path analysis
+  '())
+
+(defun dag-draw--detect-edge-intersections (graph)
+  "Detect points where edges join, separate, or cross.
+CLAUDE.md: 'When two edges join, or two edges separate' and 'When two edges cross'
+Returns a list of intersection junction specifications."
+  ;; TODO: Implement grid-based intersection analysis  
+  ;; For now, return empty list as this requires ASCII grid coordinate analysis
+  '())
 
 (provide 'dag-draw-ascii-grid)
 
