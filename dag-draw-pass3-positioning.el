@@ -889,7 +889,7 @@ Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constrai
   ;; Convert to ASCII grid coordinates with proper spacing
   ;; Group nodes by rank to ensure consistent horizontal spacing
   (let ((rank-groups (ht-create))
-        (ascii-node-separation 35))  ; Minimum horizontal spacing to ensure column between boundaries
+        (ascii-node-separation 25))  ; Reasonable horizontal spacing between node boundaries
     
     ;; Group nodes by rank  
     (ht-each (lambda (node-id node)
@@ -900,19 +900,24 @@ Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constrai
                          (cons node (ht-get rank-groups rank)))))
              (dag-draw-graph-nodes graph))
     
-    ;; For each rank, assign ASCII X coordinates with proper spacing
+    ;; For each rank, assign ASCII X coordinates with dynamic spacing
+    ;; Per GKNV Section 1.2: nodesep(G) - minimum horizontal separation between node boxes
     (ht-each (lambda (rank nodes)
-               ;; Sort nodes by their computed X position
+               ;; Sort nodes by their computed X position (preserve GKNV ordering)
                (let ((sorted-nodes (sort nodes 
                                         (lambda (a b)
                                           (< (or (dag-draw-node-x-coord a) 0)
                                              (or (dag-draw-node-x-coord b) 0)))))
-                     (ascii-x 5))  ; Start with left padding
+                     (ascii-x 5)      ; Start with left padding
+                     (min-nodesep 3)) ; Minimum separation per GKNV nodesep(G)
                  
-                 ;; Assign evenly spaced ASCII X coordinates
+                 ;; Assign dynamically spaced ASCII X coordinates based on actual node widths
                  (dolist (node sorted-nodes)
                    (setf (dag-draw-node-x-coord node) ascii-x)
-                   (setq ascii-x (+ ascii-x ascii-node-separation)))))
+                   ;; Calculate this node's width: label + padding
+                   (let ((node-width (+ (length (dag-draw-node-label node)) 4)))
+                     ;; Next node starts at: current_x + current_width + minimum_separation
+                     (setq ascii-x (+ ascii-x node-width min-nodesep))))))
              rank-groups)))
 
 (defun dag-draw--round-coordinates-for-ascii (graph)
