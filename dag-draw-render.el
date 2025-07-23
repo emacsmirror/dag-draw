@@ -117,7 +117,7 @@ Coordinates are already in grid units from ASCII-native GKNV positioning."
              (from-y (- (or (dag-draw-node-y-coord from-node) 0) min-y))
              (to-x (- (or (dag-draw-node-x-coord to-node) 0) min-x))
              (to-y (- (or (dag-draw-node-y-coord to-node) 0) min-y)))
-        (dag-draw--draw-simple-edge grid from-x from-y to-x to-y)))
+        (dag-draw--draw-simple-edge grid from-x from-y to-x to-y from-node to-node)))
     
     ;; Convert grid to string
     (dag-draw--ascii-grid-to-string grid)))
@@ -421,15 +421,18 @@ GKNV-compliant: splines are now pre-clipped to boundaries, so simple drawing wor
 
 ;;; Enhanced spline segment drawing functions for Phase C improvements
 
-(defun dag-draw--draw-simple-edge (grid from-x from-y to-x to-y)
+(defun dag-draw--draw-simple-edge (grid from-x from-y to-x to-y from-node to-node)
   "Draw a simple edge from (FROM-X,FROM-Y) to (TO-X,TO-Y) in GRID.
-This is a basic ASCII edge drawing for ASCII-native coordinate mode."
+This is a basic ASCII edge drawing for ASCII-native coordinate mode.
+FROM-NODE and TO-NODE are used to calculate proper port positions per GKNV Section 4.2."
   
-  ;; Calculate port positions (center bottom of from-node, center top of to-node)
-  (let* ((from-port-x from-x)
-         (from-port-y (+ from-y 3))  ; Bottom of from-node
-         (to-port-x to-x)
-         (to-port-y to-y)            ; Top of to-node
+  ;; Calculate port positions per GKNV Section 4.2: Node Port as X-direction offset from node center
+  (let* ((from-node-width (+ (length (dag-draw-node-label from-node)) 4))  ; Actual from-node width
+         (to-node-width (+ (length (dag-draw-node-label to-node)) 4))       ; Actual to-node width
+         (from-port-x (+ from-x (/ from-node-width 2))) ; Center X of from-node
+         (from-port-y (+ from-y 3))                     ; Bottom Y of from-node  
+         (to-port-x (+ to-x (/ to-node-width 2)))       ; Center X of to-node
+         (to-port-y to-y)                               ; Top Y of to-node
          ;; Calculate inter-rank routing position (midway between ranks)
          (routing-y (- to-port-y 1))) ; One row above destination node
     
