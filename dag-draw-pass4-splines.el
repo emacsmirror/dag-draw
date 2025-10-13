@@ -9,9 +9,34 @@
 
 ;;; Commentary:
 
-;; Implementation of the spline edge drawing pass of the GKNV algorithm.
-;; This module draws edges as smooth Bézier spline curves that avoid
-;; overlapping with nodes, as described in section 5 of the research paper.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements Pass 4 (Edge Drawing) of the GKNV graph drawing algorithm
+;; as specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 5 (lines 1616-2166), Figures 5-1, 5-2, 5-3
+;; Decisions: D4.1 (Region-constrained splines), D4.2 (Shortest first),
+;;            D4.3 (Vertical sections), D4.4 (Terminal intersections),
+;;            D4.5 (Multi-edge spacing), D4.6 (Flat edges), D4.7 (Self-loops),
+;;            D4.8 (Region boxes), D4.9 (Path computation), D4.10 (Fitting),
+;;            D4.11 (C¹ continuity), D4.12 (Edge labels)
+;; Algorithm: Region-constrained Bézier splines with 3-stage process
+;;
+;; Key Requirements:
+;; - Region-constrained splines (NOT heuristic splines)
+;; - 3-stage process: L-array, S-array, bounding boxes
+;; - C¹ continuity at junction points (NOT C² - too expensive)
+;; - Shortest edges routed first (greedy strategy)
+;; - Nearly vertical sections converted to straight lines
+;; - Edge labels as off-center virtual nodes
+;;
+;; Baseline Status: ✅ Compliant
+;;
+;; GKNV Section 5 states: "It is better to try to find the smoothest curve between
+;; two points that avoids the 'obstacles' of other nodes or splines."
+;;
+;; See doc/implementation-decisions.md (D4.1-D4.12) for full decision rationale.
 
 ;;; Code:
 

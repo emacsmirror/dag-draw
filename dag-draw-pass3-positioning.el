@@ -9,11 +9,34 @@
 
 ;;; Commentary:
 
-;; Implementation of the node positioning pass of the GKNV algorithm.
-;; This module assigns X and Y coordinates to nodes after rank assignment
-;; and vertex ordering. It uses auxiliary graph construction and network
-;; simplex to find optimal X coordinates, as described in section 4 of
-;; the research paper.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements Pass 3 (Positioning) of the GKNV graph drawing algorithm
+;; as specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 4.2 (lines 1398-1614), Figure 4-2
+;; Decisions: D3.1 (Network simplex on auxiliary graph - NOT heuristics),
+;;            D3.2 (Omega values 1,2,8), D3.3 (Separation ρ function),
+;;            D3.4 (Auxiliary tree initialization), D3.5 (Node ports)
+;; Algorithm: Network simplex on auxiliary graph
+;;
+;; Key Requirements:
+;; - Use auxiliary graph method (NOT heuristics per Section 4.1)
+;; - Edge weights: Ω(e) = 1 (both real), 2 (one virtual), 8 (both virtual)
+;; - Separation: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+;; - Exploit auxiliary graph structure for initial feasible tree
+;; - Support X-offset node ports per Section 4.2
+;;
+;; Baseline Status: ✅ Compliant (Heuristic fallback removed 2025-10-13)
+;;
+;; GKNV Section 4.2 states: "Much simpler code and produces optimal solutions...
+;; runs as fast or faster than the heuristic implementation."
+;;
+;; Decision D3.1 specifies: Use network simplex on auxiliary graph, NOT heuristics.
+;; The heuristic function was never called and has been removed for compliance.
+;;
+;; See doc/implementation-decisions.md (D3.1-D3.5) for full decision rationale.
 
 ;;; Code:
 
@@ -126,60 +149,26 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
         (push (dag-draw-edge-from-node edge) sources)))
     sources))
 
-;;; Simple heuristic approach (fallback)
-
-(defun dag-draw--position-nodes-heuristic (graph)
-  "Simple heuristic approach for X-coordinate assignment.
-This is a fallback when the auxiliary graph approach is too complex."
-  (let ((rank-to-nodes (ht-create))
-        (max-rank-width 0))
-
-    ;; Group nodes by rank
-    (ht-each (lambda (node-id node)
-               (let ((rank (or (dag-draw-node-rank node) 0)))
-                 (ht-set! rank-to-nodes rank
-                          (cons node-id (ht-get rank-to-nodes rank '())))))
-             (dag-draw-graph-nodes graph))
-
-    ;; Calculate the width needed for each rank and find maximum
-    (ht-each (lambda (rank node-list)
-               (let ((ordered-nodes (dag-draw--get-ordered-nodes-in-rank graph node-list))
-                     (rank-width 0))
-                 (dolist (node-id ordered-nodes)
-                   (let* ((node (dag-draw-get-node graph node-id))
-                          (node-width (dag-draw-node-x-size node))
-                          (node-sep (dag-draw-graph-node-separation graph)))
-                     (setq rank-width (+ rank-width node-width node-sep))))
-                 (setq max-rank-width (max max-rank-width rank-width))))
-             rank-to-nodes)
-
-    ;; Position nodes within each rank, centering smaller ranks
-    (ht-each (lambda (rank node-list)
-               (let ((ordered-nodes (dag-draw--get-ordered-nodes-in-rank graph node-list))
-                     (rank-width 0))
-
-                 ;; Calculate this rank's total width
-                 (dolist (node-id ordered-nodes)
-                   (let* ((node (dag-draw-get-node graph node-id))
-                          (node-width (dag-draw-node-x-size node))
-                          (node-sep (dag-draw-graph-node-separation graph)))
-                     (setq rank-width (+ rank-width node-width node-sep))))
-
-                 ;; Center this rank within the maximum width
-                 (let ((start-x (/ (- max-rank-width rank-width) 2.0))
-                       (current-x 0))
-                   (setq current-x start-x)
-
-                   (dolist (node-id ordered-nodes)
-                     (let ((node (dag-draw-get-node graph node-id)))
-                       ;; Set X coordinate
-                       (setf (dag-draw-node-x-coord node) current-x)
-
-                       ;; Update position for next node
-                       (let ((node-width (dag-draw-node-x-size node))
-                             (node-sep (dag-draw-graph-node-separation graph)))
-                         (setq current-x (+ current-x node-width node-sep))))))))
-             rank-to-nodes)))
+;; REMOVED: Heuristic positioning fallback (previously lines 131-182)
+;;
+;; Decision D3.1 (doc/implementation-decisions.md): Use network simplex on auxiliary
+;; graph for positioning - NOT heuristics.
+;;
+;; Rationale from GKNV paper (Section 4.2):
+;; - Heuristic approach (Section 4.1) is "complicated to program and the results
+;;   are sometimes noticeably imperfect"
+;; - Network simplex approach (Section 4.2) provides:
+;;   * "Much simpler code"
+;;   * "Produces optimal solutions"
+;;   * "Runs as fast or faster than the heuristic implementation"
+;;   * Reuses network simplex infrastructure from Pass 1
+;;
+;; The heuristic function dag-draw--position-nodes-heuristic was never called in
+;; the codebase and contradicted the baseline decision. It has been removed to
+;; ensure compliance with GKNV Section 4.2 as the sole positioning method.
+;;
+;; If positioning quality issues arise, they should be addressed by improving
+;; the network simplex constraint solver, not by adding heuristic fallbacks.
 
 ;;; Network simplex solver (simplified)
 

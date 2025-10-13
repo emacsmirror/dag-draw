@@ -9,9 +9,32 @@
 
 ;;; Commentary:
 
-;; Implementation of the vertex ordering pass of the GKNV algorithm.
-;; This module orders vertices within each rank to minimize edge crossings
-;; using the weighted median heuristic and local transposition.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements Pass 2 (Ordering) of the GKNV graph drawing algorithm
+;; as specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 3 (lines 891-1192), Figures 3-1, 3-2, 3-3
+;; Decisions: D2.1 (Initial order), D2.2 (Weighted median), D2.3 (Max iterations),
+;;            D2.4 (Transpose), D2.5 (No-adjacent handling), D2.6 (Flat edges),
+;;            D2.7 (Tie-breaking), D2.8 (Virtual nodes), D2.9 (Self-loops)
+;; Algorithm: Weighted median heuristic with transposition
+;;
+;; Key Requirements:
+;; - Create virtual nodes for long edges before ordering
+;; - Use biased weighted median (GKNV innovation)
+;; - Apply transpose heuristic for 20-50% improvement
+;; - 24 iterations fixed (adaptive termination possible)
+;; - Alternating up/down sweeps through ranks
+;; - Nodes with no adjacency keep current position
+;;
+;; Baseline Status: ✅ Compliant
+;;
+;; GKNV Section 3 states: "Generally, the weighted median is biased toward the side
+;; where vertices are more closely packed." (Innovation: weighted interpolation)
+;;
+;; See doc/implementation-decisions.md (D2.1-D2.9) for full decision rationale.
 
 ;;; Code:
 

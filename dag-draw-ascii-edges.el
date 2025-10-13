@@ -146,9 +146,11 @@ ASCII coordinate context ensures coordinates are always valid."
                 (and (>= current-char ?A) (<= current-char ?Z))
                 (and (>= current-char ?0) (<= current-char ?9)))
             nil)
-           ;; Edge characters - use enhanced junction logic with parallel line consolidation
+           ;; Edge characters - use enhanced junction logic with proper context analysis
            ((memq current-char '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴))
-            (let ((junction-char (dag-draw--get-enhanced-junction-char current-char char nil)))
+            ;; D5.6-D5.8: Analyze local grid context to determine proper junction character
+            (let* ((context (dag-draw--analyze-local-grid-junction-context grid int-x int-y current-char char))
+                   (junction-char (dag-draw--get-enhanced-junction-char context)))
               (when junction-char
                 (aset (aref grid int-y) int-x junction-char))
               ;; PARALLEL LINE CONSOLIDATION: Check for adjacent parallel lines that should merge

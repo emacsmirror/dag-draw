@@ -8,13 +8,28 @@
 
 ;;; Commentary:
 
-;; This module implements topological sorting as a fallback rank assignment
-;; algorithm for the GKNV layout system. This is used when the network simplex
-;; algorithm fails or is not suitable.
+;; GKNV Baseline Compliance:
 ;;
-;; The topological approach processes nodes level by level based on their
-;; in-degree, ensuring that all predecessor nodes are assigned ranks before
-;; their successors. This guarantees a valid ranking for acyclic graphs.
+;; This module implements topological sort fallback for rank assignment.
+;; Used when network simplex fails or for simple graphs where optimization
+;; is not required.
+;;
+;; GKNV Reference: Section 2.3 (init_rank function, Figure 2-2 line 2)
+;; Decision: D1.2 - Queue-based topological ranking (GKNV init_rank)
+;; Algorithm: Kahn's algorithm (queue-based topological sort)
+;;
+;; Key Requirements:
+;; - Processes nodes in topological order
+;; - Respects minimum edge lengths δ(e)
+;; - Assigns least rank that satisfies in-edges
+;; - Used as fallback when network simplex fails
+;;
+;; Baseline Status: ✅ Compliant (Fallback implementation)
+;;
+;; GKNV Figure 2-2, line 2 states: "Our version keeps nodes in a queue. Nodes are
+;; placed in the queue when they have no unscanned in-edges."
+;;
+;; See doc/implementation-decisions.md (D1.2) for decision rationale.
 ;;
 ;; Functions:
 ;; - dag-draw--assign-ranks-topological: Main topological rank assignment

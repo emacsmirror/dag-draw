@@ -9,9 +9,33 @@
 
 ;;; Commentary:
 
-;; Implementation of the rank assignment pass of the GKNV algorithm.
-;; This module assigns nodes to discrete ranks using a simplified version
-;; of the network simplex approach described in the paper.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements Pass 1 (Ranking) of the GKNV graph drawing algorithm
+;; as specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 2 (lines 350-556), Figure 2-1, Figure 2-2
+;; Decisions: D1.2 (Network simplex), D1.3 (Tight tree), D1.4 (Cyclic search),
+;;            D1.5 (Edge weights), D1.6 (Normalization), D1.7 (Balancing),
+;;            D1.8 (Cut values)
+;; Algorithm: Network simplex optimization on auxiliary graph
+;;
+;; Key Requirements:
+;; - Network simplex for optimal rank assignment (NOT topological sort)
+;; - Incremental tight tree construction per Figure 2-2
+;; - Cyclic leave-edge selection for efficiency
+;; - Incremental cut value calculation with postorder optimization
+;; - Rank normalization (min rank = 0)
+;; - Greedy rank balancing for aspect ratio
+;;
+;; Baseline Status: ✅ Compliant
+;;
+;; GKNV Section 2.4 states: "The network simplex is very sensitive to the choice of
+;; the negative edge to replace. We observed that searching cyclically through
+;; all the tree edges... can save many iterations."
+;;
+;; See doc/implementation-decisions.md (D1.2-D1.8) for full decision rationale.
 
 ;;; Code:
 

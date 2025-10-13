@@ -9,9 +9,28 @@
 
 ;;; Commentary:
 
-;; Port calculation and edge connection logic for dag-draw graphs.
-;; This module handles determining where edges should connect to nodes,
-;; supporting both simple port calculation and distributed multi-edge layouts.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements node port support as described in GKNV Section 4.2.
+;; Ports allow edge endpoints to be offset in the X direction from node center.
+;;
+;; GKNV Reference: Section 4.2 (lines 1467-1488), Figure 4-3, Figure 4-4
+;; Decision: D3.5 - X-offset node ports
+;; Algorithm: Port calculation with δ adjustment
+;;
+;; Key Requirements:
+;; - Ports specified as X-offsets from node center
+;; - Auxiliary graph adjusts δ values for port positions
+;; - Supports both tail and head port specifications
+;; - Figure 4-4 shows δ calculation for ports
+;;
+;; Baseline Status: ✅ Compliant
+;;
+;; GKNV Section 4.2 states: "Using the auxiliary graph also permits the specification
+;; of 'node ports,' or edge endpoints offset in the X direction from the center
+;; of the node."
+;;
+;; See doc/implementation-decisions.md (D3.5) for decision rationale.
 
 ;;; Code:
 

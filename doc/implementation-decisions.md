@@ -203,17 +203,38 @@ Later sections describe setting δ = 2 for edges with labels.
 ### D2.1: Initial Ordering Method
 
 **Paper Options:**
-- Random
-- Depth-first search from sources
-- Breadth-first search from sources
-- Two-phase (DFS from sources + DFS from sinks)
+- Random initial order
+- Depth-first search from sources for initial order
+- Breadth-first search from sources for initial order
+- Run entire ordering algorithm twice with different initial orderings
 
-**Decision: Two-phase approach (both forward and backward DFS)**
+**Decision: Run ordering algorithm twice (forward pass, then backward pass) and pick best**
+
+**GKNV Reference:** Section 3, lines 966-972 (init_order), lines 1188-1192 (two-pass recommendation)
 
 **Rationale:**
-GKNV Section 3, end: "One final point is that it is generally worth the extra cost to run the vertex ordering algorithm twice: once for an initial order determined by starting with vertices of minimal rank and searching out-edges, and the second time by starting with vertices of maximal rank and searching in-edges. This allows one to pick the better of two different solutions."
+GKNV Section 3 describes two distinct concepts that were conflated in the original decision:
 
-**Type: GKNV Baseline**
+1. **Initial ordering (init_order, lines 966-972):** "This may be done by a depth-first or breadth-first search starting with vertices of minimum rank." This creates a tree-friendly starting arrangement.
+
+2. **Two-pass strategy (lines 1188-1192):** "One final point is that it is generally worth the extra cost to run the vertex ordering algorithm twice: once for an initial order determined by starting with vertices of minimal rank and searching out-edges, and the second time by starting with vertices of maximal rank and searching in-edges. This allows one to pick the better of two different solutions."
+
+The two-pass strategy runs the ENTIRE weighted median + transposition algorithm twice with different starting configurations, then selects the result with fewer crossings.
+
+**Implementation:**
+Current implementation uses iterative weighted median sweeps (forward and backward through ranks) within a single run. The init_order is currently a no-op that preserves insertion order (lines 571-578 of dag-draw-pass2-ordering.el).
+
+**Status:** ⚠️ Partially Compliant
+
+**Discrepancies:**
+1. **Missing DFS/BFS initialization:** Code should implement DFS or BFS from minimal rank for initial ordering (as noted in code comment line 577)
+2. **Missing two-pass strategy:** Code should run the entire ordering algorithm twice (once with forward DFS init, once with backward DFS init) and pick the better result
+3. **Current approach:** Uses insertion order as initial, then runs weighted median sweeps - this works but misses the GKNV optimizations
+
+**Recommendation:**
+1. Implement DFS-based init_order starting from minimal rank nodes
+2. Implement two-pass strategy: run full algorithm with forward init, run again with backward init, pick best
+3. This is an enhancement opportunity but not a correctness issue - the weighted median + transposition still work correctly
 
 ---
 
@@ -907,7 +928,7 @@ Define standard patterns for loops on each side:
 | D1.8 | Cut values | Incremental + postorder | GKNV opt | 2.4 |
 | D1.9 | Rank constraints | Merge + constraint edges | GKNV | 2, 2.1 |
 | D1.10 | Delta handling | User + internal | GKNV | 2 |
-| D2.1 | Initial order | Two-phase DFS | GKNV | 3 |
+| D2.1 | Initial order | Two-pass algorithm (DFS init + compare) | GKNV | 3 |
 | D2.2 | Median calc | Weighted interpolation | GKNV innov | 3 |
 | D2.3 | Max iterations | 24 fixed (adaptive possible) | GKNV | 3 |
 | D2.4 | Transpose | Iterative to local optimum | GKNV innov | 3 |

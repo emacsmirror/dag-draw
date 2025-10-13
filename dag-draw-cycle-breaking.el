@@ -8,9 +8,29 @@
 
 ;;; Commentary:
 
-;; This module implements cycle detection and breaking algorithms for
-;; directed graph layout. Based on GKNV paper requirements for creating
-;; acyclic graphs as input to the ranking algorithm.
+;; GKNV Baseline Compliance:
+;;
+;; This module implements Pass 1 (Cycle Breaking) of the GKNV graph drawing
+;; algorithm as specified in "A Technique for Drawing Directed Graphs"
+;; (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.1 (lines 367-413)
+;; Decision: D1.1 - DFS back-edge reversal for cycle breaking
+;; Algorithm: Depth-first search with edge classification
+;;
+;; Key Requirements:
+;; - Respects natural input order (stability)
+;; - Uses DFS to classify edges as tree/forward/cross/back
+;; - Reverses only back edges to break cycles
+;; - Preserves semantic structure (sources stay at top)
+;;
+;; Baseline Status: ✅ Compliant
+;; 
+;; GKNV Section 2.1 states: "From the standpoint of stability, the depth-first
+;; cycle-breaking heuristic seems preferable. It also makes more informative
+;; drawings than would be obtained by collapsing all the nodes in a cycle."
+;;
+;; See doc/implementation-decisions.md (D1.1) for full decision rationale.
 ;;
 ;; Functions:
 ;; - dag-draw-simple-has-cycles: Detect if graph contains cycles

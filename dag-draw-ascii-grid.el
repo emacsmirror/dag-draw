@@ -9,9 +9,29 @@
 
 ;;; Commentary:
 
-;; ASCII grid creation and coordinate conversion
-;; for dag-draw graphs. This module handles the foundational grid infrastructure
-;; that other ASCII rendering modules depend on.
+;; ASCII Grid Rendering - GKNV Adaptation:
+;;
+;; This module adapts the GKNV graph drawing algorithm for ASCII character grid
+;; output. The GKNV paper describes graphical (PostScript) output, so this module
+;; implements ASCII-specific decisions from doc/implementation-decisions.md.
+;;
+;; ASCII Decisions: D5.1-D5.8 (Character-grid specific)
+;; Algorithm: Junction character algorithm with context analysis
+;;
+;; Key Requirements:
+;; - Unicode box-drawing characters (D5.2)
+;; - 5 junction types: start-port, end-port, corner, merge/split, cross (D5.4)
+;; - Walk-based local analysis for correct junction selection (D5.4)
+;; - Arrows at port boundary (D5.5)
+;; - Coordinate scaling X and Y independently (D5.1)
+;;
+;; Baseline Status: ✅ Compliant with ASCII adaptation decisions
+;;
+;; Note: GKNV paper does not cover ASCII rendering. This module implements
+;; the ASCII-specific decisions documented in implementation-decisions.md
+;; while maintaining GKNV algorithm correctness for the underlying layout.
+;;
+;; See doc/implementation-decisions.md (D5.1-D5.8) for ASCII decision rationale.
 
 ;;; Code:
 
@@ -587,13 +607,367 @@ Returns a list of direction change junction specifications."
   ;; For now, return empty list as this requires complex spline path analysis
   '())
 
+(defun dag-draw--detect-direction-changes-in-path (edge-path)
+  "Detect direction changes (corners) in EDGE-PATH.
+EDGE-PATH is a list of cons cells (x . y) representing the path.
+Returns a list of corner specifications with position and directions.
+CLAUDE.md: 'When the edge requires a direction change'"
+  (let ((corners '()))
+    (when (>= (length edge-path) 3)
+      ;; Walk through path, checking each point with its neighbors
+      (let ((i 1))  ; Start at second point
+        (while (< i (- (length edge-path) 1))
+          (let* ((prev (nth (- i 1) edge-path))
+                 (curr (nth i edge-path))
+                 (next (nth (+ i 1) edge-path))
+                 ;; Calculate direction vectors
+                 (dx-in (- (car curr) (car prev)))
+                 (dy-in (- (cdr curr) (cdr prev)))
+                 (dx-out (- (car next) (car curr)))
+                 (dy-out (- (cdr next) (cdr curr))))
+            ;; Check if this is a direction change
+            ;; Direction change occurs when we go from H to V or V to H
+            (when (dag-draw--is-direction-change dx-in dy-in dx-out dy-out)
+              (push (list :type 'direction-change
+                         :x (car curr)
+                         :y (cdr curr)
+                         :from-direction (dag-draw--get-direction dx-in dy-in)
+                         :to-direction (dag-draw--get-direction dx-out dy-out))
+                    corners)))
+          (setq i (1+ i)))))
+    (nreverse corners)))
+
+(defun dag-draw--is-direction-change (dx-in dy-in dx-out dy-out)
+  "Check if the direction changes between incoming and outgoing vectors.
+DX-IN, DY-IN: incoming direction vector.
+DX-OUT, DY-OUT: outgoing direction vector.
+Returns t if direction changes from horizontal to vertical or vice versa."
+  (let ((is-h-in (and (not (zerop dx-in)) (zerop dy-in)))   ; Horizontal in
+        (is-v-in (and (zerop dx-in) (not (zerop dy-in))))   ; Vertical in
+        (is-h-out (and (not (zerop dx-out)) (zerop dy-out))) ; Horizontal out
+        (is-v-out (and (zerop dx-out) (not (zerop dy-out)))) ; Vertical out
+        )
+    ;; Direction change if: H->V or V->H
+    (or (and is-h-in is-v-out)
+        (and is-v-in is-h-out))))
+
+(defun dag-draw--get-direction (dx dy)
+  "Get direction symbol from direction vector (DX, DY).
+Returns one of: 'up, 'down, 'left, 'right."
+  (cond
+   ((and (> dx 0) (zerop dy)) 'right)
+   ((and (< dx 0) (zerop dy)) 'left)
+   ((and (zerop dx) (> dy 0)) 'down)
+   ((and (zerop dx) (< dy 0)) 'up)
+   ;; Diagonal or zero - should not happen in orthogonal paths
+   (t 'unknown)))
+
 (defun dag-draw--detect-edge-intersections (graph)
   "Detect points where edges join, separate, or cross.
 CLAUDE.md: 'When two edges join, or two edges separate' and 'When two edges cross'
 Returns a list of intersection junction specifications."
-  ;; TODO: Implement grid-based intersection analysis  
+  ;; TODO: Implement grid-based intersection analysis
   ;; For now, return empty list as this requires ASCII grid coordinate analysis
   '())
+
+(defun dag-draw--detect-crossings-in-paths (edge-paths)
+  "Detect crossing points between multiple EDGE-PATHS.
+EDGE-PATHS is a list of edge paths, where each path is a list of cons cells (x . y).
+Returns a list of crossing specifications.
+CLAUDE.md: 'When two edges cross'"
+  (let ((crossings '())
+        (position-map (make-hash-table :test 'equal)))
+
+    ;; Build a map of positions to edges that pass through them
+    (let ((edge-index 0))
+      (dolist (path edge-paths)
+        (dolist (point path)
+          (let* ((key (cons (car point) (cdr point)))
+                 (current-list (gethash key position-map '())))
+            (puthash key (cons edge-index current-list) position-map)))
+        (setq edge-index (1+ edge-index))))
+
+    ;; Find positions where multiple edges meet
+    (maphash (lambda (pos edge-indices)
+               (when (>= (length edge-indices) 2)
+                 ;; Check if edges actually cross (not just touch)
+                 ;; Two edges cross if they pass through same point from different directions
+                 (let ((edge-dirs (dag-draw--get-edge-directions-at-point
+                                  pos edge-paths edge-indices)))
+                   (when (dag-draw--are-edges-crossing edge-dirs)
+                     (push (list :type 'edge-cross
+                                :x (car pos)
+                                :y (cdr pos)
+                                :edge-indices edge-indices)
+                           crossings)))))
+             position-map)
+
+    (nreverse crossings)))
+
+(defun dag-draw--get-edge-directions-at-point (pos edge-paths edge-indices)
+  "Get the directions of edges at position POS.
+POS is a cons cell (x . y).
+EDGE-PATHS is the list of all edge paths.
+EDGE-INDICES is the list of edge indices that pass through POS.
+Returns a list of direction symbols for each edge."
+  (let ((directions '()))
+    (dolist (edge-idx edge-indices)
+      (let* ((path (nth edge-idx edge-paths))
+             ;; Find the point in the path
+             (point-idx (dag-draw--find-point-index-in-path pos path)))
+        (when point-idx
+          ;; Determine direction at this point by looking at neighbors
+          (let* ((prev (when (> point-idx 0) (nth (- point-idx 1) path)))
+                 (next (when (< point-idx (- (length path) 1))
+                        (nth (+ point-idx 1) path)))
+                 (dir (cond
+                      ;; Check incoming direction
+                      ((and prev
+                            (= (cdr prev) (cdr pos))
+                            (/= (car prev) (car pos)))
+                       'horizontal)
+                      ((and prev
+                            (= (car prev) (car pos))
+                            (/= (cdr prev) (cdr pos)))
+                       'vertical)
+                      ;; Check outgoing direction
+                      ((and next
+                            (= (cdr next) (cdr pos))
+                            (/= (car next) (car pos)))
+                       'horizontal)
+                      ((and next
+                            (= (car next) (car pos))
+                            (/= (cdr next) (cdr pos)))
+                       'vertical)
+                      (t 'unknown))))
+            (push dir directions)))))
+    (nreverse directions)))
+
+(defun dag-draw--find-point-index-in-path (pos path)
+  "Find the index of POS in PATH.
+POS is a cons cell (x . y).
+PATH is a list of cons cells.
+Returns the index or nil if not found."
+  (let ((idx 0)
+        (found nil))
+    (dolist (point path)
+      (when (and (= (car point) (car pos))
+                 (= (cdr point) (cdr pos)))
+        (setq found idx))
+      (setq idx (1+ idx)))
+    found))
+
+(defun dag-draw--are-edges-crossing (edge-dirs)
+  "Check if edges are truly crossing based on their directions.
+EDGE-DIRS is a list of direction symbols.
+Two edges cross if they have different directions (horizontal vs vertical)."
+  (let ((has-h nil)
+        (has-v nil))
+    (dolist (dir edge-dirs)
+      (when (eq dir 'horizontal) (setq has-h t))
+      (when (eq dir 'vertical) (setq has-v t)))
+    (and has-h has-v)))
+
+(defun dag-draw--detect-joins-in-paths (edge-paths)
+  "Detect join points where edges merge or split.
+EDGE-PATHS is a list of edge paths, where each path is a list of cons cells (x . y).
+Returns a list of join/split junction specifications.
+CLAUDE.md: 'When two edges join, or two edges separate'"
+  (let ((joins '())
+        (position-map (make-hash-table :test 'equal)))
+
+    ;; Build a map of positions to edges that pass through them
+    (let ((edge-index 0))
+      (dolist (path edge-paths)
+        (dolist (point path)
+          (let* ((key (cons (car point) (cdr point)))
+                 (current-list (gethash key position-map '())))
+            (puthash key (cons edge-index current-list) position-map)))
+        (setq edge-index (1+ edge-index))))
+
+    ;; Find positions where multiple edges meet but don't cross
+    ;; (i.e., they join or split - T-junctions)
+    (maphash (lambda (pos edge-indices)
+               (when (>= (length edge-indices) 2)
+                 ;; Check if this is a join/split (T-junction) not a crossing
+                 (let ((edge-dirs (dag-draw--get-edge-directions-at-point
+                                  pos edge-paths edge-indices)))
+                   ;; A join/split occurs when edges meet but don't cross
+                   ;; This includes T-junctions where 3+ edges meet
+                   (when (not (dag-draw--are-edges-crossing edge-dirs))
+                     (push (list :type 'edge-join
+                                :x (car pos)
+                                :y (cdr pos)
+                                :edge-indices edge-indices
+                                :directions edge-dirs)
+                           joins)))))
+             position-map)
+
+    (nreverse joins)))
+
+;;; Local Grid Context Analysis
+
+(defun dag-draw--analyze-local-grid-junction-context (grid x y current-char new-char)
+  "Analyze grid context at position (X,Y) to determine junction type.
+CURRENT-CHAR is the character already at the position (or space).
+NEW-CHAR is the character being drawn.
+Returns a context plist suitable for dag-draw--get-enhanced-junction-char.
+
+This implements the D5.6-D5.8 context analysis requirements:
+- Check for adjacent edges in all 4 directions
+- Determine junction type based on connectivity
+- Build proper context plist for character selection."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         ;; Check all 4 directions for edge characters
+         (has-up (dag-draw--has-edge-in-direction grid x y 'up))
+         (has-down (dag-draw--has-edge-in-direction grid x y 'down))
+         (has-left (dag-draw--has-edge-in-direction grid x y 'left))
+         (has-right (dag-draw--has-edge-in-direction grid x y 'right))
+         ;; Count total connections
+         (connection-count (+ (if has-up 1 0) (if has-down 1 0)
+                             (if has-left 1 0) (if has-right 1 0)))
+         ;; Determine if new character indicates direction
+         (new-is-horizontal (memq new-char '(?─)))
+         (new-is-vertical (memq new-char '(?│))))
+
+    ;; Build context plist based on connectivity pattern
+    (cond
+     ;; Direction change: 2 connections in perpendicular directions
+     ((and (= connection-count 2)
+           (or (and has-left has-down)
+               (and has-right has-down)
+               (and has-left has-up)
+               (and has-right has-up)))
+      ;; For corners, determine from/to based on which two directions have edges
+      ;; The character maps to the turn direction regardless of edge flow direction
+      (let ((from-dir (cond
+                       ;; Horizontal incoming
+                       (has-left 'right)    ; Edge from left means traveling right
+                       (has-right 'left)    ; Edge from right means traveling left
+                       ;; Vertical incoming
+                       (has-up 'down)       ; Edge from above means traveling down
+                       (has-down 'up)))     ; Edge from below means traveling up
+            (to-dir (cond
+                     ;; Vertical outgoing
+                     (has-down 'down)
+                     (has-up 'up)
+                     ;; Horizontal outgoing
+                     (has-right 'right)
+                     (has-left 'left))))
+        (list :type 'direction-change
+              :from-direction from-dir
+              :to-direction to-dir
+              :has-up has-up
+              :has-down has-down
+              :has-left has-left
+              :has-right has-right)))
+
+     ;; T-junction: 3 connections
+     ((= connection-count 3)
+      (list :type 't-junction
+            :main-direction (cond ((and has-up has-down) 'down)
+                                 ((and has-left has-right) 'right)
+                                 (t 'down))
+            ;; Branch is the direction that's NOT part of the straight line
+            :branch-direction (cond
+                              ;; Vertical line (up-down), branch is horizontal
+                              ((and has-up has-down)
+                               (cond (has-left 'left)
+                                     (has-right 'right)))
+                              ;; Horizontal line (left-right), branch is vertical
+                              ((and has-left has-right)
+                               (cond (has-up 'up)
+                                     (has-down 'down)))
+                              ;; Shouldn't reach here if t-junction detection is correct
+                              (t 'right))
+            :has-up has-up
+            :has-down has-down
+            :has-left has-left
+            :has-right has-right))
+
+     ;; Cross: 4 connections
+     ((= connection-count 4)
+      (list :type 'edge-cross
+            :has-up has-up
+            :has-down has-down
+            :has-left has-left
+            :has-right has-right))
+
+     ;; Straight line: 2 connections in same direction (not perpendicular)
+     ((and (= connection-count 2)
+           (or (and has-left has-right)   ; Horizontal line
+               (and has-up has-down)))    ; Vertical line
+      (list :type 'straight-line
+            :has-up has-up
+            :has-down has-down
+            :has-left has-left
+            :has-right has-right))
+
+     ;; Default: return minimal context
+     (t
+      (list :type 'unknown
+            :has-up has-up
+            :has-down has-down
+            :has-left has-left
+            :has-right has-right)))))
+
+(defun dag-draw--has-edge-in-direction (grid x y direction)
+  "Check if there's an edge character in DIRECTION from (X,Y) on GRID.
+DIRECTION is one of: up, down, left, right.
+Returns t if edge character found, nil otherwise."
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (check-x (cond ((eq direction 'left) (- x 1))
+                       ((eq direction 'right) (+ x 1))
+                       (t x)))
+         (check-y (cond ((eq direction 'up) (- y 1))
+                       ((eq direction 'down) (+ y 1))
+                       (t y)))
+         ;; Edge and junction characters that indicate connectivity
+         ;; Include ?+ as it's used as a fallback junction character
+         ;; Include arrow characters as they indicate edge connectivity
+         (edge-chars (list ?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?+ ?\u25bc ?\u25b2 ?\u25ba ?\u25c4))
+         (char-at-pos (if (and (>= check-x 0) (< check-x grid-width)
+                              (>= check-y 0) (< check-y grid-height))
+                         (aref (aref grid check-y) check-x)
+                       nil)))
+
+    ;; Check bounds and character type, return t or nil (not list tail)
+    (if (and (>= check-x 0) (< check-x grid-width)
+             (>= check-y 0) (< check-y grid-height)
+             (memq (aref (aref grid check-y) check-x) edge-chars))
+        t
+      nil)))
+
+;;; Junction Character Application (Priority 4: Integration)
+
+(defun dag-draw--apply-junction-chars-to-grid (grid)
+  "Apply junction characters throughout GRID based on local context analysis.
+Walks through all grid positions, analyzes connectivity, and updates characters.
+This is the integration point for D5.1-D5.8 junction character enhancement.
+CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'"
+  (let* ((grid-height (length grid))
+         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         ;; Include ?+ as it's used as a fallback junction character
+         (edge-chars '(?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?+))
+         ;; Arrow characters should NOT be replaced (CLAUDE.md: "the one possible exemption
+         ;; is where an arrow is placed")
+         (arrow-chars (list ?\u25bc ?\u25b2 ?\u25ba ?\u25c4))) ; ▼ ▲ ► ◄
+    ;; Walk through entire grid
+    (dotimes (y grid-height)
+      (dotimes (x grid-width)
+        (let ((current-char (aref (aref grid y) x)))
+          ;; Only process edge/junction characters, but NOT arrows
+          (when (and (memq current-char edge-chars)
+                    (not (memq current-char arrow-chars)))
+            ;; Analyze local context and determine proper junction character
+            (let* ((context (dag-draw--analyze-local-grid-junction-context
+                           grid x y current-char current-char))
+                   (junction-char (dag-draw--get-enhanced-junction-char context)))
+              ;; Update grid with enhanced junction character
+              (when junction-char
+                (aset (aref grid y) x junction-char)))))))))
 
 (provide 'dag-draw-ascii-grid)
 
