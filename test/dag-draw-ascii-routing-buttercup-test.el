@@ -12,29 +12,13 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
+(require 'dag-draw-render-gknv-compliant)
 
 (describe
  "ASCII Edge Routing - GKNV Algorithm Implementation"
 
- (describe
-  "Coordinate System Transformation"
-
-
-  (it "handles coordinate system transformation correctly"
-      ;; Test the coordinate transformation functions
-      (let ((world-coord 150)
-            (min-coord 100)
-            (scale 2))  ; Note: scale parameter is ignored, function uses global dag-draw-ascii-coordinate-scale
-
-        ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale variable directly
-        (let ((grid-coord (dag-draw--world-to-grid-coord world-coord min-coord scale))
-              (expected-coord (float (round (* (- world-coord min-coord) dag-draw-ascii-coordinate-scale)))))
-          (expect grid-coord :to-be-close-to expected-coord 0.1))  ; (150-100) * dag-draw-ascii-coordinate-scale, rounded
-
-        ;; Test world-to-grid size conversion using unified coordinate scale
-        (let ((world-size 80))
-          (let ((grid-size (dag-draw--world-to-grid-size world-size scale)))
-            (expect grid-size :to-be-greater-than 3))))))
+ ;; DELETED: Coordinate transformation tests - obsolete in ASCII-first architecture
+ ;; ASCII coordinates are primary, no transformation needed
 
  (describe
   "Port Calculation - GKNV Section 5"

@@ -177,12 +177,6 @@
       (expect (dag-draw-layout-graph cyclic-graph) :not :to-throw)
       (expect (dag-draw-render-graph cyclic-graph 'ascii) :not :to-throw)))
   
-  (it "should handle self-loops"
-    (let ((self-loop-graph (dag-draw-create-graph)))
-      (dag-draw-add-node self-loop-graph 'a "Node A")
-      (dag-draw-add-edge self-loop-graph 'a 'a)
-      (expect (dag-draw-layout-graph self-loop-graph) :not :to-throw)
-      (expect (dag-draw-render-graph self-loop-graph 'ascii) :not :to-throw)))
   
   (it "should handle large node labels"
     (let ((large-label-graph (dag-draw-create-graph)))

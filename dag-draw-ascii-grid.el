@@ -183,24 +183,10 @@ Deeper hierarchies may need different scaling considerations."
 
 ;;; ASCII Scaling Helper Functions
 
-(defun dag-draw--world-to-grid-coord (coord min-coord scale)
-  "Convert GKNV world coordinate to ASCII grid coordinate with precise rounding.
-COORD is the world coordinate, MIN-COORD is the minimum coordinate for offset,
-SCALE is the grid scale factor.
-DYNAMIC SCALE: Uses passed scale parameter for optimal ASCII grid conversion."
-  (float (round (* (- coord min-coord) (or scale dag-draw-ascii-coordinate-scale)))))
-
-(defun dag-draw--grid-to-world-coord (grid-coord min-coord scale)
-  "Convert ASCII grid coordinate back to GKNV world coordinate.
-GRID-COORD is the grid coordinate, MIN-COORD is the minimum coordinate for offset,
-SCALE is the grid scale factor. This is the inverse of dag-draw--world-to-grid-coord."
-  (+ (/ grid-coord (or scale dag-draw-ascii-coordinate-scale)) min-coord))
-
-(defun dag-draw--world-to-grid-size (size scale)
-  "Convert GKNV node size to ASCII grid size using UNIFIED scale factor.
-SIZE is the node size in world coordinates, SCALE is the grid scale factor.
-DYNAMIC SCALE: Uses passed scale parameter for consistent coordinate conversion."
-  (max 3 (ceiling (* size (or scale dag-draw-ascii-coordinate-scale)))))
+;; DELETED: Coordinate transformation functions - obsolete in ASCII-first architecture
+;; - dag-draw--world-to-grid-coord
+;; - dag-draw--grid-to-world-coord  
+;; - dag-draw--world-to-grid-size
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
   "Get node center coordinates directly in grid space for simple edge routing.
@@ -261,6 +247,16 @@ This layer isolates ASCII coordinate normalization from other rendering paths."
              0.0 0.0 (nth 2 (ht-get context 'ascii-bounds)) (nth 3 (ht-get context 'ascii-bounds)))
     
     context))
+
+(defun dag-draw--world-to-grid-coord (world-coord min-coord scale)
+  "Convert world coordinate to grid coordinate.
+WORLD-COORD is the world position, MIN-COORD is the world minimum, SCALE is the scaling factor."
+  (round (/ (- world-coord min-coord) scale)))
+
+(defun dag-draw--world-to-grid-size (world-size scale)
+  "Convert world size to grid size.
+WORLD-SIZE is the world dimension, SCALE is the scaling factor."
+  (max 1 (round (/ world-size scale))))
 
 (defun dag-draw--ascii-world-to-grid (world-x world-y context scale)
   "Convert world coordinates to ASCII grid using normalized context.

@@ -16,7 +16,7 @@
         (dag-draw-add-edge graph 'task-d 'task-e)
         
         ;; Run layout to set ranks and positions  
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Override coordinates to create vertical edge routing
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'task-d)) 100)
@@ -57,7 +57,7 @@
         (dag-draw-add-edge graph 'task-d 'task-f)
         
         ;; Run layout 
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((ascii-output (dag-draw-render-ascii graph)))
           ;; Debug: print the output
@@ -129,7 +129,7 @@
         (dag-draw-add-node graph 'test "Test")
         
         ;; Run layout to set ranks
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'test)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'test)) 100)
@@ -155,7 +155,7 @@
         (dag-draw-add-edge graph 'right 'bottom)
         
         ;; Run layout to set ranks
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Set diamond coordinates
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'top)) 100)

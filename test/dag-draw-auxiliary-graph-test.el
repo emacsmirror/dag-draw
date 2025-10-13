@@ -80,11 +80,13 @@
         (dag-draw-add-node graph 'left "Left")
         (dag-draw-add-node graph 'right "Right")
         
-        ;; Set same rank for both nodes  
+        ;; Set same rank for both nodes and establish left-right order
         (let ((left-node (dag-draw-get-node graph 'left))
               (right-node (dag-draw-get-node graph 'right)))
           (setf (dag-draw-node-rank left-node) 0)
           (setf (dag-draw-node-rank right-node) 0)
+          (setf (dag-draw-node-order left-node) 0)    ; Left node has lower order
+          (setf (dag-draw-node-order right-node) 1)   ; Right node has higher order
           (setf (dag-draw-node-x-coord left-node) 0.0)
           (setf (dag-draw-node-x-coord right-node) 100.0))
         

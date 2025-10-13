@@ -11,6 +11,7 @@
 
 (require 'buttercup)
 (require 'dag-draw-pass4-splines)
+(require 'dag-draw-pass1-ranking)  ; For dag-draw-find-edge function
 
 (describe "Region-based spline routing with obstacle avoidance"
   (describe "obstacle detection for spline paths"

@@ -170,7 +170,7 @@
       (dag-draw-add-edge graph 'a 'b)
       
       ;; Full layout
-      (dag-draw-layout-graph graph)
+      (dag-draw-layout-graph graph :coordinate-mode 'ascii)
       
       ;; Render and check spacing is reasonable
       (let ((ascii-output (dag-draw-render-graph graph 'ascii)))

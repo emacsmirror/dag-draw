@@ -24,7 +24,7 @@
         (dag-draw-add-node graph 'parent "Parent Node")
         (dag-draw-add-node graph 'child "Child Node")
         (dag-draw-add-edge graph 'parent 'child)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Position nodes vertically (like Research Phase -> API Design)
         (let* ((parent-node (dag-draw-get-node graph 'parent))
@@ -72,7 +72,7 @@
         (dag-draw-add-node graph 'source "Source")
         (dag-draw-add-node graph 'target "Target")
         (dag-draw-add-edge graph 'source 'target)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Set up vertical alignment like Research Phase -> API Design
         (let* ((source-node (dag-draw-get-node graph 'source))
@@ -108,7 +108,7 @@
         (dag-draw-add-node graph 'left-node "Left Node")
         (dag-draw-add-node graph 'right-node "Right Node") 
         (dag-draw-add-edge graph 'left-node 'right-node)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Position nodes horizontally
         (let* ((left-node (dag-draw-get-node graph 'left-node))

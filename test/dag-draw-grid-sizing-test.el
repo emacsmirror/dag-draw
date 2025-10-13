@@ -18,7 +18,7 @@
       
       ;; Position nodes horizontally to trigger the coordinate issue
       (dag-draw-add-edge graph 'start 'end)
-      (dag-draw-layout-graph graph)
+      (dag-draw-layout-graph graph :coordinate-mode 'ascii)
       
       ;; Manually set coordinates to reproduce the test case
       (let ((start-node (dag-draw-get-node graph 'start))

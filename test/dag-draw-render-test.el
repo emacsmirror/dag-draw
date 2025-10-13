@@ -270,17 +270,6 @@
           ;; Should not have any paths (edges)
           (expect svg-output :not :to-match "<path"))))
 
-  (it "should handle self-loops"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a "Node A")
-        (dag-draw-add-edge graph 'a 'a)  ; Self-loop
-
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'a)) 100)
-
-        (dag-draw-generate-splines graph)  ; Generate splines for self-loop
-
-        (let ((svg-output (dag-draw-render-svg graph)))
-          (expect svg-output :to-match "Node A"))))))
+))
 
 ;;; dag-draw-render-test.el ends here

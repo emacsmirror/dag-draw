@@ -18,6 +18,7 @@
 (require 'dash)
 (require 'ht)
 (require 'cl-lib)
+(require 'seq)
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-aesthetic-principles)
@@ -549,8 +550,8 @@ Returns t if algorithm has converged."
 (defun dag-draw--detect-oscillation (crossings-history window-size)
   "Detect if crossing counts are oscillating between the same values."
   (when (>= (length crossings-history) window-size)
-    (let ((recent-values (seq-take crossings-history window-size))
-          (unique-values (seq-uniq recent-values)))
+    (let* ((recent-values (seq-take crossings-history window-size))
+           (unique-values (seq-uniq recent-values)))
       ;; If we only have 2-3 unique values in recent history, likely oscillating
       (and (<= (length unique-values) 3)
            (> (length recent-values) (length unique-values))))))

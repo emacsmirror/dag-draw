@@ -239,6 +239,76 @@ Helper function for spanning tree to ranking conversion."
 
 ;;; Simple Rank Assignment
 
+(defun dag-draw--filter-edges-for-ranking (graph)
+  "Filter edges per GKNV Section 2 requirements: ignore loops, merge multi-edges.
+Returns list of edges suitable for rank assignment algorithm."
+  (let ((filtered-edges '())
+        (multi-edge-weights (make-hash-table :test 'equal)))
+    
+    ;; First pass: collect weights for multi-edges, ignore self-loops
+    (dolist (edge (dag-draw-graph-edges graph))
+      (let ((from-node (dag-draw-edge-from-node edge))
+            (to-node (dag-draw-edge-to-node edge))
+            (weight (dag-draw-edge-ω edge)))
+        
+        ;; GKNV Section 2, line 361: "loops are ignored"
+        (unless (eq from-node to-node)
+          (let ((edge-key (cons from-node to-node)))
+            (if (gethash edge-key multi-edge-weights)
+                ;; GKNV Section 2, line 361: "multiple edges are merged... weight is the sum"
+                (puthash edge-key (+ (gethash edge-key multi-edge-weights) weight) multi-edge-weights)
+              (puthash edge-key weight multi-edge-weights))))))
+    
+    ;; Second pass: create merged edges
+    (maphash (lambda (edge-key merged-weight)
+               (let ((from-node (car edge-key))
+                     (to-node (cdr edge-key)))
+                 ;; Find representative edge for this (from,to) pair
+                 (let ((representative-edge (cl-find-if 
+                                           (lambda (e) 
+                                             (and (eq (dag-draw-edge-from-node e) from-node)
+                                                  (eq (dag-draw-edge-to-node e) to-node)))
+                                           (dag-draw-graph-edges graph))))
+                   (when representative-edge
+                     ;; Create merged edge with combined weight
+                     (let ((merged-edge (dag-draw-edge-create 
+                                       :from-node from-node
+                                       :to-node to-node
+                                       :weight merged-weight
+                                       :min-length (dag-draw-edge-δ representative-edge))))
+                       (push merged-edge filtered-edges))))))
+             multi-edge-weights)
+    
+    filtered-edges))
+
+(defun dag-draw--create-filtered-graph-for-ranking (graph)
+  "Create a filtered copy of GRAPH with self-loops removed and multi-edges merged.
+This implements GKNV Section 2, line 361 requirements for network simplex."
+  (let ((filtered-graph (dag-draw-create-graph))
+        (filtered-edges (dag-draw--filter-edges-for-ranking graph)))
+    
+    ;; Copy all nodes to the filtered graph
+    (ht-each (lambda (node-id node)
+               (dag-draw-add-node filtered-graph node-id (dag-draw-node-label node)))
+             (dag-draw-graph-nodes graph))
+    
+    ;; Set the filtered edges
+    (setf (dag-draw-graph-edges filtered-graph) filtered-edges)
+    
+    filtered-graph))
+
+(defun dag-draw--transfer-ranks-to-original-graph (filtered-graph original-graph)
+  "Transfer rank assignments from FILTERED-GRAPH back to ORIGINAL-GRAPH.
+This preserves the ranking solution while restoring the complete graph structure."
+  (ht-each (lambda (node-id _node)
+             (let ((filtered-node (dag-draw-get-node filtered-graph node-id))
+                   (original-node (dag-draw-get-node original-graph node-id)))
+               (when (and filtered-node original-node)
+                 ;; Transfer rank assignment
+                 (setf (dag-draw-node-rank original-node) 
+                       (dag-draw-node-rank filtered-node)))))
+           (dag-draw-graph-nodes original-graph)))
+
 (defun dag-draw-assign-ranks (graph)
   "Assign ranks to nodes in GRAPH using enhanced GKNV network simplex algorithm.
 This is the first pass of the GKNV algorithm with full optimization."
@@ -264,31 +334,37 @@ This is the first pass of the GKNV algorithm with full optimization."
   "Assign ranks using complete network simplex optimization.
 This implements the full GKNV algorithm Pass 1 with network simplex from Figure 2-1."
 
-  ;; Step 1: Create initial feasible spanning tree using GKNV Figure 2-2 (includes init_rank)
-  (let ((tree-info (dag-draw--construct-feasible-tree graph)))
+  ;; GKNV Section 2, line 361: Filter edges before network simplex processing
+  ;; Create filtered graph for network simplex (self-loops ignored, multi-edges merged)
+  (let ((filtered-graph (dag-draw--create-filtered-graph-for-ranking graph)))
 
+    ;; Step 1: Create initial feasible spanning tree using GKNV Figure 2-2 (includes init_rank)
+    (let ((tree-info (dag-draw--construct-feasible-tree filtered-graph)))
 
-    ;; Step 2: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
-    (let ((optimization-result (dag-draw--optimize-network-simplex tree-info graph)))
-      (message "Network simplex optimization: %s in %d iterations"
-               (if (ht-get optimization-result 'converged) "converged" "stopped")
-               (ht-get optimization-result 'iterations))
+      ;; Step 2: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
+      (let ((optimization-result (dag-draw--optimize-network-simplex tree-info filtered-graph)))
+        (message "Network simplex optimization: %s in %d iterations"
+                 (if (ht-get optimization-result 'converged) "converged" "stopped")
+                 (ht-get optimization-result 'iterations))
 
-      ;; Step 3: Set max rank based on assigned ranks
-      (let ((max-rank 0))
-        (ht-each (lambda (_node-id node)
-                   ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
-                   (when (dag-draw-node-λ node)
-                     (setq max-rank (max max-rank (dag-draw-node-λ node)))))
-                 (dag-draw-graph-nodes graph))
-        (setf (dag-draw-graph-max-rank graph) max-rank))
+        ;; Step 3: Transfer ranks from filtered graph back to original graph
+        (dag-draw--transfer-ranks-to-original-graph filtered-graph graph)
 
-      ;; Step 5: Normalize ranks to start from 0 (GKNV step 7)
-      (dag-draw-normalize-ranks graph)
-      ;; Step 6: Balance ranks for better aspect ratio (GKNV step 8)
-      (dag-draw--balance-ranks graph))
+        ;; Step 4: Set max rank based on assigned ranks
+        (let ((max-rank 0))
+          (ht-each (lambda (_node-id node)
+                     ;; GKNV λ(v) - rank assignment function (Section 2, line 352)
+                     (when (dag-draw-node-λ node)
+                       (setq max-rank (max max-rank (dag-draw-node-λ node)))))
+                   (dag-draw-graph-nodes graph))
+          (setf (dag-draw-graph-max-rank graph) max-rank))
 
-    graph))
+        ;; Step 5: Normalize ranks to start from 0 (GKNV step 7)
+        (dag-draw-normalize-ranks graph)
+        ;; Step 6: Balance ranks for better aspect ratio (GKNV step 8)
+        (dag-draw--balance-ranks graph))))
+
+    graph)
 
 
 
@@ -510,21 +586,24 @@ This implements the proper cut value formula from Figure 2-2, line 637-642."
               (cut-value 0))
 
           ;; Sum all edges crossing the cut with proper signs
+          ;; GKNV Section 2, line 361: "loops are ignored" in rank assignment
           (dolist (graph-edge (dag-draw-graph-edges graph))
             (let ((from-node (dag-draw-edge-from-node graph-edge))
                   (to-node (dag-draw-edge-to-node graph-edge))
                   (weight (dag-draw-edge-ω graph-edge)))
 
-              (cond
-               ;; Edge from tail to head component (positive contribution)
-               ((and (member from-node tail-component)
-                     (member to-node head-component))
-                (setq cut-value (+ cut-value weight)))
+              ;; GKNV Section 2: ignore self-loops in rank assignment
+              (unless (eq from-node to-node)
+                (cond
+                 ;; Edge from tail to head component (positive contribution)
+                 ((and (member from-node tail-component)
+                       (member to-node head-component))
+                  (setq cut-value (+ cut-value weight)))
 
-               ;; Edge from head to tail component (negative contribution)
-               ((and (member from-node head-component)
-                     (member to-node tail-component))
-                (setq cut-value (- cut-value weight))))))
+                 ;; Edge from head to tail component (negative contribution)
+                 ((and (member from-node head-component)
+                       (member to-node tail-component))
+                  (setq cut-value (- cut-value weight)))))))
 
           cut-value)))))
 
@@ -748,15 +827,79 @@ Implements GKNV Figure 2-2 lines 4-9."
     tree-nodes))
 
 (defun dag-draw--collect-tight-tree-edges (graph fixed-node)
-  "Collect all tight edges for spanning tree (includes disconnected components)."
-  ;; For disconnected graphs, we need all tight edges, not just those reachable from fixed-node
-  (let ((tree-edges '()))
+  "Collect spanning tree from tight edges per GKNV Figure 2-2.
+GKNV Section 2.3: Build proper spanning tree (exactly n-1 edges), not all tight edges."
+  (let ((tree-edges '())
+        (visited (ht-create))
+        (queue (list fixed-node))
+        (total-nodes (length (dag-draw-get-node-ids graph))))
 
-    ;; Collect ALL tight edges in the graph (GKNV assumes connected graphs,
-    ;; but we extend to handle disconnected components)
-    (dolist (edge (dag-draw-graph-edges graph))
-      (when (dag-draw--is-tight-edge edge graph)
-        (push edge tree-edges)))
+    ;; Mark fixed node as visited
+    (ht-set! visited fixed-node t)
+    
+    ;; BFS to build spanning tree of tight edges
+    (while (and queue (< (length tree-edges) (1- total-nodes)))
+      (let ((current-node (pop queue)))
+        
+        ;; Check outgoing edges from current node
+        (dolist (edge (dag-draw-get-edges-from graph current-node))
+          (let ((target-node (dag-draw-edge-to-node edge)))
+            (when (and (not (ht-get visited target-node))
+                       (dag-draw--is-tight-edge edge graph)
+                       (< (length tree-edges) (1- total-nodes)))
+              ;; Found tight edge to unvisited node - add to spanning tree
+              (ht-set! visited target-node t)
+              (push edge tree-edges)
+              (push target-node queue))))
+        
+        ;; Check incoming edges to current node (spanning tree is undirected)
+        (dolist (edge (dag-draw-get-edges-to graph current-node))
+          (let ((source-node (dag-draw-edge-from-node edge)))
+            (when (and (not (ht-get visited source-node))
+                       (dag-draw--is-tight-edge edge graph)
+                       (< (length tree-edges) (1- total-nodes)))
+              ;; Found tight edge from unvisited node - add to spanning tree
+              (ht-set! visited source-node t)
+              (push edge tree-edges)
+              (push source-node queue))))))
+
+    ;; Handle disconnected components per GKNV Section 1.2 line 74
+    ;; If we couldn't reach all nodes with tight edges, collect edges from disconnected components
+    (when (< (length tree-edges) (1- total-nodes))
+      (let ((unvisited-nodes (cl-set-difference (dag-draw-get-node-ids graph)
+                                                (ht-keys visited))))
+        ;; For each disconnected component, find tight edges within that component
+        (dolist (node unvisited-nodes)
+          (when (and (< (length tree-edges) (1- total-nodes))
+                     (not (ht-get visited node)))
+            ;; Start BFS from this unvisited node to find tight edges in its component
+            (let ((component-queue (list node)))
+              (ht-set! visited node t)
+              
+              (while (and component-queue (< (length tree-edges) (1- total-nodes)))
+                (let ((current-node (pop component-queue)))
+                  
+                  ;; Check outgoing edges from current node in this component
+                  (dolist (edge (dag-draw-get-edges-from graph current-node))
+                    (let ((target-node (dag-draw-edge-to-node edge)))
+                      (when (and (not (ht-get visited target-node))
+                                 (dag-draw--is-tight-edge edge graph)
+                                 (< (length tree-edges) (1- total-nodes)))
+                        ;; Found tight edge to unvisited node in this component
+                        (ht-set! visited target-node t)
+                        (push edge tree-edges)
+                        (push target-node component-queue))))
+                  
+                  ;; Check incoming edges to current node in this component
+                  (dolist (edge (dag-draw-get-edges-to graph current-node))
+                    (let ((source-node (dag-draw-edge-from-node edge)))
+                      (when (and (not (ht-get visited source-node))
+                                 (dag-draw--is-tight-edge edge graph)
+                                 (< (length tree-edges) (1- total-nodes)))
+                        ;; Found tight edge from unvisited node in this component
+                        (ht-set! visited source-node t)
+                        (push edge tree-edges)
+                        (push source-node component-queue)))))))))))
 
     tree-edges))
 
@@ -972,19 +1115,21 @@ index-ref is a list containing the current index value for modification."
 paths-ref is a list reference for accumulating results."
   (when (eq current target)
     (push (reverse path) (car paths-ref))
-    (return))
+    ;; Early return - target found, add path and stop exploring this branch
+    )
 
-  (ht-set! visited current t)
+  (unless (eq current target)
+    (ht-set! visited current t)
 
-  ;; Explore successors within SCC
-  (dolist (successor (dag-draw-get-successors graph current))
-    (when (and (member successor scc-nodes)
-               (not (ht-get visited successor))
-               (< (length path) 10))  ; Prevent infinite loops
-      (dag-draw--dfs-find-paths graph successor target scc-nodes
-                                (cons successor path) visited paths-ref)))
+    ;; Explore successors within SCC
+    (dolist (successor (dag-draw-get-successors graph current))
+      (when (and (member successor scc-nodes)
+                 (not (ht-get visited successor))
+                 (< (length path) 10))  ; Prevent infinite loops
+        (dag-draw--dfs-find-paths graph successor target scc-nodes
+                                  (cons successor path) visited paths-ref)))
 
-  (ht-remove! visited current))
+    (ht-remove! visited current)))
 
 
 (defun dag-draw--find-edges-in-cycles (graph)
@@ -1077,10 +1222,22 @@ Implements complete GKNV Figure 2-1 optimization loop."
         (setq converged (ht-get iteration-result 'converged))
         (cl-incf iterations)))
 
-    ;; Store final results
-    (ht-set! result 'converged converged)
-    (ht-set! result 'iterations iterations)
-    (ht-set! result 'final-tree-info tree-info)
+    ;; Calculate final cost (sum of edge lengths * weights)
+    (let ((final-cost 0))
+      (dolist (edge (dag-draw-graph-edges graph))
+        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+               (from-rank (or (dag-draw-node-rank from-node) 0))
+               (to-rank (or (dag-draw-node-rank to-node) 0))
+               (edge-length (abs (- to-rank from-rank)))
+               (edge-weight (or (dag-draw-edge-weight edge) 1)))
+          (setq final-cost (+ final-cost (* edge-length edge-weight)))))
+      
+      ;; Store final results
+      (ht-set! result 'converged converged)
+      (ht-set! result 'iterations iterations)
+      (ht-set! result 'final-cost final-cost)
+      (ht-set! result 'final-tree-info tree-info))
 
     result))
 

@@ -104,10 +104,11 @@ This function helps identify port orientation for proper connection logic."
      ((and (> (abs dx) (abs dy)) (> dx 0)) 'right)
      (t 'center)))) ; Fallback for center ports
 
-(defun dag-draw--calculate-edge-ports (from-node to-node)
+(defun dag-draw--calculate-edge-ports (from-node to-node &optional graph edge)
   "Calculate appropriate ports for edge between FROM-NODE and TO-NODE.
 Returns list of (from-port to-port) based on edge direction.
-Returns nil if either node lacks coordinates."
+Returns nil if either node lacks coordinates.
+If GRAPH and EDGE are provided, uses distributed port calculation."
   (let* ((from-x (dag-draw-node-x-coord from-node))
          (from-y (dag-draw-node-y-coord from-node))
          (to-x (dag-draw-node-x-coord to-node))
@@ -125,34 +126,34 @@ Returns nil if either node lacks coordinates."
         (cond
          ;; Vertical edge (down)
          ((and (< (abs dx) horizontal-threshold) (> dy 0))
-          (list (dag-draw--get-node-port from-node 'bottom)
-                (dag-draw--get-node-port to-node 'top)))
+          (list (dag-draw--get-node-port from-node 'bottom graph edge)
+                (dag-draw--get-node-port to-node 'top graph edge)))
          ;; Vertical edge (up)
          ((and (< (abs dx) horizontal-threshold) (< dy 0))
-          (list (dag-draw--get-node-port from-node 'top)
-                (dag-draw--get-node-port to-node 'bottom)))
+          (list (dag-draw--get-node-port from-node 'top graph edge)
+                (dag-draw--get-node-port to-node 'bottom graph edge)))
          ;; Horizontal edge (right)
          ((and (< (abs dy) vertical-threshold) (> dx 0))
-          (list (dag-draw--get-node-port from-node 'right)
-                (dag-draw--get-node-port to-node 'left)))
+          (list (dag-draw--get-node-port from-node 'right graph edge)
+                (dag-draw--get-node-port to-node 'left graph edge)))
          ;; Horizontal edge (left)
          ((and (< (abs dy) vertical-threshold) (< dx 0))
-          (list (dag-draw--get-node-port from-node 'left)
-                (dag-draw--get-node-port to-node 'right)))
+          (list (dag-draw--get-node-port from-node 'left graph edge)
+                (dag-draw--get-node-port to-node 'right graph edge)))
          ;; Diagonal edge - prefer vertical direction (including equal distances)
          ((>= (abs dy) (abs dx))
           (if (> dy 0)
-              (list (dag-draw--get-node-port from-node 'bottom)
-                    (dag-draw--get-node-port to-node 'top))
-            (list (dag-draw--get-node-port from-node 'top)
-                  (dag-draw--get-node-port to-node 'bottom))))
+              (list (dag-draw--get-node-port from-node 'bottom graph edge)
+                    (dag-draw--get-node-port to-node 'top graph edge))
+            (list (dag-draw--get-node-port from-node 'top graph edge)
+                  (dag-draw--get-node-port to-node 'bottom graph edge))))
          ;; Diagonal edge - prefer horizontal direction
          (t
           (if (> dx 0)
-              (list (dag-draw--get-node-port from-node 'right)
-                    (dag-draw--get-node-port to-node 'left))
-            (list (dag-draw--get-node-port from-node 'left)
-                  (dag-draw--get-node-port to-node 'right)))))))))
+              (list (dag-draw--get-node-port from-node 'right graph edge)
+                    (dag-draw--get-node-port to-node 'left graph edge))
+            (list (dag-draw--get-node-port from-node 'left graph edge)
+                  (dag-draw--get-node-port to-node 'right graph edge)))))))))
 
 (defun dag-draw--calculate-edge-ports-grid (from-node to-node min-x min-y scale &optional graph)
   "Calculate appropriate ports for edge between FROM-NODE and TO-NODE using grid coordinates.
@@ -221,7 +222,7 @@ If grid parameters are provided, uses grid-aware port calculation for precise al
          (result (if (and min-x min-y scale)
                      ;; Use simplified GKNV-compliant port calculation
                      (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)
-                   (dag-draw--calculate-edge-ports from-node to-node))))
+                   (dag-draw--calculate-edge-ports from-node to-node graph edge))))
     result))
 
 (provide 'dag-draw-ports)

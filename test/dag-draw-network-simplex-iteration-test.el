@@ -115,31 +115,37 @@
   (describe
    "cut value formula implementation"
    (it "should implement GKNV cut value formula correctly"
-       ;; RED phase: This test will fail because the specific formula doesn't exist yet
+       ;; Test based on GKNV Section 2.3 understanding of cut values
        (let ((graph (dag-draw-create-graph)))
-         ;; Create graph with known cut value calculation
-         (dag-draw-add-node graph 'x "X")
-         (dag-draw-add-node graph 'y "Y")
-         (dag-draw-add-node graph 'z "Z")
-         (dag-draw-add-edge graph 'x 'y 2)
-         (dag-draw-add-edge graph 'x 'z 1)
-         (dag-draw-add-edge graph 'y 'z 3)
+         ;; Create graph that produces negative cut value according to GKNV formula
+         ;; When tree edge is removed, need reverse edges (head->tail) to get negative result
+         (dag-draw-add-node graph 'g "G")  ; Will be in tail component
+         (dag-draw-add-node graph 'h "H")  ; Will be in head component  
+         (dag-draw-add-node graph 'a "A")  ; Will be in head component
+         (dag-draw-add-node graph 'e "E")  ; Will be in tail component
+         
+         ;; Create edges that will produce negative cut value per GKNV Section 2.3
+         (dag-draw-add-edge graph 'g 'h 1)   ; Tree edge: tail->head (+1)
+         (dag-draw-add-edge graph 'a 'e 2)   ; Non-tree edge: head->tail (-2)  
+         (dag-draw-add-edge graph 'h 'a 1)   ; Tree edge: connects components
+         (dag-draw-add-edge graph 'g 'e 1)   ; Tree edge: connects components
 
-         (let* ((tree-info (dag-draw--construct-feasible-tree graph))
-                (tree-edges (ht-get tree-info 'tree-edges)))
-
-           ;; Find a high-weight edge (weight > 1) which should have negative cut value
-           (let ((high-weight-edge nil))
-             (dolist (edge tree-edges)
-               (when (and (> (dag-draw-edge-weight edge) 1)
-                         (not high-weight-edge))
-                 (setq high-weight-edge edge)))
-             
-             (when high-weight-edge
-               (let ((cut-value (dag-draw--calculate-edge-cut-value high-weight-edge tree-info graph)))
+         ;; Manually create tree structure for predictable cut value calculation
+         (let ((tree-info (ht-create)))
+           (ht-set! tree-info 'tree-edges 
+                    (list (dag-draw-find-edge graph 'g 'h)    ; Cut value = 1 - 2 = -1
+                          (dag-draw-find-edge graph 'h 'a)    ; Keeps h,a in head component  
+                          (dag-draw-find-edge graph 'g 'e)))  ; Keeps g,e in tail component
+           (ht-set! tree-info 'non-tree-edges
+                    (list (dag-draw-find-edge graph 'a 'e)))  ; Head->tail crossing
+           
+           ;; Test the g->h edge which should have negative cut value
+           (let ((test-edge (dag-draw-find-edge graph 'g 'h)))
+             (when test-edge
+               (let ((cut-value (dag-draw--calculate-edge-cut-value test-edge tree-info graph)))
                  ;; Cut value should be numeric  
                  (expect (numberp cut-value) :to-be t)
-                 ;; High-weight edges should have negative cut values
+                 ;; Should be negative: g->h (+1) minus a->e (-2) = 1 - 2 = -1
                  (expect cut-value :to-be-less-than 0)))))))))
 
 

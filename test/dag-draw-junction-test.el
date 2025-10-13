@@ -13,7 +13,7 @@
       (dag-draw-add-node graph 'target-b "Target B")
       (dag-draw-add-edge graph 'source 'target-a)
       (dag-draw-add-edge graph 'source 'target-b)
-      (dag-draw-layout-graph graph)
+      (dag-draw-layout-graph graph :coordinate-mode 'ascii)
       
       (let ((ascii-output (dag-draw-render-ascii graph)))
         (message "=== JUNCTION TEST ===")

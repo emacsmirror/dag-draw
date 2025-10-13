@@ -40,8 +40,11 @@ Uses Kahn's algorithm for topological sorting with level-by-level processing."
       (ht-set! in-degree node-id 0))
 
     (dolist (edge (dag-draw-graph-edges graph))
-      (let ((to-node (dag-draw-edge-to-node edge)))
-        (ht-set! in-degree to-node (1+ (ht-get in-degree to-node 0)))))
+      (let ((from-node (dag-draw-edge-from-node edge))
+            (to-node (dag-draw-edge-to-node edge)))
+        ;; GKNV Section 2, line 361: "loops are ignored" in rank assignment
+        (unless (eq from-node to-node)
+          (ht-set! in-degree to-node (1+ (ht-get in-degree to-node 0))))))
 
     ;; Step 2: Find initial nodes with in-degree 0 (source nodes)
     (dolist (node-id (dag-draw-get-node-ids graph))
@@ -61,9 +64,11 @@ Uses Kahn's algorithm for topological sorting with level-by-level processing."
         ;; Update in-degrees and find next level
         (dolist (node-id current-level)
           (dolist (successor (dag-draw-get-successors graph node-id))
-            (ht-set! in-degree successor (1- (ht-get in-degree successor)))
-            (when (zerop (ht-get in-degree successor))
-              (push successor queue))))
+            ;; GKNV Section 2, line 361: "loops are ignored" in rank assignment
+            (unless (eq node-id successor)
+              (ht-set! in-degree successor (1- (ht-get in-degree successor)))
+              (when (zerop (ht-get in-degree successor))
+                (push successor queue)))))
 
         (setq current-rank (1+ current-rank))))
 

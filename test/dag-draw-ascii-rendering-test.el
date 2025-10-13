@@ -115,54 +115,6 @@
           (expect (nth 2 bounds) :to-equal 25.0)
           (expect (nth 3 bounds) :to-equal 15.0)))))
 
-(describe "Grid Coordinate Mapping"
-  
-  (it "should map world coordinates to grid coordinates correctly"
-    ;; Test the coordinate transformation used in ASCII rendering
-    (let* ((min-x 0)
-           (min-y 0)
-           (scale 2)  ; Note: Function now uses global dag-draw-ascii-coordinate-scale
-           (world-x 100)
-           (world-y 200)
-           ;; Use the new helper function for consistent calculation
-           (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
-           (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
-      
-      ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.15) 
-      ;; for proper ASCII character constraints (5 chars/inch vs GKNV 72 units/inch)
-      (expect grid-x :to-equal 15.0)  ; 100 * 0.15 = 15 (ASCII-appropriate scale)
-      (expect grid-y :to-equal 30.0)  ; 200 * 0.15 = 30 (ASCII-appropriate scale)
-      ))
-  
-  (it "should handle negative coordinates"
-    (let* ((min-x -50)
-           (min-y -25)
-           (scale 2)  ; Note: Function now uses global dag-draw-ascii-coordinate-scale
-           (world-x 0)
-           (world-y 0)
-           (grid-x (dag-draw--world-to-grid-coord world-x min-x scale))
-           (grid-y (dag-draw--world-to-grid-coord world-y min-y scale)))
-      
-      ;; ASCII-GKNV SCALING: Uses dag-draw-ascii-coordinate-scale (0.15)
-      (expect grid-x :to-equal 8.0)   ; (0 - (-50)) * 0.15 = 7.5 → 8 (ASCII-appropriate scale)
-      (expect grid-y :to-equal 4.0)   ; (0 - (-25)) * 0.15 = 3.75 → 4 (ASCII-appropriate scale)
-      ))
-  
-  (it "should scale node sizes appropriately"
-    ;; Test node size scaling used in dag-draw--draw-nodes-gknv-compliant
-    (let* ((scale 2)  ; Uses unified dag-draw-ascii-coordinate-scale
-           (node-width 50)
-           (node-height 30)
-           ;; Use the new helper function for consistent calculation
-           (grid-width (dag-draw--world-to-grid-size node-width scale))
-           (grid-height (dag-draw--world-to-grid-size node-height scale)))
-      
-      ;; ASCII TEXT FITTING: Uses unified coordinate scale for proper text fitting
-      ;; max(3, ceil(50 * 0.15)) = max(3, 8) = 8 (conservative for ASCII character boundaries)
-      (expect grid-width :to-equal 8)  
-      ;; max(3, ceil(30 * 0.15)) = max(3, 5) = 5 (minimum size for text)
-      (expect grid-height :to-equal 5)
-      )))
 
 (describe "ASCII Grid Utilities"
   

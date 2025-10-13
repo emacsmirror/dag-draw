@@ -123,7 +123,7 @@ VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
   (max-rank nil)                       ; Maximum assigned rank
   (rank-sets nil)                      ; User-specified rank constraints
   (adjusted-positions nil)             ; Hash table: id -> (x y width height) adjusted coordinates
-  (coordinate-mode 'high-res)          ; Coordinate system mode ('high-res or 'ascii)
+  (coordinate-mode 'ascii)             ; Coordinate system mode ('ascii is primary, 'high-res deprecated)
   attributes)                          ; Graph-level attributes
 
 ;;; Public API
@@ -195,11 +195,11 @@ This performs the four GKNV passes with ASCII resolution after ranking:
 ranking, ASCII resolution adjustment, ordering, positioning, and spline generation.
 
 Optional keyword arguments:
-  :coordinate-mode MODE - Sets coordinate system mode ('high-res or 'ascii)
-                         'high-res: Traditional GKNV coordinate system (default)
-                         'ascii: ASCII-native coordinates optimized for grid rendering"
+  :coordinate-mode MODE - Sets coordinate system mode ('ascii is primary, 'high-res deprecated)
+                         'ascii: ASCII-native coordinates optimized for all rendering (default)
+                         'high-res: Legacy mode with coordinate transformation complexity"
   ;; Parse keyword arguments
-  (let ((coordinate-mode 'high-res))  ; Default to high-resolution mode
+  (let ((coordinate-mode 'ascii))     ; Default to ASCII-first mode
     (while args
       (let ((key (pop args))
             (value (pop args)))
@@ -208,22 +208,25 @@ Optional keyword arguments:
           (setq coordinate-mode value))
          (t
           (error "Unknown keyword argument: %s" key)))))
-    
+
     ;; Store coordinate mode in graph for use by GKNV passes
     (setf (dag-draw-graph-coordinate-mode graph) coordinate-mode)
-    
+
     ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
     (dag-draw--process-edge-labels graph)
 
     ;; GKNV Pass 1: Rank assignment
     (dag-draw-rank-graph graph)
 
-    ;; ASCII resolution preprocessing (moved after ranking for dynamic analysis)
-    (dag-draw--ensure-ascii-resolution graph)
+    ;; ASCII resolution preprocessing (only for legacy high-res mode)
+    ;; ASCII-first mode uses native ASCII spacing throughout - no preprocessing needed
+    (unless (eq coordinate-mode 'ascii)
+      (dag-draw--ensure-ascii-resolution graph))
 
     ;; GKNV Passes 2-4: ordering, positioning, and spline generation
     (dag-draw-order-vertices graph)
     (dag-draw-position-nodes graph)
+    ;; GKNV Pass 4: Edge Drawing (Section 5) - generate splines for all coordinate modes
     (dag-draw-generate-splines graph)
     graph))
 
@@ -232,9 +235,18 @@ Optional keyword arguments:
 (defun dag-draw--estimate-ascii-scale (graph)
   "Estimate the scale factor that will be used for ASCII conversion.
 Returns the actual scale factor used for world-coordinates → ASCII-grid conversion."
-  ;; Currently uses a fixed scale factor, but this function allows for future
-  ;; dynamic scaling based on graph size and complexity
-  dag-draw-ascii-coordinate-scale)
+  ;; GKNV AESTHETIC A3 "Keep edges short" with clarity maintenance
+  ;; Dynamic scaling based on graph size and complexity for optimal ASCII output
+  (if (and graph (> (dag-draw-node-count graph) 2))
+      ;; Complex graphs need larger scale for visual clarity
+      ;; Base scale * complexity factor, capped at reasonable limits
+      (let* ((node-count (dag-draw-node-count graph))
+             (edge-count (dag-draw-edge-count graph))
+             (complexity-factor (min 4.0 (+ 1.0 (* 0.5 (- node-count 2)))))
+             (dynamic-scale (* dag-draw-ascii-coordinate-scale complexity-factor)))
+        (min 0.4 (max 0.15 dynamic-scale)))
+    ;; Simple graphs use base scale
+    dag-draw-ascii-coordinate-scale))
 
 
 (defun dag-draw--calculate-min-ascii-routing-space (&optional graph)

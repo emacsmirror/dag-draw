@@ -16,7 +16,7 @@
         (dag-draw-add-node graph 'database "Database Design")
         (dag-draw-add-node graph 'backend "Backend Implementation")
         (dag-draw-add-edge graph 'database 'backend)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -31,7 +31,7 @@
         (dag-draw-add-node graph 'api "API Design")
         (dag-draw-add-node graph 'backend "Backend Implementation")
         (dag-draw-add-edge graph 'api 'backend)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -46,7 +46,7 @@
         (dag-draw-add-node graph 'api "API Design")
         (dag-draw-add-node graph 'frontend "Frontend Implementation")
         (dag-draw-add-edge graph 'api 'frontend)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -61,7 +61,7 @@
         (dag-draw-add-node graph 'backend "Backend Implementation")
         (dag-draw-add-node graph 'integration "Integration Testing")
         (dag-draw-add-edge graph 'backend 'integration)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -75,7 +75,7 @@
         (dag-draw-add-node graph 'frontend "Frontend Implementation")
         (dag-draw-add-node graph 'integration "Integration Testing") 
         (dag-draw-add-edge graph 'frontend 'integration)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -90,7 +90,7 @@
         (dag-draw-add-node graph 'integration "Integration Testing")
         (dag-draw-add-node graph 'deployment "Deployment")
         (dag-draw-add-edge graph 'integration 'deployment)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation
@@ -122,7 +122,7 @@
         (dag-draw-add-edge graph 'frontend 'integration)
         (dag-draw-add-edge graph 'integration 'deployment)
         
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         (let ((output (dag-draw-render-ascii graph)))
           ;; Use test harness for comprehensive validation of complex graph
           (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))
@@ -144,7 +144,7 @@
         (dag-draw-add-node graph 'deployment "Deployment")
         (dag-draw-add-edge graph 'backend 'integration)
         (dag-draw-add-edge graph 'integration 'deployment)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Get the actual grid bounds and node coordinates
         (let* ((bounds (dag-draw-get-graph-bounds graph))

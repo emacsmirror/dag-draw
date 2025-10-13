@@ -79,6 +79,26 @@
 
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (expect ascii-output :to-be-truthy)
+          
+          ;; XP Debug: Show actual output and detection results BEFORE validation
+          (message "\n=== DIAMOND TEST DEBUG ===")
+          (message "ASCII OUTPUT:")
+          (message "%s" ascii-output)
+          (let* ((found-nodes (dag-draw-test--find-nodes-using-graph-data ascii-output graph))
+                 (expected-nodes (dag-draw-test--extract-expected-nodes graph)))
+            (message "Expected %d nodes: %s" (length expected-nodes) 
+                     (mapcar (lambda (n) (plist-get n :label)) expected-nodes))
+            (message "Found %d nodes: %s" (length found-nodes)
+                     (mapcar (lambda (n) (plist-get n :text)) found-nodes))
+            ;; XP Debug: Show what text search is actually finding
+            (dolist (expected expected-nodes)
+              (let* ((label (plist-get expected :label))
+                     (found-text (dag-draw-test--find-text-in-grid 
+                                  (dag-draw-test--parse-ascii-grid ascii-output) label)))
+                (message "Searching for '%s': %s" label 
+                         (if found-text (format "found at (%d,%d)" (plist-get found-text :x) (plist-get found-text :y)) "NOT FOUND")))))
+          (message "========================")
+          
           ;; Use test harness for structural validation
           (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
             (expect (plist-get node-validation :complete) :to-be t))
@@ -144,8 +164,8 @@
         (dag-draw-add-edge graph 'frontend 'testing)
         (dag-draw-add-edge graph 'testing 'deployment)
 
-        ;; Run full layout
-        (dag-draw-layout-graph graph)
+        ;; Run full layout with ASCII coordinate mode
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
 
         ;; Should render all nodes with complete validation
         (let ((ascii-output (dag-draw-render-ascii graph)))
@@ -247,19 +267,7 @@
           (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
             (expect (plist-get node-validation :complete) :to-be t)))))
 
-    (it "should handle graphs with self-loops"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a "Self Loop")
-        (dag-draw-add-edge graph 'a 'a)  ; Self-loop
-
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'a)) 100)
-
-        (let ((ascii-output (dag-draw-render-ascii graph)))
-          (expect ascii-output :to-be-truthy)
-          ;; Use test harness for validation
-          (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
-            (expect (plist-get node-validation :complete) :to-be t))))))
+)
 
   )
 

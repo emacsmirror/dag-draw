@@ -123,30 +123,6 @@
           (expect (dag-draw-point-y (car ports)) :to-equal 60.0)    ; from bottom port
           (expect (dag-draw-point-y (cadr ports)) :to-equal 140.0)))) ; to top port
 
-  (describe "Grid coordinate conversion"
-
-    (it "should convert world coordinates to grid coordinates"
-      ;; Test the coordinate transformation used in ASCII rendering
-      (let ((world-point (dag-draw-point-create :x 100 :y 50))
-            (min-x 0) (min-y 0) (scale 2))  ; Note: scale parameter not used, dag-draw-ascii-coordinate-scale is used
-
-        (let* ((grid-x (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale))
-               (grid-y (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale))
-               (grid-point (dag-draw-point-create :x grid-x :y grid-y)))
-          (expect (dag-draw-point-x grid-point) :to-equal 15.0)  ; round(100 * 0.15) = round(15.0) = 15
-          (expect (dag-draw-point-y grid-point) :to-equal 8.0)
-          )))  ; round(50 * 0.15) = round(7.5) = 8
-
-    (it "should handle coordinate offsets correctly"
-      (let ((world-point (dag-draw-point-create :x 150 :y 100))
-            (min-x 50) (min-y 25) (scale 2))  ; Note: scale parameter not used, dag-draw-ascii-coordinate-scale is used
-
-        (let* ((grid-x (dag-draw--world-to-grid-coord (dag-draw-point-x world-point) min-x scale))
-               (grid-y (dag-draw--world-to-grid-coord (dag-draw-point-y world-point) min-y scale))
-               (grid-point (dag-draw-point-create :x grid-x :y grid-y)))
-          (expect (dag-draw-point-x grid-point) :to-equal 15.0)
-          (expect (dag-draw-point-y grid-point) :to-equal 11.0)
-          ))))
 
   (describe "Integration with edge routing"
 

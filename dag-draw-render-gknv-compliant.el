@@ -19,13 +19,20 @@ Does NOT modify graph coordinates or regenerate splines."
          (min-y (nth 1 bounds))
          (max-x (nth 2 bounds))
          (max-y (nth 3 bounds))
-         (scale dag-draw-ascii-coordinate-scale)
+         (scale (dag-draw--estimate-ascii-scale graph))
          
          ;; Step 2: Calculate grid size needed for GKNV coordinates
          (width (- max-x min-x))
          (height (- max-y min-y))
          (grid-width (max 20 (+ 10 (ceiling (* width scale)))))
-         (grid-height (max 10 (+ 5 (ceiling (* height scale)))))
+         ;; GKNV AESTHETIC A3: Complex graphs need sufficient space for clarity
+         (complexity-min-height (if (> (dag-draw-node-count graph) 2)
+                                    (min 50 (+ 20 (* 5 (dag-draw-node-count graph))))
+                                  10))
+         (grid-height (max complexity-min-height (+ 5 (ceiling (* height scale)))))
+         ;; DEBUG: Show complexity calculation
+         (_ (message "COMPLEXITY: nodes=%d min-height=%d final-height=%d" 
+                     (dag-draw-node-count graph) complexity-min-height grid-height))
          
          ;; Step 3: Create ASCII grid
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))

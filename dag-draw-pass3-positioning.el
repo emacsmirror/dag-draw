@@ -674,7 +674,8 @@ Implements iterative cost minimization with separation constraint compliance."
   (dag-draw--initialize-x-coordinates aux-graph)
   
   ;; Multiple iterations to converge on optimal positioning
-  (dotimes (iteration 10)  ; Increased iterations for better convergence
+  ;; GKNV edge straightening requires more iterations for proper convergence
+  (dotimes (iteration 30)  ; More iterations for better edge straightening
     (dag-draw--gknv-cost-minimization-iteration aux-graph))
 
   ;; Final cleanup to ensure separation constraints
@@ -703,9 +704,9 @@ Updates each node's X coordinate to minimize the GKNV cost function."
 (defun dag-draw--calculate-cost-minimizing-position (aux-graph node-id)
   "Calculate X position that minimizes GKNV cost function for NODE-ID.
 Per GKNV Section 4.2: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for L1 norm optimization.
-The optimal solution is the weighted median of connected node positions."
+Per GKNV line 1241: 'chains may be aligned vertically and thus straightened'."
+  ;; Standard cost-based positioning with enhanced edge straightening
   (let ((weighted-positions '()))
-
     ;; Collect all cost edges (weight > 0) connected to this node
     (dolist (edge (dag-draw-graph-edges aux-graph))
       (let ((weight (dag-draw-edge-weight edge)))

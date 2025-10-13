@@ -77,6 +77,8 @@
                             (dag-draw--calculate-optimal-port-offset node side graph)
                           ;; Simple fallback when no graph context available
                           (mod (abs (round x)) 3)))))
+    ;; (message "NODE-PORT: node=%s side=%s port-offset=%s x=%.1f width=%.1f" 
+    ;;          (dag-draw-node-id node) side port-offset x width)
 
     (cond
      ((eq side 'top)
@@ -119,18 +121,20 @@ Distributes multiple incoming/outgoing edges across different port positions."
     ;; (message "PORT-DIST: node=%s side=%s edge-count=%d edge-index=%s" 
     ;;          node-id side edge-count edge-index)
     
-    (cond
-     ;; Single edge - use center port
-     ((= edge-count 1) 1)
-     ;; Two edges - distribute left and right
-     ((= edge-count 2)
-      (if (= edge-index 0) 0 2))  ; First edge left, second edge right
-     ;; Three or more edges - distribute across all three positions
-     (t
-      (cond
-       ((= edge-index 0) 0)  ; First edge: left
-       ((= edge-index (1- edge-count)) 2)  ; Last edge: right
-       (t 1))))))  ; Middle edges: center
+    (let ((result (cond
+                   ;; Single edge - use center port
+                   ((= edge-count 1) 1)
+                   ;; Two edges - distribute left and right
+                   ((= edge-count 2)
+                    (if (= edge-index 0) 0 2))  ; First edge left, second edge right
+                   ;; Three or more edges - distribute across all three positions
+                   (t
+                    (cond
+                     ((= edge-index 0) 0)  ; First edge: left
+                     ((= edge-index (1- edge-count)) 2)  ; Last edge: right
+                     (t 1))))))
+      ;; (message "PORT-DIST-RESULT: %s" result)
+      result)))  ; Middle edges: center
 
 (defun dag-draw--calculate-optimal-port-offset (node side graph)
   "Calculate optimal port offset to avoid shared boundary lines.

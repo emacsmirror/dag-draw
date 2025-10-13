@@ -40,13 +40,21 @@ Returns hash table with keys: tree-edges, forward-edges, cross-edges, back-edges
     (ht-set! classification 'cross-edges '())
     (ht-set! classification 'back-edges '())
 
-    ;; Perform DFS from each unvisited node
-    (ht-each (lambda (node-id _node)
-               (unless (ht-get visited node-id)
-                 (setq time-counter (dag-draw--dfs-classify-edges
-                                     graph node-id visited discovery-time
-                                     finish-time time-counter parent classification))))
-             (dag-draw-graph-nodes graph))
+    ;; Perform DFS following GKNV Section 2.1: start from source nodes first
+    (let* ((source-sink-info (dag-draw--find-source-sink-nodes graph))
+           (sources (ht-get source-sink-info 'sources))
+           (all-nodes (ht-keys (dag-draw-graph-nodes graph)))
+           ;; Sort sources first, then remaining nodes
+           (sorted-sources (sort sources (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+           (remaining-nodes (sort (cl-set-difference all-nodes sources)
+                                  (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+           (node-order (append sorted-sources remaining-nodes)))
+      
+      (dolist (node-id node-order)
+        (unless (ht-get visited node-id)
+          (setq time-counter (dag-draw--dfs-classify-edges
+                              graph node-id visited discovery-time
+                              finish-time time-counter parent classification)))))
 
     classification))
 
@@ -57,33 +65,36 @@ Returns updated time counter."
   (ht-set! discovery-time node time-counter)
   (setq time-counter (1+ time-counter))
 
-  ;; Visit all adjacent nodes
-  (dolist (edge (dag-draw-get-edges-from graph node))
-    (let ((neighbor (dag-draw-edge-to-node edge)))
-      (cond
-       ;; Tree edge: neighbor not yet visited
-       ((not (ht-get visited neighbor))
-        (ht-set! parent neighbor node)
-        (ht-set! classification 'tree-edges
-                 (cons edge (ht-get classification 'tree-edges)))
-        (setq time-counter (dag-draw--dfs-classify-edges
-                            graph neighbor visited discovery-time
-                            finish-time time-counter parent classification)))
+  ;; Visit all adjacent nodes in natural order per GKNV Section 2.1, line 374
+  (let ((edges (dag-draw-get-edges-from graph node)))
+    ;; Reverse to get natural order (edges are pushed to front of list)
+    (setq edges (reverse edges))
+    (dolist (edge edges)
+      (let ((neighbor (dag-draw-edge-to-node edge)))
+        (cond
+         ;; Tree edge: neighbor not yet visited
+         ((not (ht-get visited neighbor))
+          (ht-set! parent neighbor node)
+          (ht-set! classification 'tree-edges
+                   (cons edge (ht-get classification 'tree-edges)))
+          (setq time-counter (dag-draw--dfs-classify-edges
+                              graph neighbor visited discovery-time
+                              finish-time time-counter parent classification)))
 
-       ;; Back edge: neighbor is ancestor (in recursion stack)
-       ((not (ht-get finish-time neighbor))  ; Still being processed
-        (ht-set! classification 'back-edges
-                 (cons edge (ht-get classification 'back-edges))))
+         ;; Back edge: neighbor is ancestor (in recursion stack)
+         ((not (ht-get finish-time neighbor))  ; Still being processed
+          (ht-set! classification 'back-edges
+                   (cons edge (ht-get classification 'back-edges))))
 
-       ;; Forward or Cross edge: neighbor already finished
-       (t
-        (if (< (ht-get discovery-time node) (ht-get discovery-time neighbor))
-            ;; Forward edge: node was discovered before neighbor (ancestor relationship)
-            (ht-set! classification 'forward-edges
-                     (cons edge (ht-get classification 'forward-edges)))
-          ;; Cross edge: neighbor was discovered before node
-          (ht-set! classification 'cross-edges
-                   (cons edge (ht-get classification 'cross-edges))))))))
+         ;; Forward or Cross edge: neighbor already finished
+         (t
+          (if (< (ht-get discovery-time node) (ht-get discovery-time neighbor))
+              ;; Forward edge: node was discovered before neighbor (ancestor relationship)
+              (ht-set! classification 'forward-edges
+                       (cons edge (ht-get classification 'forward-edges)))
+            ;; Cross edge: neighbor was discovered before node
+            (ht-set! classification 'cross-edges
+                     (cons edge (ht-get classification 'cross-edges)))))))))
 
   ;; Mark node as finished
   (ht-set! finish-time node time-counter)

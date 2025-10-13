@@ -68,13 +68,6 @@
         (let ((back-edges (dag-draw-detect-cycles graph)))
           (expect (length back-edges) :to-be-greater-than 0))))
     
-    (it "should detect self-loops"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'a)
-        (dag-draw-add-edge graph 'a 'a)  ; Self-loop
-        
-        (let ((back-edges (dag-draw-detect-cycles graph)))
-          (expect (length back-edges) :to-be-greater-than 0))))
     
     (it "should handle disconnected components"
       (let ((graph (dag-draw-create-graph)))

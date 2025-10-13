@@ -28,7 +28,7 @@
         (dag-draw-add-node graph 'source "Research Phase")
         (dag-draw-add-edge graph 'source 'node-a)
         (dag-draw-add-edge graph 'source 'node-b)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Position nodes to potentially cause overlap (like in demo)
         (let* ((source-node (dag-draw-get-node graph 'source))
@@ -60,7 +60,7 @@
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'left "Left Node")
         (dag-draw-add-node graph 'right "Right Node")
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Force nodes close together to test spacing
         (let* ((left-node (dag-draw-get-node graph 'left))
@@ -91,7 +91,7 @@
         (dag-draw-add-node graph 'target-b "Target B")
         (dag-draw-add-edge graph 'source 'target-a)
         (dag-draw-add-edge graph 'source 'target-b)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let* ((source-node (dag-draw-get-node graph 'source))
                (target-a-node (dag-draw-get-node graph 'target-a))
@@ -127,7 +127,7 @@
         (dag-draw-add-edge graph 'center 'north)
         (dag-draw-add-edge graph 'center 'south)
         (dag-draw-add-edge graph 'center 'east)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (message "=== JUNCTION CHARACTER SELECTION TEST ===")
@@ -149,7 +149,7 @@
         (dag-draw-add-node graph 'middle "Middle Blocker")
         (dag-draw-add-node graph 'end "End")
         (dag-draw-add-edge graph 'start 'end)  ; Edge should route around middle
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         ;; Position middle node between start and end to force routing decision
         (let* ((start-node (dag-draw-get-node graph 'start))
@@ -186,7 +186,7 @@
         (dag-draw-add-edge graph 'research 'api)
         (dag-draw-add-edge graph 'research 'db)
         (dag-draw-add-edge graph 'research 'infra)
-        (dag-draw-layout-graph graph)
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
         
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (message "=== COMPLEX ROUTING TEST ===")
