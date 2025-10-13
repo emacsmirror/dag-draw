@@ -4,6 +4,50 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Complete Ranking
+;;
+;; This module tests complete GKNV Pass 1 ranking as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2 (complete Pass 1 algorithm)
+;; Decision: D1.1 - Cycle breaking via DFS
+;;           D1.2 - Initial ranking via topological sort
+;;           D1.3 - Feasible tree construction
+;;           D1.4 - Network simplex iteration
+;;           D1.5 - Edge weight interpretation
+;;           D1.6 - Rank normalization (min = 0)
+;;           D1.7 - Greedy rank balancing
+;;           D1.8 - Cut value computation optimizations
+;;           D1.9 - Rank constraint handling
+;;           D1.10 - Delta (minimum length) handling
+;; Algorithm: Complete GKNV Pass 1 - Rank Assignment
+;;
+;; Key Requirements Tested:
+;; - End-to-end Pass 1: input graph → ranked acyclic graph
+;; - All edges point generally downward (aesthetic A1)
+;; - Delta constraints satisfied for all edges
+;; - Sum of weighted edge lengths minimized
+;; - Rank constraints (S_min, S_max, S_k) satisfied
+;; - Minimum rank normalized to 0
+;; - Crowding reduced via balancing
+;; - Output valid for Pass 2 (ordering)
+;;
+;; Test Coverage:
+;; - Complete Pass 1 execution on various graphs
+;; - Cycle breaking successful (graph becomes DAG)
+;; - Ranking optimal (minimum weighted edge length)
+;; - Constraints satisfied (delta, S_min, S_max, S_k)
+;; - Normalization correct (min rank = 0)
+;; - Balancing improves aspect ratio
+;; - Integration with Pass 2 verified
+;; - Real-world graph structures
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.1-D1.10) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Tests for rank assignment functionality.
 
 ;;; Code:

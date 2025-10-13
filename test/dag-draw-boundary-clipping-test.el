@@ -1,5 +1,40 @@
 ;;; dag-draw-boundary-clipping-test.el --- Test GKNV Section 5.2 boundary clipping -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - Pass 4: Boundary Clipping
+;;
+;; This module tests GKNV spline clipping to node boundaries as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.1.1 (nearly vertical edge sections)
+;; Decision: D4.3 - Hybrid approach: straight lines for nearly vertical sections
+;; Algorithm: Spline-to-Node Boundary Clipping
+;;
+;; Key Requirements Tested:
+;; - Splines computed between node centers (or ports)
+;; - Final rendering: clip splines at node bounding box boundaries
+;; - Nearly vertical sections drawn as straight vertical lines
+;; - Rationale: parallel edges look better as parallel lines than similar slopes
+;; - Clipping ensures edges don't overlap node content
+;; - Vertical line sections simplify rendering
+;;
+;; Test Coverage:
+;; - Splines clipped at node boundaries correctly
+;; - Nearly vertical sections identified
+;; - Vertical sections replaced with straight lines
+;; - Clipping respects node bounding boxes
+;; - Multiple edges to same node clipped consistently
+;; - Various node sizes and positions
+;; - Parallel edges appear as parallel lines
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.3) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)

@@ -4,6 +4,44 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Complete Positioning
+;;
+;; This module tests complete GKNV Pass 3 coordinate assignment as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4 (X coordinates via auxiliary graph, Y via ranksep)
+;; Decision: D3.1 - Network simplex on auxiliary graph (preferred over heuristics)
+;;           D3.2 - Omega weights (1, 2, 8) for edge types
+;;           D3.3 - Node separation ρ(a,b) = (xsize_a + xsize_b)/2 + nodesep
+;;           D3.4 - Exploit auxiliary graph structure for initial feasible tree
+;;           D3.5 - X-offset node ports supported
+;;           D3.6 - Y coordinates by rank with fixed ranksep
+;; Algorithm: Complete GKNV Pass 3 - Coordinate Assignment
+;;
+;; Key Requirements Tested:
+;; - End-to-end Pass 3: ordered graph → positioned graph with X/Y coordinates
+;; - X coordinates minimize sum of weighted horizontal edge lengths
+;; - Node separation constraints ρ(a,b) satisfied for adjacent nodes
+;; - Long edges prefer vertical alignment (omega=8 for virtual-virtual edges)
+;; - Node ports (X-offsets) supported via auxiliary graph
+;; - Y coordinates maintain fixed ranksep between ranks
+;; - Output valid for Pass 4 (spline drawing)
+;;
+;; Test Coverage:
+;; - Complete Pass 3 execution on various graphs
+;; - X coordinates optimal (minimum weighted edge length)
+;; - Separation constraints satisfied (no overlaps)
+;; - Virtual edge chains tend toward vertical alignment
+;; - Port offsets correctly incorporated
+;; - Y coordinates properly spaced by ranksep
+;; - Integration with Pass 4 verified
+;; - Various node sizes and separations
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.1-D3.6) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; Tests for node positioning functionality.
 
 ;;; Code:

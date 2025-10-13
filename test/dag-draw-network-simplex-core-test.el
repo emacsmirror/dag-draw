@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Network Simplex Leave/Enter Edges
+;;
+;; This module tests baseline GKNV network simplex edge selection as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 steps 3-6 (leave/enter selection),
+;;                 Section 2.4 (cyclic search optimization)
+;; Decision: D1.4 - Cyclic search through tree edges for leave edge
+;;           D1.8 - Incremental cut value computation
+;; Algorithm: Network Simplex Edge Exchange
+;;
+;; Key Requirements Tested:
+;; - Leave edge has negative cut value (indicates non-optimal solution)
+;; - Cyclic search improves performance by avoiding repeated scanning
+;; - Enter edge has minimum slack from head component to tail component
+;; - Breaking tree at leave edge partitions nodes into head/tail components
+;; - Edge exchange maintains tree property (exactly |V|-1 edges)
+;; - Rank adjustment makes enter edge tight (slack = 0)
+;; - Cut values updated correctly after edge exchange
+;;
+;; Test Coverage:
+;; - find_leave_edge() identifies negative cut value edges
+;; - Cyclic search position maintained between iterations
+;; - find_enter_edge() finds minimum slack replacement
+;; - Tree partitioning correctly identifies components
+;; - exchange_edges() updates tree structure
+;; - Cut values remain consistent after exchange
+;; - Convergence when no negative cut values exist
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.4, D1.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD tests to implement the core network simplex optimization algorithm
 ;; from GKNV Figure 2-1 steps 3-6.
 ;;

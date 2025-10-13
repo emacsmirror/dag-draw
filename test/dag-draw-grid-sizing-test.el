@@ -1,6 +1,43 @@
 ;;; dag-draw-grid-sizing-test.el --- Test grid sizing issues -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - ASCII: Grid Sizing
+;;
+;; This module tests ASCII grid dimension calculation as specified in
+;; doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (grid sizing is ASCII-specific calculation)
+;; Decision: D5.1 - Grid sized based on content bounds and scaling
+;;           D5.8 - Force minimum separation, accept compression if needed
+;; Algorithm: Grid Dimension Calculation from Graph Bounds
+;;
+;; Key Requirements Tested:
+;; - Grid width calculated from X coordinate range + node sizes + margins
+;; - Grid height calculated from Y coordinate range + node sizes + margins
+;; - Grid large enough to contain all nodes with separations
+;; - Margins added for edge routing space
+;; - Dense regions: minimum 1-character separation enforced
+;; - Grid dimensions allow readable output (not too compressed)
+;; - Grid size reasonable for terminal display
+;;
+;; Test Coverage:
+;; - Grid width sufficient for all nodes horizontally
+;; - Grid height sufficient for all nodes vertically
+;; - Margins provide space for edge routing
+;; - Dense graphs: compression acceptable but readable
+;; - Various graph sizes (small, medium, large)
+;; - Edge cases: single node, linear chain, wide graph
+;; - Grid dimensions support coordinate scaling
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.1, D5.8) for decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; Test to reproduce the issue where nodes are positioned outside grid boundaries
+
+;;; Code:
 
 (require 'buttercup)
 (require 'dag-draw)

@@ -1,5 +1,26 @@
 ;;; dag-draw-debug-network-simplex.el --- Debug network simplex behavior -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Development/Debugging Tool
+;;
+;; Enhancement Category: Debug
+;; Baseline Status: 🔧 Development Tool (Not part of baseline algorithm)
+;;
+;; This test verifies:
+;; - Network simplex behavior comparison with topological ranking
+;; - Ranking algorithm debugging and verification
+;; - Weight-based ranking influence analysis
+;;
+;; Related Baseline Decisions: D1.2-D1.8 (Network Simplex)
+;; Enhancement Source: Development debugging tools
+;;
+;; This is a development/debugging test, not part of the baseline specification.
+;; Useful for understanding and debugging network simplex behavior.
+;; See doc/test-suite-analysis.md for categorization rationale.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)

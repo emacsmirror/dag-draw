@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 2: Crossing Reduction
+;;
+;; This module tests GKNV crossing reduction algorithm as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 3 (weighted median heuristic + transpose innovation)
+;; Decision: D2.2 - Weighted median with interpolation for even adjacencies
+;;           D2.4 - Iterative transpose until local optimum
+;; Algorithm: Weighted Median + Transpose for Crossing Minimization
+;;
+;; Key Requirements Tested:
+;; - Weighted median heuristic orders nodes by median position of adjacencies
+;; - Even number of adjacencies: weighted interpolation biased toward dense side
+;; - Transpose heuristic: swap adjacent nodes if reduces crossings
+;; - Transpose iterates until no improvement (local optimum)
+;; - Combined approach: "additional 20-50% reduction" beyond median alone
+;; - Algorithm runs for max 24 iterations (D2.3)
+;; - Best ordering (fewest crossings) retained
+;; - Reduces edge crossings significantly (aesthetic A2)
+;;
+;; Test Coverage:
+;; - Weighted median calculation correct for odd adjacencies
+;; - Weighted interpolation correct for even adjacencies
+;; - Transpose identifies beneficial swaps
+;; - Transpose iterates to local optimum
+;; - Combined median + transpose reduces crossings
+;; - Iteration count bounded (24 max)
+;; - Best solution retained across iterations
+;; - Various graph structures with different crossing patterns
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.2, D2.4) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
 ;; TDD Implementation of GKNV crossing reduction algorithm (Pass 2).
 ;; This optimizes vertex ordering within ranks to minimize edge crossings.
 ;; Updated to use mainline GKNV-compliant interfaces.

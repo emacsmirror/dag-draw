@@ -4,6 +4,24 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality / Debug
+;; Baseline Status: 🔧 Pattern Testing (Specific scenario validation)
+;;
+;; This test verifies:
+;; - Pattern-specific debugging scenarios
+;; - Isolated visual pattern validation
+;; - Individual anti-pattern detection and fixing
+;;
+;; Related Baseline Decisions: D5.x (ASCII Rendering)
+;; Enhancement Source: Pattern-specific quality validation
+;;
+;; These tests focus on specific patterns or edge cases beyond baseline.
+;; See doc/test-suite-analysis.md (Category B3) for categorization rationale.
+;;
+;; [Original commentary: This test file isolates each specific visual pattern...]
+;;
 ;; This test file isolates each specific visual pattern that's failing
 ;; in the end-to-end test, allowing us to debug and fix them individually.
 ;; Each test focuses on one specific anti-pattern from the main test.

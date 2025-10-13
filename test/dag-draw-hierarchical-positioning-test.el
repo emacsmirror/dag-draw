@@ -9,6 +9,37 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Y Coordinate Assignment
+;;
+;; This module tests GKNV Y coordinate assignment as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4 start (Y coordinates maintain ranksep separation)
+;; Decision: D3.6 - Fixed ranksep with optional adjustment for edge slopes
+;; Algorithm: Y Coordinate Assignment by Rank
+;;
+;; Key Requirements Tested:
+;; - Y coordinate assignment maintains minimum separation ranksep(G)
+;; - All nodes in same rank have same Y coordinate (horizontal alignment)
+;; - Y coordinates increase by ranksep for each rank (top to bottom)
+;; - Optional: increase separation for nearly horizontal edges (readability)
+;; - Simple formula: Y(rank_k) = k × ranksep
+;; - Consistent spacing supports hierarchical structure (aesthetic A1)
+;;
+;; Test Coverage:
+;; - All nodes in same rank have identical Y coordinate
+;; - Y coordinates separated by ranksep between adjacent ranks
+;; - Minimum separation maintained throughout
+;; - Optional slope adjustment (enhancement) can be tested
+;; - Various graph heights (different rank counts)
+;; - Y assignment integrates with X coordinates correctly
+;; - Hierarchical structure clearly visible
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.6) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD tests for fixing GKNV Pass 3 (Node Positioning).
 ;; Current problem: Nodes are scattered randomly instead of being arranged
 ;; in clean hierarchical columns with proper spacing.

@@ -4,6 +4,37 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Port Delta Calculation
+;;
+;; This module tests GKNV port delta calculation for auxiliary graph as specified
+;; in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4.2 Figure 4-4 (delta calculation for ports)
+;; Decision: D3.5 - Port deltas incorporated in auxiliary graph edges
+;; Algorithm: Port Delta Calculation for Auxiliary Edges
+;;
+;; Key Requirements Tested:
+;; - For edge e=(u,v) with ports, auxiliary graph has edges (n_e,u) and (n_e,v)
+;; - Delta for (n_e,u): δ_u = |tail_port_offset|
+;; - Delta for (n_e,v): δ_v = |head_port_offset| + |tail_port_offset|
+;; - Deltas ensure network simplex respects port offsets
+;; - Port offsets influence relative X positions
+;; - Calculation handles various port offset combinations
+;;
+;; Test Coverage:
+;; - δ_u calculation correct for tail port
+;; - δ_v calculation correct for head port
+;; - Both ports specified: deltas sum correctly
+;; - One port specified: delta calculation correct
+;; - No ports: deltas both zero (center connection)
+;; - Various port offset values (positive, negative)
+;; - Deltas correctly enforce port offset constraints
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.5) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD for improving port calculation to get precise edge attachment points.
 ;; Following true TDD: write one failing test, make it pass, refactor, repeat.
 

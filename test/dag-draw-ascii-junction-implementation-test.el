@@ -3,6 +3,40 @@
 ;; Copyright (C) 2025
 
 ;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - ASCII: Junction Implementation
+;;
+;; This module tests junction character implementation details as specified in
+;; doc/CLAUDE.md and doc/implementation-decisions.md.
+;;
+;; GKNV Reference: N/A (junction implementation is ASCII-specific)
+;; Decision: D5.4 - Walk-based algorithm implementation
+;; Algorithm: Junction Character Implementation Verification
+;;
+;; Key Requirements Tested:
+;; - Edge walking visits all points along edge path
+;; - Previous/current/next point context captured at each step
+;; - Direction analysis determines incoming/outgoing edge directions
+;; - Multiple edges at same point detected correctly
+;; - Junction character selection function correct for all cases
+;; - Grid cell update replaces segment character with junction character
+;; - Junction algorithm applied after routing, before final output
+;;
+;; Test Coverage:
+;; - Edge path extraction correct
+;; - Point-by-point walking visits all edge positions
+;; - Context capture (prev/curr/next) correct at each point
+;; - Direction analysis correct (cardinal directions)
+;; - Multi-edge detection at shared points
+;; - Junction character selection invoked correctly
+;; - Grid cell updates applied correctly
+;; - Integration with routing and rendering
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/CLAUDE.md (Junction algorithm implementation) for specification.
+;; See doc/implementation-decisions.md (D5.4) for decision rationale.
+
 ;; Test-driven development for ASCII junction character implementation
 ;; following decisions D5.1-D5.8 from doc/implementation-decisions.md
 

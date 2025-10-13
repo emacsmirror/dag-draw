@@ -4,6 +4,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Edge Weights and Delta
+;;
+;; This module tests GKNV edge weight and minimum length handling as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 1.2 (ω = edge importance),
+;;                 Section 2 (δ = minimum edge length)
+;; Decision: D1.5 - User-specified weights (default 1) indicate edge importance
+;;           D1.10 - Support both user δ and internal δ (e.g., δ=2 for labels)
+;; Algorithm: Weight/Delta Constraint Enforcement
+;;
+;; Key Requirements Tested:
+;; - ω(e) = edge weight (usually 1), higher weight = prefer shorter/straighter
+;; - Network simplex minimizes Σ ω(e) × length(e)
+;; - δ(e) = minimum rank span (usually 1)
+;; - Constraint: rank(head) - rank(tail) >= δ(e) for all edges
+;; - User can set ω and δ per edge
+;; - Internal algorithm can set δ (e.g., δ=2 for labeled edges)
+;; - Higher weight edges get preferential treatment in ranking
+;; - Delta constraints never violated in final solution
+;;
+;; Test Coverage:
+;; - Default ω=1, δ=1 behavior
+;; - Higher ω edges become shorter when possible
+;; - δ=2 forces minimum 2-rank separation
+;; - User-specified ω and δ respected throughout algorithm
+;; - Internal δ setting for special cases (labels)
+;; - Constraint satisfaction verified for all edges
+;; - Weight influence on optimal solution
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.5, D1.10) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD Phase 1.4: Enhanced edge weight system for network simplex algorithm.
 ;; This implements proper edge weight handling, user constraints, and auxiliary
 ;; node management as described in GKNV paper sections 2.1 and 2.2.

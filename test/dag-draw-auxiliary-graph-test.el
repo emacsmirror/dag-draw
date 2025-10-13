@@ -4,6 +4,40 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 2: Auxiliary Graph (Virtual Nodes)
+;;
+;; This module tests GKNV virtual node creation as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 3 start (virtual nodes for long edges before ordering)
+;; Decision: D2.8 - Create virtual nodes before ordering (not after)
+;; Algorithm: Virtual Node Insertion for Multi-Rank Edges
+;;
+;; Key Requirements Tested:
+;; - Edges spanning multiple ranks replaced by chains of unit-length edges
+;; - Virtual (temporary) nodes placed on intermediate ranks
+;; - Each virtual node has exactly one in-edge and one out-edge
+;; - Original graph converted to auxiliary graph with only adjacent-rank edges
+;; - Virtual nodes participate in ordering like real nodes
+;; - Virtual nodes enable crossing minimization for long edges
+;; - After ordering, virtual nodes give bend points for edge routing
+;; - Virtual node creation precedes ordering (timing critical)
+;;
+;; Test Coverage:
+;; - Edge spanning 2 ranks: 1 virtual node inserted
+;; - Edge spanning 3+ ranks: multiple virtual nodes
+;; - Virtual nodes assigned to correct intermediate ranks
+;; - Virtual node has correct in/out edges (chain property)
+;; - Auxiliary graph has only adjacent-rank edges after creation
+;; - Virtual nodes marked for later distinction from real nodes
+;; - Original edge information preserved for reconstruction
+;; - Various edge spans (2, 3, 4+ ranks)
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
 ;; Tests to ensure proper GKNV auxiliary graph construction per Section 4.2.
 ;; Validates proper n_e edge cost nodes and (n_e, u), (n_e, v) cost encoding edges.
 ;;

@@ -4,6 +4,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Region-Constrained Splines
+;;
+;; This module tests GKNV region-constrained spline generation as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5 (region-constrained spline approach),
+;;                 Section 5.2 Figure 5-3 (compute_p_array algorithm)
+;; Decision: D4.1 - Region-constrained optimal splines (dot approach)
+;;           D4.9 - Recursive subdivision at furthest L segment
+;; Algorithm: Region-Constrained Spline Computation
+;;
+;; Key Requirements Tested:
+;; - Edges drawn as smooth curves avoiding obstacles (other nodes/splines)
+;; - Region defines where spline can go (boxes between ranks)
+;; - Path found through region (piecewise linear skeleton)
+;; - Spline fit to path respecting region boundaries
+;; - Recursive subdivision if straight line doesn't fit
+;; - Furthest L segment chosen for subdivision point
+;; - Process ensures spline stays within region (avoids obstacles)
+;; - Better than simple lines through virtual nodes (aesthetic A2)
+;;
+;; Test Coverage:
+;; - Region construction from node positions
+;; - Path computation through region
+;; - Straight line used when possible
+;; - Recursive subdivision when line doesn't fit
+;; - Spline fitting to piecewise linear path
+;; - Spline stays within region boundaries
+;; - Various graph structures and node arrangements
+;; - Edge routing avoids obstacles
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.1, D4.9) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Tests for spline edge drawing functionality.
 
 ;;; Code:

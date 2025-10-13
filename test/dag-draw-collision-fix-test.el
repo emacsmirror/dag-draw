@@ -1,5 +1,25 @@
 ;;; dag-draw-collision-fix-test.el --- Test for edge-node collision fixes -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality
+;; Baseline Status: ⏳ Deferred (Quality improvements beyond baseline)
+;;
+;; This test verifies:
+;; - Edge-node collision fixes in ASCII output
+;; - Text corruption prevention (edges not overwriting node text)
+;; - Complex multi-node convergence pattern rendering
+;;
+;; Related Baseline Decisions: D5.3 (Edge Routing), D5.5 (Arrow Placement)
+;; Enhancement Source: ASCII rendering quality validation
+;;
+;; These tests ensure rendering quality beyond baseline correctness.
+;; See doc/test-suite-analysis.md (Category B3) for categorization rationale.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-render)

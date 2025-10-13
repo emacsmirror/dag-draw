@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Spline Region Box Construction
+;;
+;; This module tests GKNV spline region box construction as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.1 (region box construction),
+;;                 Section 5.1.1 (crossing edge box adjustment)
+;; Decision: D4.1 - Region-constrained approach requires region definition
+;;           D4.8 - Ignore virtual nodes for nearby crossings (within 2 ranks)
+;; Algorithm: Region Box Construction with Crossing Adjustments
+;;
+;; Key Requirements Tested:
+;; - Region = sequence of rectangular boxes edge can pass through
+;; - Port boxes at tail and head nodes
+;; - Inter-rank boxes between node ranks
+;; - Virtual node boxes (if edge has virtual nodes)
+;; - Box adjustment for crossing edges: ignore nearby virtual nodes
+;; - "Within two ranks" rule prevents awkward sharp turns
+;; - Boxes define allowable spline space (constraint region)
+;;
+;; Test Coverage:
+;; - Port boxes constructed at endpoints
+;; - Inter-rank boxes span between ranks correctly
+;; - Virtual node boxes positioned correctly
+;; - Crossing edge adjustment: nearby virtuals ignored
+;; - "Within 2 ranks" rule applied correctly
+;; - Box sequence forms continuous region
+;; - Various edge types (direct, with virtuals, crossing)
+;; - Region boundaries enforce obstacle avoidance
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.1, D4.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Tests for GKNV Section 5 spline region computation compliance.
 ;; Implements the three-stage process: compute_L_array, compute_p_array, compute_s_array.
 ;;

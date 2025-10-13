@@ -9,6 +9,38 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Coordinate Scaling
+;;
+;; This module tests ASCII coordinate scaling from continuous to grid as specified
+;; in doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (coordinate scaling is ASCII-specific transformation)
+;; Decision: D5.1 - Independent X/Y scaling based on content bounds
+;; Algorithm: Coordinate Scaling from Continuous to Character Grid
+;;
+;; Key Requirements Tested:
+;; - Continuous coordinates (float) scaled to discrete grid (integer)
+;; - X and Y scaled independently (character aspect ratio ≈2:1)
+;; - Scaling preserves relative positions (layout proportions)
+;; - All coordinates mapped to valid grid positions
+;; - Minimum separation maintained after scaling
+;; - Scaling formula: grid_coord = (coord - min) × scale_factor
+;; - Scale factors computed from grid size and content bounds
+;;
+;; Test Coverage:
+;; - X coordinates scaled correctly to grid columns
+;; - Y coordinates scaled correctly to grid rows
+;; - Relative positions preserved (ordering maintained)
+;; - Separation constraints still satisfied after scaling
+;; - Various graph sizes and aspect ratios
+;; - Boundary cases (minimum/maximum coordinates)
+;; - Scaling doesn't introduce overlaps
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.1) for decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; TDD tests for ensuring ASCII rendering preserves the hierarchical
 ;; structure created by the GKNV positioning algorithm.
 ;; Problem: Perfect coordinates (Y: 0, 25, 50, 75, 100) are being

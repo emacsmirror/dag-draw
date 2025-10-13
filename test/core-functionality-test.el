@@ -9,6 +9,46 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Core: Complete Algorithm
+;;
+;; This module tests core GKNV four-pass algorithm functionality as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Abstract + Sections 1-5 (complete four-pass algorithm)
+;; Decision: All decisions D1.1-D5.10
+;; Algorithm: Complete GKNV Four-Pass Algorithm
+;;
+;; Key Requirements Tested:
+;; - Four-pass algorithm structure: Pass 1 → Pass 2 → Pass 3 → Pass 4
+;; - Pass 1: Optimal rank assignment via network simplex
+;; - Pass 2: Vertex order within ranks via weighted median + transpose
+;; - Pass 3: Optimal coordinates via auxiliary graph network simplex
+;; - Pass 4: Splines via region-constrained curve fitting
+;; - Aesthetic principles achieved: A1 (hierarchy), A2 (avoid anomalies),
+;;   A3 (short edges), A4 (symmetry)
+;; - Algorithm runs fast (interactive performance)
+;; - Output quality high (makes good drawings)
+;; - API contracts: input graph → output with coordinates and splines
+;;
+;; Test Coverage:
+;; - Complete algorithm execution from input to output
+;; - All four passes execute correctly
+;; - Pass integration verified (correct data flow)
+;; - Aesthetic principles achieved in output
+;; - Performance acceptable (timing measurements)
+;; - API functionality: create graph, add nodes/edges, draw
+;; - Various graph types (trees, DAGs, complex structures)
+;; - Edge cases: empty graph, single node, disconnected components
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; This test serves as the primary integration test for the complete GKNV
+;; algorithm implementation, verifying that all four passes work together
+;; correctly to produce high-quality graph drawings.
+;;
+;; See doc/implementation-decisions.md (all sections) for full decision rationale.
+;; See doc/algorithm-specification.md (all sections) for implementation details.
+
 ;; Consolidated tests for core DAG-draw functionality including:
 ;; - Graph creation, node/edge management
 ;; - Basic validation and traversal

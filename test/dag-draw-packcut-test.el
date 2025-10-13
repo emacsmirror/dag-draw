@@ -9,10 +9,43 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Layout Compaction
+;;
+;; This module tests GKNV layout compaction via separation constraints as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 4 (node separation formula, implicit compaction)
+;; Decision: D3.3 - Node separation ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+;; Algorithm: Separation Constraint Enforcement for Compaction
+;;
+;; Key Requirements Tested:
+;; - Separation function ρ(a,b) accounts for both node sizes
+;; - Formula: ρ(a,b) = (xsize_a + xsize_b)/2 + nodesep
+;; - Adjacent nodes must be separated by at least ρ(a,b)
+;; - Separation edges in auxiliary graph enforce ρ(a,b) as minimum delta
+;; - Network simplex respects separation constraints (no overlaps)
+;; - Layout automatically compacted (no unnecessary space)
+;; - Compaction implicit in network simplex optimization
+;;
+;; Test Coverage:
+;; - ρ(a,b) calculation correct for various node sizes
+;; - Adjacent nodes separated by at least ρ(a,b)
+;; - No overlaps between node bounding boxes
+;; - Layout compacted (minimal wasted space)
+;; - Various node size combinations
+;; - nodesep parameter respected
+;; - Network simplex enforces separation constraints
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.3) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD tests for implementing GKNV packcut() function for layout compaction.
-;; Based on GKNV paper specification: "packcut sweeps the layout from left to right, 
-;; searching for blocks that can be compacted. For each node, if all the nodes to the 
-;; right of it can be shifted to the left by some increment without violating any 
+;; Based on GKNV paper specification: "packcut sweeps the layout from left to right,
+;; searching for blocks that can be compacted. For each node, if all the nodes to the
+;; right of it can be shifted to the left by some increment without violating any
 ;; positioning constraints, the shift is performed."
 ;;
 ;; Reference: "A Technique for Drawing Directed Graphs" by Gansner, Koutsofios, North, Vo

@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 2: Core Ordering Algorithms
+;;
+;; This module tests GKNV core ordering algorithms (median, transpose) as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 3 Figure 3-2 (weighted median), Figure 3-3 (transpose)
+;; Decision: D2.2 - Weighted median with special interpolation
+;;           D2.4 - Iterative transpose to local optimum
+;; Algorithm: Weighted Median + Transpose Core Implementation
+;;
+;; Key Requirements Tested:
+;; - wmedian(rank, iter): sort rank by weighted median of adjacent rank positions
+;; - Direction alternates: even iterations down (0→max), odd up (max→0)
+;; - median_value(v, adj_rank): compute weighted median position for node v
+;; - transpose(rank): swap adjacent pairs if reduces crossings
+;; - Transpose iterates until no beneficial swaps remain
+;; - Algorithm correctness: implementations match GKNV pseudocode
+;; - Integration: median + transpose work together effectively
+;;
+;; Test Coverage:
+;; - wmedian correctly sorts nodes by median
+;; - Alternating direction (forward/backward sweeps)
+;; - median_value returns correct values (odd, even, weighted cases)
+;; - transpose identifies beneficial swaps
+;; - transpose iterates to convergence
+;; - Combined median + transpose reduces crossings
+;; - Algorithm implementations match paper pseudocode
+;; - Unit tests for individual functions
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.2, D2.4) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
 ;; Tests for graph algorithms including DFS, cycle detection, and topological sorting.
 
 ;;; Code:

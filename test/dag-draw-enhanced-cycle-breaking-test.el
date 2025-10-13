@@ -4,6 +4,24 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Optimization
+;; Baseline Status: ⏳ Deferred (Not required for baseline compliance)
+;;
+;; This test verifies:
+;; - Enhanced cycle breaking with intelligent edge weight consideration
+;; - Virtual node management for long edge spanning
+;; - GKNV minpath virtual chain straightening optimization
+;;
+;; Related Baseline Decisions: D1.1 (DFS Cycle Breaking), D3.2 (Minpath)
+;; Enhancement Source: Extended cycle breaking strategies beyond basic DFS
+;;
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md (Category B1) for categorization rationale.
+;;
+;; [Original commentary: TDD Implementation of enhanced cycle breaking...]
+;;
 ;; TDD Implementation of enhanced cycle breaking with virtual node management.
 ;; This implements intelligent cycle breaking that preserves graph structure quality.
 

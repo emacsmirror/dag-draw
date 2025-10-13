@@ -4,6 +4,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Network Simplex Integration
+;;
+;; This module tests integration of GKNV network simplex components as specified
+;; in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 (complete algorithm flow)
+;; Decision: D1.2 - Initial ranking (init_rank)
+;;           D1.3 - Feasible tree construction (feasible_tree)
+;;           D1.4 - Iterative optimization (exchange loop)
+;;           D1.8 - Cut value computation
+;; Algorithm: Network Simplex Integration Testing
+;;
+;; Key Requirements Tested:
+;; - init_rank() output valid input for feasible_tree()
+;; - feasible_tree() output valid input for optimization loop
+;; - Cut values computed correctly for initial tree
+;; - Iteration preserves tree feasibility throughout
+;; - Components interact correctly (data flows properly)
+;; - End-to-end ranking respects all constraints
+;; - Integration points well-defined and tested
+;;
+;; Test Coverage:
+;; - Pass initial ranking to feasible tree construction
+;; - Pass feasible tree to optimization loop
+;; - Cut value computation integrated with tree construction
+;; - Leave/enter edge selection uses cut values correctly
+;; - Complete flow produces valid optimal ranking
+;; - No data corruption at integration boundaries
+;; - Error handling across component boundaries
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.2-D1.4, D1.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD test to integrate network simplex optimization into the mainline
 ;; dag-draw--assign-ranks-network-simplex function per GKNV Figure 2-1.
 ;;

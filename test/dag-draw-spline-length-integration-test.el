@@ -4,6 +4,37 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Shortest Edges First
+;;
+;; This module tests GKNV edge ordering for spline computation as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.1.1 (spline computation order)
+;; Decision: D4.2 - Shortest edges first (greedy strategy)
+;; Algorithm: Edge Ordering by Euclidean Length
+;;
+;; Key Requirements Tested:
+;; - Splines computed by greedy strategy (order-dependent)
+;; - Reasonable to route shorter splines first
+;; - Short splines often drawn as straight lines (simpler)
+;; - Order doesn't affect quality much (paper observation)
+;; - Edge length = Euclidean distance between endpoints
+;; - Greedy ordering simpler than global optimization
+;;
+;; Test Coverage:
+;; - Edges sorted by length correctly
+;; - Shortest edges computed first
+;; - Longer edges computed after shorter ones
+;; - Edge length calculation correct (Euclidean)
+;; - Order-dependent computation produces good results
+;; - Various graph structures with different edge lengths
+;; - Visual quality: shortest-first comparable to other orderings
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.2) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; TDD test to integrate dag-draw--spline-length into the mainline spline
 ;; processing pipeline per GKNV paper requirements.
 

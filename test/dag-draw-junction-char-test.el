@@ -4,6 +4,38 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Specific Junction Characters
+;;
+;; This module tests specific junction character selection as specified in
+;; doc/CLAUDE.md (junction character examples).
+;;
+;; GKNV Reference: N/A (junction character details are ASCII-specific)
+;; Decision: D5.4 - Context-aware junction character selection
+;; Algorithm: Junction Character Mapping
+;;
+;; Key Requirements Tested:
+;; - Each junction context maps to correct Unicode box-drawing character
+;; - Starting junctions: ┬ (down from bottom), ├ (right from right side), etc.
+;; - Corners: └ ┘ ┌ ┐ for four corner types
+;; - T-junctions: ┬ ┴ ├ ┤ for four T-junction types
+;; - Cross: ┼ for perpendicular crossing
+;; - Arrow integration: arrows don't replace required junction characters
+;; - Character selection based on edge directions at junction point
+;;
+;; Test Coverage:
+;; - All starting junction characters correct
+;; - All ending junction characters correct
+;; - All corner characters correct (8 types: 4 corners × 2 directions)
+;; - All T-junction characters correct (4 orientations)
+;; - Cross character used when edges cross
+;; - Direction analysis drives correct character selection
+;; - Examples from CLAUDE.md specification verified
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/CLAUDE.md (Junction character examples) for specification.
+;; See doc/implementation-decisions.md (D5.4) for decision rationale.
+
 ;; Tests for enhanced junction character functionality.
 ;; Implements Phase 3 of ASCII-native GKNV implementation.
 ;; Based on CLAUDE.md junction character specifications.

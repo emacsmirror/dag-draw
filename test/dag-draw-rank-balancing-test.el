@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Rank Balancing
+;;
+;; This module tests GKNV greedy rank balancing as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 line 8 (balance procedure)
+;; Decision: D1.7 - Greedy balancing to reduce crowding (A4 aesthetic)
+;; Algorithm: Greedy Rank Balancing for Aspect Ratio Improvement
+;;
+;; Key Requirements Tested:
+;; - Nodes with equal in-edge and out-edge weights can move freely
+;; - Such nodes moved to least crowded feasible rank
+;; - Purpose: reduce crowding, improve aspect ratio (aesthetic A4)
+;; - Greedy approach (one node at a time) works sufficiently well
+;; - Feasibility maintained (delta constraints not violated)
+;; - Balancing applied after network simplex optimization
+;; - Improves drawing quality without compromising optimality
+;;
+;; Test Coverage:
+;; - Identify nodes with equal in/out weights
+;; - Find least crowded feasible rank for each movable node
+;; - Move nodes greedily
+;; - Verify feasibility maintained after balancing
+;; - Aspect ratio improved (visual quality better)
+;; - Rank distributions more even after balancing
+;; - Various graph structures (some movable, some fixed)
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.7) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD tests to implement GKNV rank balancing algorithm from Figure 2-1 step 8.
 ;;
 ;; GKNV balance() specification:

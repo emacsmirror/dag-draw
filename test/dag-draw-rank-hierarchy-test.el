@@ -9,8 +9,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Rank Hierarchy Constraints
+;;
+;; This module tests GKNV rank constraint handling as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2 (S_min, S_max, S_k constraint sets)
+;; Decision: D1.9 - Merge constraint sets temporarily, add constraint edges
+;; Algorithm: Rank Constraint Enforcement via Temporary Merging
+;;
+;; Key Requirements Tested:
+;; - S_min: set of nodes forced to minimum rank (sources, emphasized nodes)
+;; - S_max: set of nodes forced to maximum rank (sinks, emphasized nodes)
+;; - S_k: sets of nodes forced to same rank (horizontal alignment)
+;; - Each non-empty constraint set merged into single temporary node
+;; - Temporary edges added: (S_min, v) for nodes with no in-edges (δ=0)
+;; - Temporary edges added: (v, S_max) for nodes with no out-edges (δ=0)
+;; - After ranking, nodes unmerged and assigned appropriate ranks
+;; - Constraints satisfied in final solution
+;;
+;; Test Coverage:
+;; - S_min forces nodes to rank 0 (minimum)
+;; - S_max forces nodes to maximum rank
+;; - S_k forces nodes to same rank
+;; - Multiple constraint sets coexist correctly
+;; - Temporary merging doesn't affect other nodes
+;; - Unmerging restores original graph structure
+;; - Constraint satisfaction verified in output
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.9) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD tests for fixing the fundamentally broken rank assignment.
-;; The current network simplex fails to converge, producing scattered 
+;; The current network simplex fails to converge, producing scattered
 ;; nodes instead of proper hierarchical DAG structure.
 
 ;;; Code:

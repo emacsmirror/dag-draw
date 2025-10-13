@@ -11,6 +11,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Baseline Compliance Verification
+;;
+;; This module verifies GKNV Pass 3 baseline compliance (no heuristic fallback)
+;; as specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 4.2 ("much simpler code and produces optimal solutions"
+;;                 - authors' preference for network simplex over heuristics)
+;; Decision: D3.1 - Network simplex on auxiliary graph (GKNV baseline)
+;; Algorithm: Baseline Compliance Verification
+;;
+;; Key Requirements Tested:
+;; - Pass 3 uses network simplex on auxiliary graph (not heuristics)
+;; - No fallback to iterative heuristics (Section 4.1 approach deprecated)
+;; - Authors found heuristics "complicated to program" and "noticeably imperfect"
+;; - Network simplex produces optimal solutions
+;; - Performance "as fast or faster than heuristic implementation"
+;; - D3.1 compliance means no heuristic code paths active
+;;
+;; Test Coverage:
+;; - Verify network simplex code path used
+;; - Verify no heuristic code paths executed
+;; - Verify optimal solutions produced (not heuristic approximations)
+;; - Verify performance acceptable (network simplex not slower)
+;; - Regression test: ensure future changes don't reintroduce heuristics
+;; - Compliance verification: implementation matches D3.1 decision
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; NOTE: This test was created during Week 2 baseline alignment to verify
+;; heuristic removal and ensure Pass 3 compliance with GKNV baseline.
+;;
+;; See doc/implementation-decisions.md (D3.1) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; These tests verify that the implementation follows Decision D3.1:
 ;; "Use network simplex on auxiliary graph (Section 4.2)"
 ;;

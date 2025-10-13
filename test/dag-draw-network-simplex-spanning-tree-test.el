@@ -4,6 +4,40 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Feasible Spanning Tree
+;;
+;; This module tests GKNV feasible spanning tree construction as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-2 lines 3-9 (feasible_tree procedure)
+;; Decision: D1.3 - Incremental tight tree construction
+;; Algorithm: Feasible Tree via Minimal Slack Edge Addition
+;;
+;; Key Requirements Tested:
+;; - Tree grows incrementally from one node to span all nodes
+;; - At each step, edge with minimal slack incident to tree is selected
+;; - Selected edge becomes tight (slack = 0) via rank adjustment
+;; - Rank adjustment moves tree nodes to make incident edge tight
+;; - Final tree has exactly |V|-1 edges
+;; - All tree edges are tight (length = delta)
+;; - Tree spans all nodes (connected)
+;; - Provides valid starting solution for network simplex
+;;
+;; Test Coverage:
+;; - tight_tree() starts with one node
+;; - Loop adds nodes until all |V| nodes in tree
+;; - find_min_slack_incident_edge() selects correct edge
+;; - Rank adjustment makes edge tight without breaking existing tight edges
+;; - Final tree has |V|-1 tight edges
+;; - Tree connectivity verified (all nodes reachable)
+;; - Various graph structures (linear, branching, complex)
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.3) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD Phase 1.1: Feasible spanning tree construction for network simplex algorithm.
 ;; This implements the first component needed for full GKNV network simplex ranking.
 

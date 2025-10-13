@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 2: Edge Placement
+;;
+;; This module tests GKNV edge placement constraints during ordering as specified
+;; in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 3 end (flat edges, self-loops, multi-edges)
+;; Decision: D2.5 - Nodes with no adjacencies keep current position
+;;           D2.6 - Flat edges: transitive closure enforces partial order
+;;           D2.9 - Self-loops ignored, multi-edges merged for ordering
+;; Algorithm: Edge Placement with Special Edge Handling
+;;
+;; Key Requirements Tested:
+;; - Nodes with no adjacent vertices in adjacent rank assigned median=-1
+;; - median=-1 means keep current position (stable sort behavior)
+;; - Flat edges (same rank): transitive closure computed before ordering
+;; - Vertex order must respect partial order from flat edge closure
+;; - Sort and transpose must not violate partial order constraints
+;; - Self-edges ignored in ordering (don't affect median)
+;; - Multi-edges merged (treated as single edge for crossing calculation)
+;;
+;; Test Coverage:
+;; - Nodes with no adjacencies stay in place
+;; - Flat edge transitive closure computed correctly
+;; - Ordering respects flat edge partial order
+;; - Sort doesn't violate partial order
+;; - Transpose doesn't violate partial order
+;; - Self-loops ignored in median calculation
+;; - Multi-edges treated as one for crossing reduction
+;; - Various combinations of special edges
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.5, D2.6, D2.9) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
 ;; TDD Iteration 11: Fix edge character placement in complex graphs.
 ;; The issue is corner characters appearing inside node content instead of outside.
 

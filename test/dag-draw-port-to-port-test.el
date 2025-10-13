@@ -4,6 +4,26 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Advanced Feature
+;; Baseline Status: ⏳ Deferred (Enhanced port-based edge routing)
+;;
+;; This test verifies:
+;; - Precise port-to-port edge routing
+;; - Clean visual connections at node boundaries
+;; - Port-based connection quality in ASCII output
+;;
+;; Related Baseline Decisions: D4.x (Splines), D5.x (ASCII Rendering)
+;; Enhancement Source: Enhanced edge routing precision
+;;
+;; GKNV baseline uses general node boundaries.
+;; This tests precise port-based routing for cleaner output.
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md for categorization rationale.
+;;
+;; [Original commentary: Tests to verify that edges connect at precise node boundary ports...]
+;;
 ;; Tests to verify that edges connect at precise node boundary ports
 ;; for cleaner visual connections in ASCII output.
 

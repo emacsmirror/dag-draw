@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Complex Routing Scenarios
+;;
+;; This module tests GKNV spline routing on complex graphs as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5 (complete edge drawing algorithm)
+;; Decision: D4.1-D4.11 - All Pass 4 decisions
+;; Algorithm: Complete GKNV Pass 4 on Complex Graphs
+;;
+;; Key Requirements Tested:
+;; - Complex routing scenarios: multiple edges, crossings, dense regions
+;; - Region-constrained splines avoid obstacles correctly
+;; - Multi-edges spaced appropriately (nodesep multiples)
+;; - Edge crossings handled (nearby virtuals ignored in regions)
+;; - Flat edges routed correctly (special control points)
+;; - Self-loops drawn with appropriate size and shape
+;; - Nearly vertical sections become straight lines
+;; - Terminal intersection avoidance (subdivide inter-rank space)
+;; - Complete integration of all Pass 4 techniques
+;;
+;; Test Coverage:
+;; - Dense graphs with many edges
+;; - Graphs with multiple multi-edges
+;; - Crossing edge patterns
+;; - Mixed edge types (inter-rank, flat, self-loops)
+;; - Various node arrangements (clustered, spread, hierarchical)
+;; - Edge quality: smooth curves, obstacle avoidance
+;; - Visual quality: aesthetic principles A2 (avoid anomalies), A3 (short edges)
+;; - Real-world complex graph structures
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.1-D4.11) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Test complex graph structures that reveal edge routing problems.
 ;; This test reproduces the specific issues seen in the demo:
 ;; - Task A blocks tasks B and C

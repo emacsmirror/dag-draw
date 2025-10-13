@@ -1,5 +1,25 @@
 ;;; dag-draw-simple-overlap-test.el --- Simple test for node overlap defect -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality / Debug
+;; Baseline Status: 🔧 Pattern Testing (Specific scenario validation)
+;;
+;; This test verifies:
+;; - Simple node overlap detection
+;; - Node text visibility in complex layouts
+;; - Basic rendering quality validation
+;;
+;; Related Baseline Decisions: D3.x (Positioning), D5.x (ASCII Rendering)
+;; Enhancement Source: Pattern-specific quality validation
+;;
+;; These tests focus on specific patterns or edge cases beyond baseline.
+;; See doc/test-suite-analysis.md (Category B3) for categorization rationale.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-render)

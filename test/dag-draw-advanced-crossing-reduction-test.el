@@ -4,6 +4,24 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Optimization
+;; Baseline Status: ⏳ Deferred (Not required for baseline compliance)
+;;
+;; This test verifies:
+;; - Advanced crossing reduction algorithms beyond weighted median + transpose
+;; - Iterative optimization with multiple convergence passes
+;; - Two-layer crossing minimization with enhanced heuristics
+;;
+;; Related Baseline Decisions: D2.2 (Weighted Median), D2.4 (Transpose)
+;; Enhancement Source: Extended optimization research beyond GKNV paper
+;;
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md (Category B1) for categorization rationale.
+;;
+;; [Original commentary: TDD Implementation of advanced GKNV crossing reduction...]
+;;
 ;; TDD Implementation of advanced GKNV crossing reduction with weighted median heuristic.
 ;; This implements the full weighted median approach described in the research paper.
 

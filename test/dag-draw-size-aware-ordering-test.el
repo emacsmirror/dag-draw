@@ -1,5 +1,44 @@
 ;;; dag-draw-size-aware-ordering-test.el --- Tests for size-aware vertex ordering -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - Pass 2: Size-Aware Ordering
+;;
+;; This module tests GKNV median calculation considering node positions as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 3 Figure 3-2 lines 14-26 (median_value function)
+;; Decision: D2.2 - Weighted median calculation using adjacent node positions
+;; Algorithm: Weighted Median Calculation
+;;
+;; Key Requirements Tested:
+;; - Adjacent node positions collected from adjacent rank
+;; - Positions sorted to find median
+;; - Odd count: return middle position
+;; - Even count = 2: return average
+;; - Even count > 2: weighted interpolation based on spread
+;; - Weighted median formula: (P[m-1] × right + P[m] × left) / (left + right)
+;; - left = P[m-1] - P[0], right = P[P-1] - P[m]
+;; - Biases toward more densely packed side
+;; - No adjacencies: return -1 (keep current position, D2.5)
+;;
+;; Test Coverage:
+;; - Median calculation for odd adjacencies (1, 3, 5...)
+;; - Average for 2 adjacencies
+;; - Weighted interpolation for even > 2 adjacencies
+;; - Weighted formula biases correctly toward dense side
+;; - No adjacencies returns -1 (stay put)
+;; - Median values drive correct node ordering
+;; - Various adjacency patterns and spreads
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.2) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)

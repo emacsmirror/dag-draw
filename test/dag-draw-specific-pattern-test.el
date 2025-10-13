@@ -1,5 +1,25 @@
 ;;; dag-draw-specific-pattern-test.el --- Test specific problematic patterns -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality / Debug
+;; Baseline Status: 🔧 Pattern Testing (Specific scenario validation)
+;;
+;; This test verifies:
+;; - Specific graph pattern handling
+;; - Junction character placement quality
+;; - Box border interaction validation
+;;
+;; Related Baseline Decisions: D5.x (ASCII Rendering)
+;; Enhancement Source: Pattern-specific quality validation
+;;
+;; These tests focus on specific patterns or edge cases beyond baseline.
+;; See doc/test-suite-analysis.md (Category B3) for categorization rationale.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw-render)
 (require 'dag-draw-test-harness)

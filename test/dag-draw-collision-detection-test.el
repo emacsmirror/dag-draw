@@ -4,6 +4,26 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality
+;; Baseline Status: ⏳ Deferred (Not required for baseline compliance)
+;;
+;; This test verifies:
+;; - Node/edge collision detection in ASCII rendering
+;; - Box overlap prevention and validation
+;; - Junction character placement quality checks
+;;
+;; Related Baseline Decisions: D5.x (ASCII Rendering)
+;; Enhancement Source: ASCII rendering quality improvements
+;;
+;; GKNV baseline prevents collisions through proper positioning (Pass 3).
+;; This adds an extra validation layer for ASCII rendering quality.
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md (Category B3) for categorization rationale.
+;;
+;; [Original commentary: TDD Implementation: Fix major ASCII rendering issues...]
+;;
 ;; TDD Implementation: Fix major ASCII rendering issues including:
 ;; - Box overlaps and collisions (┐┌)
 ;; - Wrong junction character placement (┼──────)

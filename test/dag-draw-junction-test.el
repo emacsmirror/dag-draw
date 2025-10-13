@@ -1,5 +1,43 @@
 ;;; dag-draw-junction-test.el --- Test junction character issues -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - ASCII: Junction Character Algorithm
+;;
+;; This module tests ASCII junction character algorithm as specified in
+;; doc/CLAUDE.md and doc/implementation-decisions.md.
+;;
+;; GKNV Reference: N/A (junction characters are ASCII-specific enhancement)
+;; Decision: D5.4 - Walk-based local analysis for junction character selection
+;; Algorithm: Edge Walking for Context-Aware Junction Character Selection
+;;
+;; Key Requirements Tested:
+;; - Junction characters enhance visual aesthetic of ASCII graphs
+;; - Walk each edge to determine locally-relevant junction type
+;; - Starting port junction: edge leaves node (e.g., ┬ for downward edge from bottom)
+;; - Ending port junction: edge enters node (e.g., ▼ arrow + appropriate T-junction)
+;; - Direction change junction: corners (e.g., └ for upward-then-rightward)
+;; - Merge/split junction: multiple edges share segment (e.g., ┴ for upward merge)
+;; - Cross junction: edges cross (┼ character)
+;; - All junction types correctly identified and applied
+;;
+;; Test Coverage:
+;; - Starting port junctions correct (all four sides)
+;; - Ending port junctions correct (all four sides)
+;; - Corner junctions correct (all eight corner types)
+;; - Merge junctions correct (edges joining)
+;; - Split junctions correct (edges separating)
+;; - Cross junctions correct (edges crossing)
+;; - Algorithm walks all edges correctly
+;; - Various edge patterns and combinations
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/CLAUDE.md (Junction character algorithm) for detailed specification.
+;; See doc/implementation-decisions.md (D5.4) for decision rationale.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw-render)
 (require 'dag-draw-test-harness)

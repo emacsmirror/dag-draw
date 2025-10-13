@@ -4,6 +4,38 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: C¹ Continuity at Junctions
+;;
+;; This module tests GKNV spline C¹ continuity requirement as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.2 lines 25-26 (C¹ continuity enforcement)
+;; Decision: D4.11 - C¹ (continuous tangent) required, C² rejected
+;; Algorithm: C¹ Continuity via Tangent Vector Matching
+;;
+;; Key Requirements Tested:
+;; - When spline subdivided, two curves join at subdivision point
+;; - C¹ continuity: position and tangent continuous at join
+;; - Enforcement: two splines have same unit tangent vector at subdivision point
+;; - Guarantees smooth appearance at joins (no visible kinks)
+;; - C² (continuous curvature) rejected: "doesn't produce better results"
+;; - C² also "much more expensive to compute"
+;; - C¹ provides good visual quality with reasonable cost
+;;
+;; Test Coverage:
+;; - Subdivided splines join at correct position
+;; - Tangent vectors match at subdivision point
+;; - Unit tangent calculation correct
+;; - Visual smoothness: no kinks at joins
+;; - C¹ continuity maintained through multiple subdivisions
+;; - Various subdivision scenarios
+;; - Cost-quality tradeoff: C¹ vs C² performance
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.11) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Tests for GKNV Section 5.2 C1 continuity implementation.
 
 ;;; Code:

@@ -4,6 +4,44 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Network Simplex Core
+;;
+;; This module tests baseline GKNV network simplex algorithm compliance as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 (network simplex iteration),
+;;                 Section 2.4 (optimization techniques)
+;; Decision: D1.2 - Queue-based topological ranking (init_rank)
+;;           D1.3 - Incremental tight tree construction (feasible_tree)
+;;           D1.4 - Cyclic search for leave edge selection
+;;           D1.8 - Incremental cut value computation with postorder
+;; Algorithm: Network Simplex with Feasible Tree Construction
+;;
+;; Key Requirements Tested:
+;; - Initial feasible ranking via topological sort respects delta constraints
+;; - Feasible spanning tree construction identifies tight edges incrementally
+;; - Network simplex iteration minimizes sum of weighted edge lengths
+;; - Leave edge selection uses cyclic search through tree edges
+;; - Cut value computation uses incremental method from leaves inward
+;; - Postorder traversal optimization enables efficient cut value queries
+;; - Convergence to optimal rank assignment when no negative cut values remain
+;;
+;; Test Coverage:
+;; - init_rank() produces feasible initial ranking
+;; - feasible_tree() constructs valid tight spanning tree
+;; - Iterative refinement reduces total weighted edge length
+;; - Leave edge selection finds negative cut value edges
+;; - Enter edge selection maintains feasibility
+;; - Edge exchange updates tree structure correctly
+;; - Algorithm converges to optimal solution
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.2-D1.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Detailed tests for the Network Simplex algorithm implementation used in both
 ;; Pass 1 (rank assignment) and Pass 3 (coordinate assignment) of the GKNV algorithm.
 ;;

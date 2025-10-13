@@ -4,6 +4,25 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Development/Debugging Tool
+;;
+;; Enhancement Category: Debug
+;; Baseline Status: 🔧 Development Tool (Not part of baseline algorithm)
+;;
+;; This test verifies:
+;; - ASCII coordinate failure case reproduction and analysis
+;; - Node trampling detection in ASCII rendering
+;; - Visual anomaly validation (GKNV aesthetic A2)
+;;
+;; Related Baseline Decisions: D5.x (ASCII Rendering)
+;; Enhancement Source: Development debugging tools
+;;
+;; This is a development/debugging test, not part of the baseline specification.
+;; May be useful for troubleshooting coordinate issues during implementation.
+;; See doc/test-suite-analysis.md (Category B2) for categorization rationale.
+;;
+;; [Original commentary: This test captures the exact failure shown by the user...]
+;;
 ;; This test captures the exact failure shown by the user:
 ;; ASCII coordinate mode produces trampled nodes where ranks collapse into each other.
 ;; This violates GKNV aesthetic A2 (avoid visual anomalies).

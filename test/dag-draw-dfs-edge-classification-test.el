@@ -4,10 +4,44 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: DFS Edge Classification
+;;
+;; This module tests DFS edge classification for cycle breaking as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.1 (DFS-based cycle breaking)
+;; Decision: D1.1 - Depth-first search with back edge reversal
+;; Algorithm: DFS Edge Classification (Tree/Forward/Back/Cross)
+;;
+;; Key Requirements Tested:
+;; - DFS classifies edges into four types: tree, forward, back, cross
+;; - Tree edges: edges in DFS spanning tree
+;; - Forward edges: shortcuts to descendants (v → descendant)
+;; - Back edges: edges to ancestors, create cycles (v → ancestor)
+;; - Cross edges: edges between non-ancestor/descendant nodes
+;; - Back edges must be reversed to break cycles
+;; - Classification respects DFS visit order and on-stack tracking
+;; - Stable classification (deterministic given input order)
+;;
+;; Test Coverage:
+;; - Tree edge identification (parent-child in DFS tree)
+;; - Forward edge identification (ancestor to descendant)
+;; - Back edge identification (descendant to ancestor on stack)
+;; - Cross edge identification (between separate subtrees)
+;; - Various graph structures (linear, branching, cyclic)
+;; - Classification consistency across multiple DFS runs
+;; - Edge classification used for cycle detection
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.1) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Tests to ensure proper GKNV DFS edge classification per Section 2.1.
 ;; Validates proper tree, forward, cross, and back edge identification.
 ;;
-;; GKNV Reference: Section 2.1, lines 374-386  
+;; GKNV Reference: Section 2.1, lines 374-386
 ;; Ubiquitous Language: DFS Edge Classification - proper GKNV taxonomy
 
 ;;; Code:

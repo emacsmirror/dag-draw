@@ -4,6 +4,25 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Development/Debugging Tool
+;;
+;; Enhancement Category: Debug
+;; Baseline Status: 🔧 Development Tool (Not part of baseline algorithm)
+;;
+;; This test verifies:
+;; - Dynamic ASCII scale calculation
+;; - Coordinate collapse prevention
+;; - Enhanced complexity analysis for scaling
+;;
+;; Related Baseline Decisions: D5.1 (ASCII Scaling), D5.6 (Coordinate Mapping)
+;; Enhancement Source: Development debugging tools
+;;
+;; This is a development/debugging test, not part of the baseline specification.
+;; Tests dynamic scaling strategies for ASCII rendering.
+;; See doc/test-suite-analysis.md for categorization rationale.
+;;
+;; [Original commentary: Tests for dynamic ASCII scale calculation...]
+;;
 ;; Tests for dynamic ASCII scale calculation functionality.
 ;; Implements Phase 1 of ASCII-native GKNV implementation.
 

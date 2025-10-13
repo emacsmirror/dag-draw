@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Edge Label Integration
+;;
+;; This module tests GKNV edge label integration with spline routing as specified
+;; in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.3 (label integration with routing)
+;; Decision: D4.12 - Labels integrate via virtual node mechanism
+;; Algorithm: Edge Label and Spline Integration
+;;
+;; Key Requirements Tested:
+;; - Edge labels represented as virtual nodes in graph
+;; - Label nodes participate in all passes (ranking, ordering, positioning)
+;; - Spline routing accounts for label node positions
+;; - Edge passes near label node (label appears along edge)
+;; - Label positioning off-center avoids edge overlap
+;; - Integration seamless: labels behave like regular virtual nodes
+;; - No special-case code needed for label routing
+;;
+;; Test Coverage:
+;; - Labels participate in ranking (correct rank assignment)
+;; - Labels participate in ordering (minimize crossings)
+;; - Labels participate in positioning (optimal X/Y coordinates)
+;; - Splines route past label nodes correctly
+;; - Labels appear positioned along edges
+;; - Label placement doesn't cause overlaps
+;; - Multiple labels on different edges
+;; - End-to-end: labeled graph to rendered output
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.12) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Integration tests for edge label functionality in the mainline pipeline.
 ;; Tests that edge labels are processed automatically during graph layout.
 

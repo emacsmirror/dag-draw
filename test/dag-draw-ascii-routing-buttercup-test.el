@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Routing Correctness
+;;
+;; This module tests ASCII edge routing correctness as specified in
+;; doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (ASCII routing correctness verification)
+;; Decision: D5.3 - Orthogonal routing must correctly connect endpoints
+;; Algorithm: Edge Routing Correctness Verification
+;;
+;; Key Requirements Tested:
+;; - Routed edge connects correct source and destination
+;; - Path continuity: no gaps in routed edge
+;; - Path validity: only orthogonal segments on grid
+;; - No overlaps with node content (edges stay outside boxes)
+;; - Multiple edges between same nodes route differently
+;; - Edge identity preserved (can trace edge from start to end)
+;; - Routing deterministic (same input → same output)
+;;
+;; Test Coverage:
+;; - Edge endpoints match source/destination ports
+;; - Path is continuous (connected segments)
+;; - Path uses only valid grid positions
+;; - No segments overlap node bounding boxes
+;; - Multi-edges separated correctly
+;; - Edge tracing succeeds (start → end)
+;; - Various edge patterns (straight, bent, complex)
+;; - Routing correctness for all edge types
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.3) for full decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; Comprehensive buttercup tests for ASCII edge routing following GKNV algorithm.
 
 ;;; Code:

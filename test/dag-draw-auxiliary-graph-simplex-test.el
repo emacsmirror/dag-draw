@@ -4,6 +4,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Auxiliary Graph for X Coordinates
+;;
+;; This module tests GKNV auxiliary graph construction and optimization as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 4.2 (auxiliary graph + network simplex)
+;;                 Section 4.3 (initial feasible tree optimization)
+;; Decision: D3.1 - Network simplex on auxiliary graph (simpler, optimal)
+;;           D3.4 - Exploit auxiliary graph structure for fast initialization
+;; Algorithm: Auxiliary Graph Construction + Network Simplex Optimization
+;;
+;; Key Requirements Tested:
+;; - Auxiliary graph G' constructed from ordered graph G
+;; - For each edge e=(u,v): create node n_e and edges (n_e,u), (n_e,v)
+;; - For adjacent nodes in rank: create separation edge with delta=ρ(a,b)
+;; - Auxiliary graph optimization assigns X coordinates
+;; - Network simplex minimizes weighted horizontal edge length
+;; - Initial feasible tree exploits structure (critical optimization)
+;; - Feasible tree uses same-rank edges + one inter-rank edge per rank pair
+;; - Results as good as heuristics but "simpler code"
+;;
+;; Test Coverage:
+;; - Auxiliary graph construction correct (nodes, edges)
+;; - Separation edges enforce ρ(a,b) constraints
+;; - Network simplex on auxiliary graph produces optimal X coordinates
+;; - Initial feasible tree optimization speeds up simplex significantly
+;; - X coordinate extraction from auxiliary node ranks
+;; - Various graph structures and node sizes
+;; - Solution quality: edges tend toward vertical, no overlaps
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.1, D3.4) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD Implementation of network simplex for X-coordinate positioning using auxiliary graph.
 
 ;;; Code:

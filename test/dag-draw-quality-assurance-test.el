@@ -4,6 +4,24 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality
+;; Baseline Status: ⏳ Monitoring Only (Post-algorithm QA checks)
+;;
+;; This test verifies:
+;; - Quality assurance checks beyond baseline compliance
+;; - Output validation and correctness verification
+;; - Additional quality metrics and measurements
+;;
+;; Related Baseline Decisions: Multiple (cross-cutting QA)
+;; Enhancement Source: Quality assurance framework
+;;
+;; These tests verify output quality without modifying the algorithm.
+;; See doc/test-suite-analysis.md (Category E) for categorization rationale.
+;;
+;; [Original commentary: TDD Implementation of quality assurance functions...]
+;;
 ;; TDD Implementation of quality assurance functions for ASCII rendering validation.
 ;; These functions validate the ASCII extension beyond the GKNV paper scope.
 

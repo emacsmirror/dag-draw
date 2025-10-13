@@ -4,6 +4,25 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline (PARTIAL)
+;;
+;; Enhancement Category: Optimization
+;; Baseline Status: ⚠️ MIXED - Some tests are baseline, some are enhancements
+;;
+;; This test verifies:
+;; - Complete network simplex optimization loop (baseline: D1.2-D1.8)
+;; - Extended iterative edge exchange algorithms
+;; - Additional convergence and quality metrics
+;;
+;; Related Baseline Decisions: D1.2-D1.8 (Network Simplex)
+;; Enhancement Source: Extended network simplex research
+;;
+;; NOTE: This file may contain both baseline and enhancement tests.
+;; Review recommended to separate baseline from enhancement coverage.
+;; See doc/test-suite-analysis.md (Category B1) for categorization rationale.
+;;
+;; [Original commentary: TDD Implementation of the complete GKNV network simplex...]
+;;
 ;; TDD Implementation of the complete GKNV network simplex algorithm for optimal rank assignment.
 
 ;;; Code:

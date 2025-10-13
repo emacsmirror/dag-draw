@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Full Pipeline Integration
+;;
+;; This module tests complete GKNV four-pass pipeline to ASCII output as
+;; specified in doc/implementation-decisions.md.
+;;
+;; GKNV Reference: Sections 2-5 (four passes), ASCII adaptation
+;; Decision: D1.x-D5.x - All decisions (four passes + ASCII rendering)
+;; Algorithm: Complete GKNV Pipeline: Input Graph → ASCII Art
+;;
+;; Key Requirements Tested:
+;; - Pass 1: Rank assignment (input graph → ranked graph)
+;; - Pass 2: Ordering (ranked → ordered graph)
+;; - Pass 3: Positioning (ordered → positioned graph)
+;; - Pass 4: Splines (positioned → routed graph)
+;; - ASCII: Rendering (routed → ASCII string)
+;; - Integration points between passes verified
+;; - Data flows correctly through all passes
+;; - Final ASCII output reflects GKNV algorithm quality
+;;
+;; Test Coverage:
+;; - Complete pipeline execution from input to output
+;; - Each pass produces valid input for next pass
+;; - No data corruption at pass boundaries
+;; - Final ASCII preserves layout quality from GKNV algorithm
+;; - Various input graphs: simple, complex, realistic
+;; - Output quality: hierarchical structure visible (A1)
+;; - Output quality: minimal crossings (A2)
+;; - Output quality: short edges (A3)
+;; - Output quality: balanced appearance (A4)
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (all sections) for full decision rationale.
+;; See doc/algorithm-specification.md (all sections) for implementation details.
+
 ;; Integration tests that verify the complete ASCII DAG rendering pipeline
 ;; from graph creation through layout to final ASCII output.
 

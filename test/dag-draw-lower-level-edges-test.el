@@ -1,6 +1,43 @@
 ;;; dag-draw-lower-level-edges-test.el --- Tests for edges reaching lower graph levels -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - Pass 2: Long Edge Handling
+;;
+;; This module tests GKNV long edge handling via virtual nodes as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 3 (virtual nodes convert multi-rank to adjacent-rank)
+;; Decision: D2.8 - Virtual node chains for edges spanning > 1 rank
+;; Algorithm: Virtual Node Chain Construction
+;;
+;; Key Requirements Tested:
+;; - Long edges (rank span > 1) split into unit-length chains
+;; - Chain consists of: original tail → virtual₁ → ... → virtualₙ → original head
+;; - Each virtual node stores reference to original edge
+;; - Chain ordering affects crossing count for original edge
+;; - Virtual nodes enable proper crossing calculation for long edges
+;; - Straight vertical alignment preferred for long edges (aesthetic A3)
+;; - Virtual node positions give spline control points in later passes
+;;
+;; Test Coverage:
+;; - Single long edge split correctly
+;; - Multiple long edges with different spans
+;; - Virtual node chain maintains edge identity
+;; - Crossing calculation includes virtual node positions
+;; - Ordering minimizes crossings for long edges
+;; - Virtual chains enable vertical alignment
+;; - Reconstruction of original edges after ordering
+;; - Edge cases: span=2, span=3, span=10+
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D2.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 2 for implementation details.
+
 ;; Tests to verify that edges successfully reach Backend, Frontend, Integration, and Deployment nodes
+
+;;; Code:
 
 (require 'buttercup)
 (require 'dag-draw)

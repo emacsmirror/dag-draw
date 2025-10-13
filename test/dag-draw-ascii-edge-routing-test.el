@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Edge Routing on Grid
+;;
+;; This module tests ASCII edge routing on character grid as specified in
+;; doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (ASCII grid routing adapts GKNV spline approach)
+;; Decision: D5.3 - Hybrid spline approximation with orthogonal segments
+;; Algorithm: Spline Approximation via Orthogonal Character Grid Routing
+;;
+;; Key Requirements Tested:
+;; - Spline control points sampled at regular intervals
+;; - Sample points converted to character grid coordinates
+;; - Points connected with orthogonal (horizontal/vertical) segments
+;; - Character grid constraint: only H/V segments, no diagonals
+;; - Routing approximates smooth spline curve within grid limitations
+;; - Junction characters applied at all segment connections
+;; - Visual result: edges follow general spline curve shape
+;;
+;; Test Coverage:
+;; - Spline sampling produces adequate point density
+;; - Grid coordinate conversion correct
+;; - Orthogonal path connection between points
+;; - Horizontal segments use '─' character
+;; - Vertical segments use '│' character
+;; - Corners use appropriate junction characters
+;; - Approximation follows spline curve reasonably
+;; - Various spline curves (straight, curved, complex)
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.3) for full decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; Acceptance tests that demonstrate the difference between current (broken)
 ;; ASCII edge routing and expected (proper) ASCII edge routing following
 ;; GKNV algorithm principles.

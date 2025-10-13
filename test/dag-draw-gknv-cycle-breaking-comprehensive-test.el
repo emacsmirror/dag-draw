@@ -4,6 +4,41 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Cycle Breaking Comprehensive
+;;
+;; This module tests comprehensive GKNV cycle breaking as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.1 (DFS cycle breaking - stability and semantics)
+;; Decision: D1.1 - DFS with back edge reversal (preferred for stability)
+;; Algorithm: Depth-First Search Cycle Breaking
+;;
+;; Key Requirements Tested:
+;; - DFS identifies all back edges (edges creating cycles)
+;; - Back edges reversed to make graph acyclic
+;; - Resulting graph is DAG (directed acyclic graph)
+;; - Stability: respects natural input order, preserves semantic structure
+;; - Top-level functions remain at top (semantic preservation)
+;; - Minimal structural disruption from edge reversal
+;; - Reversed edges marked for later visualization adjustment
+;; - Process deterministic given input order
+;;
+;; Test Coverage:
+;; - Simple cycles detected and broken
+;; - Complex cycles with multiple back edges
+;; - Nested cycles (cycles within cycles)
+;; - Disconnected components with cycles
+;; - Result verified as acyclic (topological sort succeeds)
+;; - Stability: semantic structure preserved
+;; - Edge reversal marking correct
+;; - Various graph structures and cycle patterns
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.1) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Comprehensive tests for GKNV cycle breaking per Section 2.1.
 ;; Based on additional paper requirements: strongly connected components,
 ;; cycle participation counting, source/sink node preference, etc.

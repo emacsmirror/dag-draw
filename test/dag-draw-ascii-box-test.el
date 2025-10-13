@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Node Box Rendering
+;;
+;; This module tests ASCII node box rendering as specified in
+;; doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (ASCII node rendering adapts GKNV node positioning)
+;; Decision: D5.6 - Node boxes sized by label length + padding
+;; Algorithm: Node Box Rendering with Unicode Box Characters
+;;
+;; Key Requirements Tested:
+;; - Node bounding box drawn with Unicode box-drawing characters
+;; - Top border: ┌──...──┐ (corners + horizontal lines)
+;; - Bottom border: └──...──┘ (corners + horizontal lines)
+;; - Side borders: │ (vertical lines)
+;; - Label centered within box
+;; - Box size: label length + padding (minimum 1 char each side)
+;; - Minimum box width enforced (e.g., 5 characters)
+;; - Box height typically 3 characters (top, label, bottom)
+;;
+;; Test Coverage:
+;; - Box borders drawn with correct characters
+;; - Label positioned correctly within box (centered)
+;; - Box width = label length + padding
+;; - Minimum width enforced for short labels
+;; - Various label lengths
+;; - Box rendering doesn't interfere with edges
+;; - Multiple nodes with different sizes
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.6) for decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; Tests for ASCII box drawing and text placement functionality.
 ;; These tests verify proper rendering of node boxes and label placement.
 

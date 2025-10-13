@@ -4,6 +4,38 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Side-Centered Port Positioning
+;;
+;; This module tests GKNV side-centered port positioning as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4.2 (ports offset in X from node center)
+;; Decision: D3.5 - Ports positioned on left/right sides of nodes
+;; Algorithm: Port Position Calculation Relative to Node Center
+;;
+;; Key Requirements Tested:
+;; - Port positions calculated as: X_port = X_node_center + offset
+;; - Left-side ports: negative offset (X_port < X_center)
+;; - Right-side ports: positive offset (X_port > X_center)
+;; - Center ports: zero offset (X_port = X_center)
+;; - Port positions stay within node bounding box horizontally
+;; - Multiple ports on same side vertically distributed (Y-stacking)
+;; - Port positioning respects node xsize limits
+;;
+;; Test Coverage:
+;; - Left port calculation correct (negative offset)
+;; - Right port calculation correct (positive offset)
+;; - Center port calculation correct (zero offset)
+;; - Multiple ports on same side positioned correctly
+;; - Port positions within node bounds
+;; - Various node sizes and port offsets
+;; - Port position updates after X coordinate changes
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.5) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD Implementation: GKNV paper specifies edges should connect to node boundaries
 ;; but aesthetically, side-centers look much better than corners.
 ;; These tests drive the implementation toward side-centered connections per GKNV aesthetic principles.

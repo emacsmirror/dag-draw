@@ -9,12 +9,45 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Virtual Chain Straightening
+;;
+;; This module tests GKNV virtual edge chain straightening via omega weights as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 4 (omega weights favor straight long edges)
+;; Decision: D3.2 - Omega values: 1 (real-real), 2 (real-virtual), 8 (virtual-virtual)
+;; Algorithm: Edge Type Weight Assignment for Straightening
+;;
+;; Key Requirements Tested:
+;; - Edge types: (1) both real, (2) one real one virtual, (3) both virtual
+;; - Omega relationship: Ω(e) ≤ Ω(f) ≤ Ω(g) for types (1), (2), (3)
+;; - Implementation values: 1, 2, 8
+;; - Higher omega for virtual-virtual edges favors vertical alignment
+;; - Network simplex minimizes Σ Ω(e) × horizontal_length(e)
+;; - Result: long edges (virtual chains) tend to be straight/vertical
+;; - Supports aesthetic A3 (keep edges short and straight)
+;;
+;; Test Coverage:
+;; - Edge type classification correct (real-real, real-virtual, virtual-virtual)
+;; - Omega values assigned correctly (1, 2, 8)
+;; - Network simplex respects omega weights in optimization
+;; - Virtual chains tend toward vertical alignment
+;; - Higher omega edges prioritized (shorter horizontal span)
+;; - Visual result: long edges appear straight
+;; - Various graph structures with different edge types
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.2) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; TDD tests for implementing GKNV minpath() function for virtual node chain straightening.
-;; Based on GKNV paper specification: "minpath straightens chains of virtual nodes 
+;; Based on GKNV paper specification: "minpath straightens chains of virtual nodes
 ;; by sequentially finding sub-chains that may be assigned the same X coordinate."
 ;;
 ;; Reference: "A Technique for Drawing Directed Graphs" by Gansner, Koutsofios, North, Vo
-;; Section 4.1: "8: minpath straightens chains of virtual nodes by sequentially finding 
+;; Section 4.1: "8: minpath straightens chains of virtual nodes by sequentially finding
 ;; sub-chains that may be assigned the same X coordinate."
 
 ;;; Code:

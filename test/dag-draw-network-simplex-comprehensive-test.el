@@ -4,6 +4,48 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Network Simplex Comprehensive
+;;
+;; This module tests complete end-to-end GKNV network simplex algorithm as
+;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
+;; North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 (complete algorithm),
+;;                 Section 2.4 (all optimization techniques)
+;; Decision: D1.2 - Initial ranking via topological sort
+;;           D1.3 - Feasible tree construction
+;;           D1.4 - Leave edge selection (cyclic)
+;;           D1.5 - Edge weight interpretation
+;;           D1.6 - Rank normalization (min = 0)
+;;           D1.7 - Greedy rank balancing
+;;           D1.8 - Cut value computation (incremental + postorder)
+;; Algorithm: Complete Network Simplex with All Optimizations
+;;
+;; Key Requirements Tested:
+;; - Full algorithm flow: init_rank → feasible_tree → iterate → normalize → balance
+;; - Initial ranking respects all delta (minimum length) constraints
+;; - Feasible tree has exactly |V|-1 tight edges spanning all nodes
+;; - Iteration exchanges leave/enter edges until optimal
+;; - Edge weights (ω) influence edge length preference
+;; - Normalization sets minimum rank to zero
+;; - Balancing moves nodes with equal in/out weights to reduce crowding
+;; - Cut values computed efficiently using incremental + postorder methods
+;;
+;; Test Coverage:
+;; - Complete algorithm execution on various graph structures
+;; - Delta constraints satisfied throughout iteration
+;; - Optimal solution minimizes Σ ω(e) × length(e)
+;; - Normalization maintains relative rank differences
+;; - Balancing improves aspect ratio (A4 aesthetic)
+;; - Cut value optimizations provide correct results efficiently
+;; - Complex graphs with multiple ranks and edge types
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.2-D1.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Comprehensive tests for GKNV network simplex algorithm based on paper examples.
 ;; Tests multiple scenarios to isolate the exact issue with cut value calculation.
 

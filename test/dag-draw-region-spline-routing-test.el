@@ -4,6 +4,26 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Advanced Feature
+;; Baseline Status: ⏳ Deferred (Beyond baseline region-constrained splines)
+;;
+;; This test verifies:
+;; - Explicit obstacle detection for spline routing
+;; - Advanced path planning with obstacle avoidance
+;; - Sophisticated collision avoidance beyond GKNV baseline
+;;
+;; Related Baseline Decisions: D4.1 (Region Splines), D4.8-D4.9 (Region Boxes)
+;; Enhancement Source: Extended spline routing beyond GKNV Section 5
+;;
+;; GKNV baseline uses basic region boxes to avoid nodes.
+;; This proposes explicit obstacle detection and path planning.
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md (Category B3) and Day 2 analysis.
+;;
+;; [Original commentary: advanced spline routing that considers node boundaries...]
+;;
 ;; TDD Implementation of region-based spline routing with obstacle avoidance.
 ;; This implements advanced spline routing that considers node boundaries as obstacles.
 

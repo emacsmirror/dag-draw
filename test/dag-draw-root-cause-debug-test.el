@@ -1,6 +1,26 @@
 ;;; dag-draw-root-cause-debug-test.el --- Debug root causes of visual issues -*- lexical-binding: t -*-
 
 ;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Development/Debugging Tool
+;;
+;; Enhancement Category: Debug
+;; Baseline Status: 🔧 Development Tool (Not part of baseline algorithm)
+;;
+;; This test verifies:
+;; - Root cause analysis for visual issues
+;; - Pattern origin detection (node boxes vs edges)
+;; - Coordinate conversion debugging
+;;
+;; Related Baseline Decisions: D5.x (ASCII Rendering)
+;; Enhancement Source: Development debugging tools
+;;
+;; This is a development/debugging test, not part of the baseline specification.
+;; May be useful for troubleshooting rendering issues during implementation.
+;; See doc/test-suite-analysis.md for categorization rationale.
+;;
+;; [Original commentary: Pinpoint the exact source of the ────── and floating arrow issues...]
+;;
 ;; Pinpoint the exact source of the ──────  and floating arrow issues
 
 ;;; Code:

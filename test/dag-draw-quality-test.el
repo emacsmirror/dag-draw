@@ -9,6 +9,27 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Quality
+;; Baseline Status: ⏳ Monitoring Only (Post-algorithm quality metrics)
+;;
+;; This test verifies:
+;; - Dynamic rank separation calculation based on graph structure
+;; - Edge convergence pattern analysis
+;; - Horizontal edge distance optimization
+;; - Dynamic spacing integration with ASCII resolution
+;;
+;; Related Baseline Decisions: D3.6 (Y Coordinates), D5.1 (ASCII Scaling)
+;; Enhancement Source: Quality metrics beyond GKNV aesthetic principles A1-A4
+;;
+;; GKNV baseline uses fixed ranksep/nodesep parameters.
+;; This tests dynamic calculation based on graph complexity.
+;; These enhancements may be implemented in Phase 5 (Future Work).
+;; See doc/test-suite-analysis.md (Category E) for categorization rationale.
+;;
+;; [Original commentary: Tests for dynamic rank separation calculation...]
+;;
 ;; Tests for dynamic rank separation calculation based on graph structure analysis.
 ;; These tests verify that spacing requirements are calculated dynamically based on
 ;; edge convergence patterns, node density, and routing complexity.

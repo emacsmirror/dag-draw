@@ -4,6 +4,25 @@
 
 ;;; Commentary:
 
+;; FUTURE ENHANCEMENT - Beyond GKNV Baseline
+;;
+;; Enhancement Category: Advanced Feature
+;; Baseline Status: ⏳ Deferred (Feature not in GKNV paper)
+;;
+;; This test verifies:
+;; - Mathematical notation rendering in nodes
+;; - Special character handling in labels
+;; - Unicode and symbol support
+;;
+;; Related Baseline Decisions: D5.6 (Node Rendering)
+;; Enhancement Source: Extended node label capabilities
+;;
+;; GKNV baseline uses simple text labels.
+;; This tests extended notation support for mathematical/scientific graphs.
+;; See doc/test-suite-analysis.md (Category C2) for categorization rationale.
+;;
+;; [Original commentary: Tests to ensure proper GKNV mathematical notation...]
+;;
 ;; Tests to ensure proper GKNV mathematical notation is used throughout the codebase.
 ;; This validates the standardization of λ (lambda), ω (omega), δ (delta), ρ (rho)
 ;; notation per "A Technique for Drawing Directed Graphs" paper requirements.

@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Network Simplex Iteration Loop
+;;
+;; This module tests GKNV network simplex iteration logic as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.3 Figure 2-1 steps 3-6 (iterative refinement loop)
+;; Decision: D1.4 - Iterative leave/enter edge exchange until optimal
+;; Algorithm: Network Simplex Main Iteration Loop
+;;
+;; Key Requirements Tested:
+;; - Iteration continues while negative cut value edges exist
+;; - Each iteration improves or maintains solution quality
+;; - Leave edge (negative cut value) identified each iteration
+;; - Enter edge (minimum slack) replaces leave edge
+;; - Rank adjustments maintain feasibility throughout
+;; - Algorithm terminates when all cut values non-negative (optimality)
+;; - Iteration count bounded (no infinite loops)
+;;
+;; Test Coverage:
+;; - while loop continues until optimal
+;; - Each iteration finds valid leave edge
+;; - Each iteration finds valid enter edge
+;; - Exchange operation executes correctly
+;; - Solution quality monotonically improves
+;; - Termination occurs at optimality
+;; - Iteration count reasonable for graph size
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.4) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; TDD Phase 1.3: Network simplex iteration for optimizing spanning tree.
 ;; This implements the iterative optimization process from GKNV paper section 2.3.
 

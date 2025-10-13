@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 4: Edge Labels as Virtual Nodes
+;;
+;; This module tests GKNV edge label representation as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 5.3 (edge labels on inter-rank edges)
+;; Decision: D4.12 - Labels as off-center virtual nodes (dot approach)
+;; Algorithm: Edge Label Virtual Node Creation
+;;
+;; Key Requirements Tested:
+;; - Edge labels on inter-rank edges represented as off-center virtual nodes
+;; - Guarantees labels never overlap nodes, edges, or other labels
+;; - Label node positioned off-center to avoid edge overlap
+;; - Adjustments prevent labels from affecting edge length
+;; - Minimum edge length set to 2 (doubling ranks for label space)
+;; - Rank separation halved to compensate (maintains overall height)
+;; - Label virtual nodes participate in positioning like regular virtuals
+;;
+;; Test Coverage:
+;; - Label virtual nodes created for labeled edges
+;; - Label nodes positioned off-center from edge
+;; - Labels don't overlap other elements
+;; - Edge length adjustment (δ=2) for labeled edges
+;; - Rank separation adjustment (ranksep/2) compensates
+;; - Label positioning doesn't distort edge length
+;; - Various label sizes and positions
+;; - Multiple labels on different edges
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D4.12) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 4 for implementation details.
+
 ;; Tests for GKNV Section 5.3 edge label implementation.
 ;; "In dot, edge labels on inter-rank edges are represented as off-center
 ;; virtual nodes. This guarantees that labels never overlap other nodes,

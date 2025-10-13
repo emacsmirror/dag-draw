@@ -4,8 +4,42 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 1: Cut Value Computation
+;;
+;; This module tests GKNV cut value computation optimizations as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 2.4 (cut value optimization - incremental + postorder)
+;; Decision: D1.8 - Incremental computation from leaves + postorder low/lim
+;; Algorithm: Optimized Cut Value Computation
+;;
+;; Key Requirements Tested:
+;; - Cut value definition: net flow of non-tree edges across tree edge cut
+;; - Incremental method computes cut values from leaves inward
+;; - Each edge examined at most twice (O(E) total complexity)
+;; - Postorder traversal assigns lim(v) = postorder number
+;; - low(v) = minimum lim of any descendant in tree
+;; - low/lim enable O(1) ancestor/descendant queries
+;; - Cut value correctness: positive = increase rank separation, negative = decrease
+;; - Efficient updates after edge exchange
+;;
+;; Test Coverage:
+;; - init_cut_values() computes all cut values correctly
+;; - Incremental method matches naive O(VE) method results
+;; - Postorder numbering assigns correct low/lim values
+;; - Ancestor queries using low/lim are correct
+;; - Cut value updates after exchange are efficient
+;; - Various tree structures (deep, wide, balanced)
+;; - Cut values guide correct leave edge selection
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D1.8) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 1 for implementation details.
+
+;; Original Commentary:
 ;; Tests to ensure proper GKNV cut value calculations per Section 2.3.
-;; Validates that cut values are computed as "sum of weights from tail 
+;; Validates that cut values are computed as "sum of weights from tail
 ;; component to head component minus reverse" rather than oversimplified logic.
 ;;
 ;; GKNV Reference: Section 2.3, lines 501-513 and Figure 2-2, line 637-642

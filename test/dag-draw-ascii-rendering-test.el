@@ -4,6 +4,49 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII: Complete Rendering
+;;
+;; This module tests complete ASCII rendering adaptation of GKNV algorithm as
+;; specified in doc/implementation-decisions.md (ASCII adaptations).
+;;
+;; GKNV Reference: N/A (ASCII rendering not in paper - character grid adaptation)
+;; Decision: D5.1 - Independent X/Y coordinate scaling to character grid
+;;           D5.2 - Unicode box-drawing characters
+;;           D5.3 - Hybrid spline approximation with orthogonal segments
+;;           D5.4 - Walk-based junction character algorithm
+;;           D5.5 - Arrows at port boundaries
+;;           D5.6 - Node boxes sized by label + padding
+;;           D5.7 - Virtual nodes as routing points (minimal size)
+;;           D5.8 - Force minimum separation in dense regions
+;;           D5.9 - Multi-edges stacked with 1-char spacing
+;;           D5.10 - Self-loops via fixed ASCII patterns
+;; Algorithm: Complete ASCII Rendering of GKNV Layout
+;;
+;; Key Requirements Tested:
+;; - End-to-end: positioned graph → ASCII art string
+;; - Coordinates scaled from continuous to character grid
+;; - Node boxes drawn with Unicode box characters
+;; - Edges routed on grid approximating splines
+;; - Junction characters correctly placed at all edge interactions
+;; - Arrows indicate edge direction clearly
+;; - Visual quality: readable, aesthetically pleasing ASCII art
+;; - All ASCII adaptations (D5.1-D5.10) integrated correctly
+;;
+;; Test Coverage:
+;; - Complete ASCII rendering execution
+;; - Coordinate scaling preserves layout proportions
+;; - Node boxes rendered correctly
+;; - Edge routing approximates spline curves
+;; - Junction characters at starts, ends, corners, merges, crossings
+;; - Arrows placed at edge endpoints
+;; - Various graph structures render correctly
+;; - Output quality: readable, clear visual hierarchy
+;;
+;; Baseline Status: ✅ Required for GKNV compliance (ASCII adaptation)
+;;
+;; See doc/implementation-decisions.md (D5.1-D5.10) for full decision rationale.
+;; See doc/algorithm-specification.md ASCII Rendering for implementation details.
+
 ;; Comprehensive unit tests for ASCII rendering functionality in dag-draw.
 ;; These tests focus on the low-level components: grid creation, coordinate
 ;; mapping, box drawing, and text placement.

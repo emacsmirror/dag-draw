@@ -1,5 +1,41 @@
 ;;; dag-draw-enhanced-separation-test.el --- Test enhanced separation algorithm -*- lexical-binding: t -*-
 
+;;; Commentary:
+
+;; GKNV Baseline Compliance Tests - Pass 3: Enhanced Separation Formula
+;;
+;; This module tests GKNV node separation formula ρ(a,b) as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4 (separation function ρ definition)
+;; Decision: D3.3 - ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+;; Algorithm: Node Separation Calculation
+;;
+;; Key Requirements Tested:
+;; - Separation function ρ accounts for both node bounding box sizes
+;; - Formula adds half-widths of both nodes plus desired separation
+;; - ρ(a,b) gives center-to-center minimum distance
+;; - Ensures bounding boxes don't overlap when ρ(a,b) satisfied
+;; - nodesep parameter allows user control of spacing
+;; - Larger nodes automatically get more separation
+;; - Symmetric: ρ(a,b) = ρ(b,a)
+;;
+;; Test Coverage:
+;; - ρ calculation correct for equal-sized nodes
+;; - ρ calculation correct for different-sized nodes
+;; - ρ calculation includes nodesep correctly
+;; - Symmetry verified: ρ(a,b) = ρ(b,a)
+;; - Bounding boxes don't overlap when separated by ρ
+;; - Various node size combinations
+;; - Various nodesep values
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.3) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
+;;; Code:
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)

@@ -4,6 +4,39 @@
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - Pass 3: Node Ports (X-Offsets)
+;;
+;; This module tests GKNV node port support as specified in
+;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
+;;
+;; GKNV Reference: Section 4.2 (auxiliary graph permits X-offset ports),
+;;                 Figure 4-3 (port example), Figure 4-4 (delta calculation)
+;; Decision: D3.5 - X-offset ports via auxiliary graph
+;; Algorithm: Node Port X-Offset Support
+;;
+;; Key Requirements Tested:
+;; - Node ports specify edge endpoints offset from node center in X direction
+;; - Auxiliary graph representation enables port support
+;; - Port delta added to auxiliary edge: δ = |port_offset|
+;; - Port offsets influence X coordinate optimization
+;; - Edges can connect to left/right sides of nodes (not just center)
+;; - Port positions calculated relative to node center after optimization
+;; - Ports enable cleaner routing for nodes with many edges
+;;
+;; Test Coverage:
+;; - Edges with X-offset ports positioned correctly
+;; - Port deltas correctly incorporated in auxiliary graph
+;; - Ports on left side (negative offset) work correctly
+;; - Ports on right side (positive offset) work correctly
+;; - Multiple ports on same node
+;; - Port positions relative to final node X coordinate
+;; - Visual result: edges connect to node sides not center
+;;
+;; Baseline Status: ✅ Required for GKNV compliance
+;;
+;; See doc/implementation-decisions.md (D3.5) for full decision rationale.
+;; See doc/algorithm-specification.md Pass 3 for implementation details.
+
 ;; Unit tests for calculating where edges should connect to rectangular nodes.
 ;; This implements the "port" concept from GKNV algorithm where edges connect
 ;; to node boundaries rather than centers.

@@ -1,6 +1,26 @@
 ;;; dag-draw-arrow-placement-debug-test.el --- Debug arrow placement coordinates -*- lexical-binding: t -*-
 
 ;;; Commentary:
+
+;; FUTURE ENHANCEMENT - Development/Debugging Tool
+;;
+;; Enhancement Category: Debug
+;; Baseline Status: 🔧 Development Tool (Not part of baseline algorithm)
+;;
+;; This test verifies:
+;; - Arrow placement coordinate debugging
+;; - Edge line endpoint analysis
+;; - Arrow-to-edge connectivity verification
+;;
+;; Related Baseline Decisions: D5.5 (Arrow Placement)
+;; Enhancement Source: Development debugging tools
+;;
+;; This is a development/debugging test, not part of the baseline specification.
+;; May be useful for troubleshooting arrow placement during implementation.
+;; See doc/test-suite-analysis.md for categorization rationale.
+;;
+;; [Original commentary: Debug exactly where arrows are being placed...]
+;;
 ;; Debug exactly where arrows are being placed vs where edge lines end
 
 ;;; Code:
