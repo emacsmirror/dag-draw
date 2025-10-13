@@ -1,128 +1,19 @@
- The GKNV Four-Pass Algorithm
+========================================
+THIS FILE HAS BEEN ARCHIVED
+========================================
 
-  The GKNV algorithm consists of four sequential passes that transform a directed acyclic graph into a visual representation:
+This file contained outdated information about the GKNV algorithm
+and has been moved to: doc/archive/summary.txt
 
-  Pass 1: Cycle Removal and Ranking
+Reason for archiving:
+- Described backtracking/iteration approach not in GKNV baseline
+- Contradicts decisions in implementation-decisions.md
+- Could cause confusion about what to implement
 
-  What it does first:
-  1. Cycle Breaking: Since we have a DAG, no cycles need to be removed
-  2. Hierarchical Ranking: Assigns each node a rank (layer) based on longest path from sources
-    - A gets rank 0 (source node)
-    - B gets rank 1 (A→B)
-    - C gets rank 2 (A→B→C)
-    - D gets rank 2 (A→B→D, but A→D also exists, so max path length determines rank)
+For current documentation, see:
+- doc/DOCUMENTATION-INDEX.md - Documentation roadmap
+- doc/implementation-decisions.md - What was actually decided
+- doc/algorithm-specification.md - How to implement it
+- doc/archive/README.md - Full explanation of archived docs
 
-  Output: Each node has a rank number indicating its hierarchical level.
-
-  Pass 2: Vertex Ordering (Crossing Reduction)
-
-  What it does next:
-  1. Minimize Edge Crossings: Within each rank, order nodes to minimize edge crossings
-  2. Barycenter Method: Calculate average positions of neighbors to determine optimal ordering
-  3. Iterative Improvement: May sweep up and down ranks multiple times until convergence
-
-  For our example:
-  - Rank 0: [A] (only one node)
-  - Rank 1: [B] (only one node)
-  - Rank 2: [C, D] or [D, C] (algorithm chooses based on crossing minimization)
-
-  Output: Ordered list of nodes within each rank.
-
-  Pass 3: Coordinate Assignment
-
-  What it does:
-  1. Y-coordinates: Assign based on rank (rank × vertical spacing)
-  2. X-coordinates: Use network simplex algorithm to minimize edge lengths while respecting ordering
-  3. Node Sizing: Calculate actual node dimensions based on text content
-  4. Collision Detection: Ensure nodes don't overlap
-
-  For our example:
-  - A: (x₁, 0)
-  - B: (x₂, rank_spacing)
-  - C: (x₃, 2×rank_spacing)
-  - D: (x₄, 2×rank_spacing)
-
-  Output: Each node has final (x,y) coordinates and dimensions.
-
-  Pass 4: Spline Generation and ASCII Conversion
-
-  What it does:
-  1. Spline Creation: Generate smooth curves for each edge using control points
-  2. Port Calculation: Determine where edges attach to node boundaries
-  3. ASCII Grid Conversion: Convert world coordinates to character grid positions
-  4. Character Rendering: Draw nodes as boxes, edges as lines, arrows at endpoints
-
-  For ASCII specifically:
-  - Nodes become text boxes with border characters (┌─┐│└┘)
-  - Edges become line characters (─│) with junctions (┼├┤┬┴)
-  - Arrows become directional characters (▲▼◀▶)
-
-  Information Flow and Iteration Requirements
-
-  What Information Triggers Backtracking?
-
-  1. Coordinate Conflicts in Pass 3:
-    - If nodes overlap after coordinate assignment
-    - If edges become too long or create poor aesthetics
-    - Triggers: Return to Pass 2 to try different vertex ordering
-  2. Spline Routing Problems in Pass 4:
-    - If edges cross through node interiors (violates Section 5.2)
-    - If too many edge crossings create visual confusion
-    - Triggers: Return to Pass 2 or 3 for better positioning
-  3. ASCII Grid Limitations:
-    - If coordinate scaling produces overlapping characters
-    - If node text doesn't fit in allocated space
-    - Triggers: Adjust scaling parameters or return to Pass 3
-
-  Information Required at Each Step
-
-  Pass 1 Requirements:
-  - Graph structure (nodes and edges)
-  - No additional information needed
-
-  Pass 2 Requirements:
-  - Node ranks from Pass 1
-  - Edge connectivity
-  - May need node size estimates for better ordering
-
-  Pass 3 Requirements:
-  - Vertex ordering from Pass 2
-  - Node ranks from Pass 1
-  - Actual node dimensions (text size)
-  - Spacing parameters
-
-  Pass 4 Requirements:
-  - Final coordinates from Pass 3
-  - Node dimensions
-  - ASCII grid parameters (scale factors, character spacing)
-  - Spline generation parameters
-
-  State Management: Global vs Passed
-
-  The GKNV algorithm uses hybrid state management:
-
-  Global State (in implementation):
-
-  - Graph structure: Nodes and edges remain constant
-  - Algorithm parameters: Spacing, scaling factors, iteration limits
-  - ASCII grid: Shared coordinate system and character grid
-
-  Passed Information:
-
-  - Rank assignments: Pass 1 → Pass 2
-  - Vertex ordering: Pass 2 → Pass 3
-  - Coordinates: Pass 3 → Pass 4
-  - Collision adjustments: May flow backward when conflicts detected
-
-  Example Flow for A→B, B→C, B→D, A→D:
-
-  1. Pass 1: A(rank=0), B(rank=1), C(rank=2), D(rank=2)
-  2. Pass 2: Orders within ranks, e.g., rank 2: [C, D]
-  3. Pass 3: Assigns coordinates, detects B needs to be centered between C and D
-  4. Pass 4:
-    - Creates splines: A→B (straight down), B→C (diagonal), B→D (diagonal), A→D (long diagonal)
-    - Converts to ASCII: A and B become text boxes, edges become line characters
-    - Applies Section 5.2 boundary clipping to ensure edges terminate at node borders
-
-  The algorithm is iterative and adaptive - later passes can trigger refinements in earlier passes when conflicts are detected, ensuring the final output respects both aesthetic and technical constraints (like GKNV Section 5.2 boundary clipping for
-  ASCII rendering).
+Date archived: 2025-10-13

@@ -1,0 +1,195 @@
+========================================
+ARCHIVED DOCUMENT - DO NOT USE FOR IMPLEMENTATION
+Archived: 2025-10-13
+Reason: Contains future enhancements NOT part of GKNV baseline algorithm
+See: doc/implementation-decisions.md Section "Remaining Ambiguities" and Decision D-FUTURE
+See: doc/archive/README.md for full explanation
+
+NOTE: This document may be valuable AFTER baseline implementation is complete,
+as a source of enhancement ideas. The test strategies may also be useful.
+========================================
+
+Analysis of Missing Features
+
+ From the annotated summary, the key discrepancies are:
+
+ 1. No backtracking between passes - Algorithm should iterate when conflicts are detected
+ 2. No automatic parameter adjustment - Should adjust spacing/scaling when layout problems occur
+ 3. Node sizes not used in ordering - Pass 2 should consider node dimensions for better layouts
+ 4. Linear conflict resolution only - Should have refinement loops for aesthetic improvements
+
+ Comprehensive Implementation Plan
+
+ 1. Backtracking from Pass 3 to Pass 2 (Coordinate Conflicts)
+
+ Missing Behavior: When nodes overlap or edges become too long after coordinate assignment, the algorithm should return to Pass 2 to try different vertex ordering.
+
+ Implementation Strategy:
+ - Add conflict detection after Pass 3 coordinate assignment
+ - Implement backtracking mechanism that can re-run Pass 2 with different parameters
+ - Add iteration counter and convergence detection
+ - Store multiple ordering attempts and select the best one
+
+ Tests Required:
+
+ Test 1: Basic Overlap Detection
+ (it "should detect node overlaps after coordinate assignment"
+   ;; Create graph where naive positioning causes overlaps
+   ;; Assert that overlap detection function returns true
+   ;; Verify specific overlapping node pairs are identified
+ )
+
+ Test 2: Backtracking Triggers Re-ordering
+ (it "should trigger re-ordering when severe overlaps detected"
+   ;; Create graph that definitely causes overlaps with default ordering
+   ;; Assert that vertex ordering changes between iterations
+   ;; Verify final layout has fewer/no overlaps
+ )
+
+ Test 3: Convergence and Iteration Limits
+ (it "should converge or hit iteration limits during backtracking"
+   ;; Create complex graph that may not have perfect solution
+   ;; Assert algorithm terminates (doesn't infinite loop)
+   ;; Verify iteration counter is tracked and respected
+ )
+
+ 2. Backtracking from Pass 4 to Pass 2/3 (Spline Routing Problems)
+
+ Missing Behavior: When edges cross through node interiors or create visual confusion, should trigger re-layout.
+
+ Implementation Strategy:
+ - Add spline quality assessment after Pass 4
+ - Detect boundary violations, excessive crossings, poor aesthetics
+ - Implement backtracking to either Pass 2 (ordering) or Pass 3 (positioning)
+ - Progressive refinement: try ordering changes first, then positioning adjustments
+
+ Tests Required:
+
+ Test 4: Boundary Violation Detection
+ (it "should detect when splines violate node boundaries"
+   ;; Create graph where splines naturally route through nodes
+   ;; Assert boundary violation detection identifies problems
+   ;; Verify specific violating spline segments are flagged
+ )
+
+ Test 5: Spline Quality Assessment
+ (it "should assess spline routing quality and trigger refinement"
+   ;; Create graph with suboptimal spline routing
+   ;; Assert quality metrics identify poor layout
+   ;; Verify backtracking improves spline quality scores
+ )
+
+ Test 6: Progressive Refinement
+ (it "should try ordering changes before positioning adjustments"
+   ;; Create graph where ordering change would help more than positioning
+   ;; Assert Pass 2 is attempted before Pass 3 modifications
+   ;; Verify refinement strategy follows correct precedence
+ )
+
+ 3. ASCII Grid Limitations and Parameter Adjustment
+
+ Missing Behavior: When coordinate scaling produces overlapping characters or text doesn't fit, should adjust parameters or re-layout.
+
+ Implementation Strategy:
+ - Add ASCII-specific conflict detection
+ - Implement dynamic scaling parameter adjustment
+ - Add text fitting validation
+ - Provide fallback re-layout with adjusted parameters
+
+ Tests Required:
+
+ Test 7: ASCII Character Overlap Detection
+ (it "should detect when ASCII scaling causes character overlaps"
+   ;; Create graph with tight spacing that causes ASCII conflicts
+   ;; Assert overlap detection works at character grid level
+   ;; Verify specific overlapping character positions identified
+ )
+
+ Test 8: Dynamic Scale Factor Adjustment
+ (it "should adjust scale factors when ASCII layout fails"
+   ;; Create graph that fails with default scaling
+   ;; Assert scale factor gets modified automatically
+   ;; Verify adjusted scaling produces non-overlapping output
+ )
+
+ Test 9: Text Fitting Validation
+ (it "should ensure node text fits within allocated ASCII space"
+   ;; Create nodes with long text that might not fit
+   ;; Assert text fitting validation catches problems
+   ;; Verify automatic adjustments or re-layout occurs
+ )
+
+ 4. Node Sizes in Pass 2 Ordering
+
+ Missing Behavior: Vertex ordering should consider node dimensions for better layouts, not just edge crossing minimization.
+
+ Implementation Strategy:
+ - Modify barycenter calculation to include node size weights
+ - Add spacing considerations to crossing reduction algorithm
+ - Implement size-aware ordering metrics
+ - Balance crossing reduction with space efficiency
+
+ Tests Required:
+
+ Test 10: Size-Aware Ordering
+ (it "should consider node sizes during vertex ordering"
+   ;; Create graph with varied node sizes
+   ;; Assert ordering algorithm considers size information
+   ;; Verify larger nodes get positioned to minimize space conflicts
+ )
+
+ Test 11: Space-Efficient Layouts
+ (it "should produce more space-efficient layouts with size awareness"
+   ;; Create graph where size-aware ordering would save space
+   ;; Compare layout efficiency with and without size consideration
+   ;; Assert size-aware version uses space more efficiently
+ )
+
+ 5. Overall Algorithm Convergence and Quality Metrics
+
+ Implementation Strategy:
+ - Add comprehensive layout quality assessment
+ - Implement multi-criteria optimization (crossings, overlaps, aesthetics)
+ - Add convergence detection across all passes
+ - Provide quality improvement tracking
+
+ Tests Required:
+
+ Test 12: Multi-Pass Convergence
+ (it "should achieve convergence across multiple algorithm iterations"
+   ;; Create complex graph requiring multiple refinement iterations
+   ;; Assert algorithm converges to stable solution
+   ;; Verify quality metrics improve or stabilize over iterations
+ )
+
+ Test 13: Quality Improvement Tracking
+ (it "should track and improve layout quality metrics over iterations"
+   ;; Create graph with measurable quality issues
+   ;; Assert quality metrics are calculated and tracked
+   ;; Verify metrics improve through iterative refinement
+ )
+
+ Implementation Architecture
+
+ New Modules Needed:
+
+ 1. dag-draw-quality.el - Layout quality assessment and metrics
+ 2. dag-draw-backtrack.el - Backtracking and iteration management
+ 3. dag-draw-adaptive.el - Parameter adjustment and dynamic scaling
+ 4. dag-draw-integration.el - Multi-pass coordination and convergence
+
+ Modified Modules:
+
+ 1. dag-draw-order-simple.el - Add size-aware ordering
+ 2. dag-draw-position.el - Add conflict detection and quality assessment
+ 3. dag-draw-render.el - Add ASCII-specific adaptation
+ 4. dag-draw.el - Modify main layout function to support iteration
+
+ Data Structures:
+
+ - Layout Quality Metrics: Track crossings, overlaps, aesthetic scores
+ - Iteration State: Store previous attempts, convergence history
+ - Adaptive Parameters: Dynamic scaling factors, spacing adjustments
+ - Backtracking Context: Save/restore algorithm state for iteration
+
+ This plan ensures that each missing GKNV algorithm feature gets proper implementation with comprehensive testing to verify the behavior works correctly and improves layout quality as expected.
