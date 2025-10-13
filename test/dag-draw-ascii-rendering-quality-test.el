@@ -1,9 +1,35 @@
-;;; dag-draw-coordinate-alignment-test.el --- Coordinate system alignment tests -*- lexical-binding: t -*-
+;;; dag-draw-ascii-rendering-quality-test.el --- ASCII rendering quality tests -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024
 
 ;;; Commentary:
 
+;; GKNV Baseline Compliance Tests - ASCII Rendering Quality
+;;
+;; This module tests baseline GKNV algorithm compliance in ASCII rendering mode.
+;; These tests verify correct implementation of:
+;;
+;; - D5.1-D5.8: Junction character placement and context analysis
+;; - GKNV A1: Hierarchical structure (arrow directions)
+;; - GKNV A2: Visual anomalies (junction consistency, no floating elements)
+;; - GKNV A3: Edge routing quality (clean connections)
+;;
+;; GKNV Reference: Section 5 (Edge Drawing), adapted for ASCII
+;; Decision: D5.1-D5.8 - Junction character implementation
+;; Algorithm: Context-aware junction detection with Unicode box-drawing
+;;
+;; Key Requirements:
+;; - Junction characters must attach directly to node boundaries
+;; - No floating or misaligned junction characters
+;; - Arrow directions must reflect hierarchical structure
+;; - Edge routing must use consistent coordinate system
+;; - Port coordinates must reflect collision-adjusted positions
+;;
+;; Baseline Status: ✅ Compliant (Promoted from debug category Week 3)
+;;
+;; See doc/implementation-decisions.md for full decision rationale.
+;;
+;; Original Purpose:
 ;; Focused tests to isolate and fix coordinate system misalignment issues
 ;; that cause floating junction characters, edge routing problems, and
 ;; arrow placement inconsistencies.
@@ -304,6 +330,6 @@
 
             (message "======================================="))))))
 
-(provide 'dag-draw-coordinate-alignment-test)
+(provide 'dag-draw-ascii-rendering-quality-test)
 
-;;; dag-draw-coordinate-alignment-test.el ends here
+;;; dag-draw-ascii-rendering-quality-test.el ends here
