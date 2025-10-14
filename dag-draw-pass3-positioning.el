@@ -861,12 +861,12 @@ In ASCII mode, we work directly in integer grid coordinates to prevent collapse.
              (dag-draw-graph-nodes graph))
     
     ;; Assign ASCII grid Y coordinates directly
-    ;; Start at Y=0 for rank 0, increment by minimum separation for each rank
-    (let ((ascii-rank-separation 5))  ; Minimum 5 grid units between ranks
+    ;; Use the graph's configured rank-separation (D3.6: Y = rank × ranksep)
+    (let ((rank-separation (dag-draw-graph-rank-separation graph)))
       (ht-each (lambda (rank nodes)
-                 (let ((ascii-y (* rank ascii-rank-separation)))
+                 (let ((y-coord (* rank rank-separation)))
                    (dolist (node nodes)
-                     (setf (dag-draw-node-y-coord node) ascii-y))))
+                     (setf (dag-draw-node-y-coord node) y-coord))))
                rank-to-nodes))))
 
 (defun dag-draw--position-with-auxiliary-graph-ascii (graph)
@@ -893,21 +893,24 @@ Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constrai
     ;; For each rank, assign ASCII X coordinates with dynamic spacing
     ;; Per GKNV Section 1.2: nodesep(G) - minimum horizontal separation between node boxes
     (ht-each (lambda (rank nodes)
-               ;; Sort nodes by their computed X position (preserve GKNV ordering)
-               (let ((sorted-nodes (sort nodes 
+               ;; Sort nodes by their ASSIGNED ORDER (respects Pass 2 ordering)
+               (let ((sorted-nodes (sort nodes
                                         (lambda (a b)
-                                          (< (or (dag-draw-node-x-coord a) 0)
-                                             (or (dag-draw-node-x-coord b) 0)))))
-                     (ascii-x 5)      ; Start with left padding
-                     (min-nodesep 3)) ; Minimum separation per GKNV nodesep(G)
-                 
-                 ;; Assign dynamically spaced ASCII X coordinates based on actual node widths
+                                          (< (or (dag-draw-node-order a) 0)
+                                             (or (dag-draw-node-order b) 0)))))
+                     (ascii-x 5))  ; Start with left padding
+
+                 ;; Assign dynamically spaced ASCII X coordinates using ρ(a,b) separation formula
                  (dolist (node sorted-nodes)
                    (setf (dag-draw-node-x-coord node) ascii-x)
-                   ;; Calculate this node's width: label + padding
-                   (let ((node-width (+ (length (dag-draw-node-label node)) 4)))
-                     ;; Next node starts at: current_x + current_width + minimum_separation
-                     (setq ascii-x (+ ascii-x node-width min-nodesep))))))
+                   ;; Calculate spacing to next node using GKNV ρ(a,b) formula
+                   ;; ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+                   ;; For now, use node's xsize + nodesep as spacing
+                   (let* ((node-xsize (dag-draw-node-x-size node))
+                          (nodesep (dag-draw-graph-node-separation graph))
+                          (spacing (+ node-xsize nodesep)))
+                     ;; Next node starts after this node's bounding box + separation
+                     (setq ascii-x (+ ascii-x spacing))))))
              rank-groups)))
 
 (defun dag-draw--round-coordinates-for-ascii (graph)

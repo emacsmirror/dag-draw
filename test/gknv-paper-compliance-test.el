@@ -152,12 +152,12 @@
               ;; Both nodes should be found
               (expect start-pos :not :to-be nil)
               (expect finish-pos :not :to-be nil)
-              
-              ;; Finish should be below Start
-              (expect (plist-get finish-pos :y) :to-be-greater-than (plist-get start-pos :y))
-              
+
+              ;; Finish should be below Start (higher Y coordinate in grid)
+              (expect (cdr finish-pos) :to-be-greater-than (cdr start-pos))
+
               ;; Should have path connection
-              (expect (dag-draw-test--has-path-between grid start-pos finish-pos) 
+              (expect (dag-draw-test--has-path-between grid start-pos finish-pos)
                       :to-be-truthy))))))
     
     (it "should handle complex graphs with multiple edge types"
@@ -185,11 +185,11 @@
               (expect branch-pos :not :to-be nil)
               (expect leaf-pos :not :to-be nil)
               (expect isolated-pos :not :to-be nil)
-              
-              ;; Should maintain hierarchy
-              (expect (plist-get branch-pos :y) :to-be-greater-than (plist-get root-pos :y))
-              (expect (plist-get leaf-pos :y) :to-be-greater-than (plist-get branch-pos :y))
-              
+
+              ;; Should maintain hierarchy (higher Y = lower in visual display)
+              (expect (cdr branch-pos) :to-be-greater-than (cdr root-pos))
+              (expect (cdr leaf-pos) :to-be-greater-than (cdr branch-pos))
+
               ;; Connected path should exist
               (expect (dag-draw-test--has-path-between grid root-pos leaf-pos)
                       :to-be-truthy))))))

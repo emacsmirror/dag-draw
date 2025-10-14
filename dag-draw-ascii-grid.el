@@ -506,9 +506,15 @@ Returns the Unicode character that should be used for the junction."
          ((and (eq main-dir 'left) (eq branch-dir 'down)) ?┬)    ; left + down branch
          ((and (eq main-dir 'left) (eq branch-dir 'up)) ?┴)      ; left + up branch
          (t ?┼))))  ; fallback to cross
-     
-     ;; Fallback for unknown junction types
-     (t ?+))))
+
+     ;; Straight line: no junction needed, return nil to keep current character
+     ((eq junction-type 'straight-line) nil)
+
+     ;; Unknown/no junction: keep current character
+     ((eq junction-type 'unknown) nil)
+
+     ;; Fallback for any other unknown types
+     (t nil))))
 
 ;;; Edge Analysis for Junction Detection
 

@@ -260,20 +260,26 @@
     (it "should construct auxiliary graph for X-coordinate optimization"
       (let ((graph (dag-draw-create-graph)))
         ;; Test coordinate assignment network simplex
+        ;; Create same-rank nodes to test horizontal separation
         (dag-draw-add-node graph 'left "Left Node")
         (dag-draw-add-node graph 'right "Right Node")
-        (dag-draw-add-edge graph 'left 'right)
-        
+        (dag-draw-add-node graph 'target "Target")
+        (dag-draw-add-edge graph 'left 'target)
+        (dag-draw-add-edge graph 'right 'target)
+
         (dag-draw-layout-graph graph)
-        
+
         ;; Should assign valid X coordinates
         (let ((left-node (dag-draw-get-node graph 'left))
               (right-node (dag-draw-get-node graph 'right)))
           (expect (dag-draw-node-x-coord left-node) :not :to-be nil)
           (expect (dag-draw-node-x-coord right-node) :not :to-be nil)
-          
+
+          ;; Both should be on same rank (rank 0)
+          (expect (dag-draw-node-rank left-node) :to-equal (dag-draw-node-rank right-node))
+
           ;; Coordinates should respect separation constraints
-          (let ((separation (abs (- (dag-draw-node-x-coord right-node) 
+          (let ((separation (abs (- (dag-draw-node-x-coord right-node)
                                    (dag-draw-node-x-coord left-node)))))
             ;; Should be separated by at least node sizes + margin
             (expect separation :to-be-greater-than 2)))))

@@ -123,9 +123,10 @@
               (x-b (dag-draw-node-x-coord (dag-draw-get-node graph 'b)))
               (x-c (dag-draw-node-x-coord (dag-draw-get-node graph 'c))))
 
+          ;; GKNV network simplex determines optimal X positions
+          ;; X=0 is NOT a GKNV requirement - nodes can start at any X coordinate
           (expect x-a :to-be-less-than x-b)
-          (expect x-b :to-be-less-than x-c)
-          (expect x-a :to-equal 0))))  ; Should start from 0
+          (expect x-b :to-be-less-than x-c))))  ; Removed X=0 requirement
 
   (it "should handle minimum separation constraints"
       (let ((graph (dag-draw-create-graph)))

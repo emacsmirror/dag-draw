@@ -116,7 +116,11 @@ Coordinates are already in grid units from ASCII-native GKNV positioning."
              (to-x (round (- (or (dag-draw-node-x-coord to-node) 0) min-x)))
              (to-y (round (- (or (dag-draw-node-y-coord to-node) 0) min-y))))
         (dag-draw--draw-simple-edge grid from-x from-y to-x to-y from-node to-node)))
-    
+
+    ;; CLAUDE.md: Apply junction characters after routing, before final output
+    ;; "walks the edge in order to determine the locally-relevant algorithm"
+    (dag-draw--apply-junction-chars-to-grid grid)
+
     ;; Convert grid to string
     (dag-draw--ascii-grid-to-string grid)))
 
