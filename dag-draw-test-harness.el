@@ -469,6 +469,33 @@ START-POS and END-POS should be position cons cells in (x . y) format."
 
 ;;; Junction Validation Functions
 
+(defun dag-draw-test--has-connection-in-direction (grid x y direction)
+  "Check if there's a valid connection in DIRECTION from (X,Y) in GRID.
+Direction-aware: horizontal chars only connect left/right, vertical chars only connect up/down."
+  (let* ((check-x (cond ((eq direction 'left) (1- x))
+                       ((eq direction 'right) (1+ x))
+                       (t x)))
+         (check-y (cond ((eq direction 'up) (1- y))
+                       ((eq direction 'down) (1+ y))
+                       (t y)))
+         (vertical-chars '(?│ ?▼ ?▲))
+         (horizontal-chars '(?─ ?► ?◀))
+         (junction-chars '(?┼ ?├ ?┤ ?┬ ?┴ ?+))
+         (char-at-pos (dag-draw-test--get-char-at grid check-x check-y)))
+
+    (cond
+     ;; Checking vertical directions
+     ((or (eq direction 'up) (eq direction 'down))
+      (or (memq char-at-pos vertical-chars)
+          (memq char-at-pos junction-chars)))
+
+     ;; Checking horizontal directions
+     ((or (eq direction 'left) (eq direction 'right))
+      (or (memq char-at-pos horizontal-chars)
+          (memq char-at-pos junction-chars)))
+
+     (t nil))))
+
 (defun dag-draw-test--find-malformed-junctions (grid)
   "Find all malformed junction patterns in GRID.
 Returns list of plists with :x, :y, :char, :problem, :context.
@@ -515,7 +542,10 @@ Checks:
         (grid-width (gethash 'width grid))
         (invalid-junctions '())
         (all-valid t)
-        (edge-chars '(?│ ?─ ?┼ ?├ ?┤ ?┬ ?┴ ?┌ ?┐ ?└ ?┘ ?▼ ?▲ ?▶ ?◀)))
+        ;; IMPORTANT: Node border corners (?┌ ?┐ ?└ ?┘) are NOT edge characters!
+        ;; They're decorations and should not indicate connectivity.
+        ;; This matches the fix in dag-draw--has-edge-in-direction.
+        (edge-chars '(?│ ?─ ?┼ ?├ ?┤ ?┬ ?┴ ?▼ ?▲ ?▶ ?◀)))
 
     (dotimes (y grid-height)
       (dotimes (x grid-width)
@@ -524,13 +554,14 @@ Checks:
           ;; Check corner junctions (should have 2 connections)
           (when (memq char '(?┌ ?┐ ?└ ?┘))
             (let ((connections 0))
-              (when (memq (dag-draw-test--get-char-at grid (1- x) y) edge-chars)
+              ;; Use direction-aware checking
+              (when (dag-draw-test--has-connection-in-direction grid x y 'left)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid (1+ x) y) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'right)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1- y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'up)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1+ y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'down)
                 (setq connections (1+ connections)))
 
               (unless (= connections 2)
@@ -543,13 +574,14 @@ Checks:
           ;; Check T-junctions (should have 3 connections)
           (when (memq char '(?├ ?┤ ?┬ ?┴))
             (let ((connections 0))
-              (when (memq (dag-draw-test--get-char-at grid (1- x) y) edge-chars)
+              ;; Use direction-aware checking
+              (when (dag-draw-test--has-connection-in-direction grid x y 'left)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid (1+ x) y) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'right)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1- y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'up)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1+ y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'down)
                 (setq connections (1+ connections)))
 
               (unless (= connections 3)
@@ -562,13 +594,14 @@ Checks:
           ;; Check cross junctions (should have 4 connections)
           (when (eq char ?┼)
             (let ((connections 0))
-              (when (memq (dag-draw-test--get-char-at grid (1- x) y) edge-chars)
+              ;; Use direction-aware checking
+              (when (dag-draw-test--has-connection-in-direction grid x y 'left)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid (1+ x) y) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'right)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1- y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'up)
                 (setq connections (1+ connections)))
-              (when (memq (dag-draw-test--get-char-at grid x (1+ y)) edge-chars)
+              (when (dag-draw-test--has-connection-in-direction grid x y 'down)
                 (setq connections (1+ connections)))
 
               (unless (= connections 4)

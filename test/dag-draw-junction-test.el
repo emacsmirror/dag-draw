@@ -65,6 +65,48 @@
         (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
           (expect (plist-get connectivity-validation :all-connected) :to-be t))
         
-        (message "==================")))))
+        (message "=================="))))
+
+  (it "should not corrupt node borders with junction characters"
+    ;; Regression test for junction character defect (2025-10-14)
+    ;; Bug: Junction enhancement algorithm was treating node box border characters
+    ;; as edge characters, causing malformed patterns like ├┬┐ and ┴┴ at node boundaries
+    ;; Fix: Solution 1 - Exclude node boundaries from junction enhancement
+    (let ((graph (dag-draw-create-graph)))
+      (dag-draw-add-node graph 'top "Top")
+      (dag-draw-add-node graph 'bottom "Bottom")
+      (dag-draw-add-edge graph 'top 'bottom)
+      (dag-draw-layout-graph graph :coordinate-mode 'ascii)
+
+      (let ((ascii-output (dag-draw-render-ascii graph)))
+        (message "=== NODE BORDER INTEGRITY TEST ===")
+        (message "%s" ascii-output)
+
+        ;; Verify node borders are intact using test harness
+        (let ((boundary-validation (dag-draw-test--validate-node-boundaries ascii-output)))
+          (expect (plist-get boundary-validation :valid) :to-be t)
+          (when (not (plist-get boundary-validation :valid))
+            (message "Node boundary validation failed: %s"
+                     (plist-get boundary-validation :errors))))
+
+        ;; Specifically check for the corruption patterns that were observed
+        ;; Pattern 1: Multiple junction chars in sequence (e.g., "├┬┐")
+        (expect ascii-output :not :to-match "├┬┐")
+        (expect ascii-output :not :to-match "┴┴")
+
+        ;; Pattern 2: Junction characters embedded in node borders where they shouldn't be
+        ;; Top node should have clean box with proper T-junction at exit port
+        (expect ascii-output :to-match "┌─+─┐")  ; Top border (with some content)
+        (expect ascii-output :to-match "└─[┬─]+─┘")  ; Bottom border with T-junction at port
+
+        ;; Pattern 3: Node content should not be corrupted
+        (expect ascii-output :to-match "│Top")
+        (expect ascii-output :to-match "│Bottom")
+
+        ;; Verify edge connectivity is maintained
+        (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))
+          (expect (plist-get connectivity-validation :all-connected) :to-be t))
+
+        (message "===================================")))))
 
 (provide 'dag-draw-junction-test)

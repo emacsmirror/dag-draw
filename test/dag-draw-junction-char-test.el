@@ -162,8 +162,8 @@
 
         (let ((context (dag-draw--analyze-local-grid-junction-context grid x y ?─ ?│)))
           (expect (plist-get context :type) :to-equal 'direction-change)
-          (expect (plist-get context :has-left) :to-be t)
-          (expect (plist-get context :has-down) :to-be t)))))
+          (expect (plist-get context :has-left) :to-be-truthy)
+          (expect (plist-get context :has-down) :to-be-truthy)))))
 
   (describe "Priority 2: Direction change detection"
     (it "should detect a simple right-to-down corner in an edge path"
@@ -312,7 +312,8 @@
 
         ;; Apply junction detection
         ;; This should convert the character at (5,5) from ?─ or ?│ to ?┐
-        (dag-draw--apply-junction-chars-to-grid grid)
+        ;; No node boundaries in this synthetic test, so pass empty list
+        (dag-draw--apply-junction-chars-to-grid grid '())
 
         ;; Verify corner character is correct
         (let ((corner-char (aref (aref grid 5) 5)))
@@ -373,7 +374,8 @@
         (aset (aref grid 5) 5 ?▼)  ; Arrow at end
 
         ;; Apply junction detection
-        (dag-draw--apply-junction-chars-to-grid grid)
+        ;; No node boundaries in this synthetic test, so pass empty list
+        (dag-draw--apply-junction-chars-to-grid grid '())
 
         ;; Arrow should still be present, not replaced with junction char
         (expect (aref (aref grid 5) 5) :to-equal ?▼)))
@@ -396,7 +398,8 @@
           (aset (aref grid 5) (+ 6 offset) ?─))
 
         ;; Apply junction detection
-        (dag-draw--apply-junction-chars-to-grid grid)
+        ;; No node boundaries in this synthetic test, so pass empty list
+        (dag-draw--apply-junction-chars-to-grid grid '())
 
         ;; Position (5,5) should become ├ (t-junction)
         (expect (aref (aref grid 5) 5) :to-equal ?├)
@@ -435,7 +438,8 @@
           (aset (aref grid (+ 6 offset)) 6 ?│))
 
         ;; Apply junction detection
-        (dag-draw--apply-junction-chars-to-grid grid)
+        ;; No node boundaries in this synthetic test, so pass empty list
+        (dag-draw--apply-junction-chars-to-grid grid '())
 
         ;; All arrows should be preserved
         (expect (aref (aref grid 2) 0) :to-equal ?▼)

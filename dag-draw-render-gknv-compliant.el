@@ -164,27 +164,32 @@ Does NOT modify graph coordinates or regenerate splines."
      (t (list (round center-x) (round center-y))))))
 
 (defun dag-draw--draw-node-box (grid x y width height label)
-  "Draw a node box with label at specified grid position."
+  "Draw a node box with label at specified grid position.
+Returns list of (x . y) cons cells representing node boundary positions."
   (let ((grid-height (length grid))
-        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
-    
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
+        (boundaries nil))
+
     ;; Only draw if within grid bounds
-    (when (and (>= x 0) (>= y 0) 
+    (when (and (>= x 0) (>= y 0)
                (< (+ x width) grid-width)
                (< (+ y height) grid-height))
-      
-      ;; Draw top border
+
+      ;; Draw top border and record boundary positions
       (dotimes (i width)
-        (dag-draw--set-char grid (+ x i) y 
-                           (cond ((= i 0) ?┌)
-                                 ((= i (1- width)) ?┐)
-                                 (t ?─))))
-      
+        (let ((pos-x (+ x i)))
+          (dag-draw--set-char grid pos-x y
+                             (cond ((= i 0) ?┌)
+                                   ((= i (1- width)) ?┐)
+                                   (t ?─)))
+          (push (cons pos-x y) boundaries)))
+
       ;; Draw middle rows with label
       (dotimes (row (- height 2))
         (let ((actual-row (+ y row 1)))
           ;; Left border
           (dag-draw--set-char grid x actual-row ?│)
+          (push (cons x actual-row) boundaries)
           ;; Content area
           (dotimes (col (- width 2))
             (let ((char-pos (+ x col 1)))
@@ -192,14 +197,21 @@ Does NOT modify graph coordinates or regenerate splines."
                   (dag-draw--set-char grid char-pos actual-row (aref label col))
                 (dag-draw--set-char grid char-pos actual-row ?\s))))
           ;; Right border
-          (dag-draw--set-char grid (+ x width -1) actual-row ?│)))
-      
-      ;; Draw bottom border
+          (dag-draw--set-char grid (+ x width -1) actual-row ?│)
+          (push (cons (+ x width -1) actual-row) boundaries)))
+
+      ;; Draw bottom border and record boundary positions
       (dotimes (i width)
-        (dag-draw--set-char grid (+ x i) (+ y height -1)
-                           (cond ((= i 0) ?└)
-                                 ((= i (1- width)) ?┘)
-                                 (t ?─)))))))
+        (let ((pos-x (+ x i))
+              (pos-y (+ y height -1)))
+          (dag-draw--set-char grid pos-x pos-y
+                             (cond ((= i 0) ?└)
+                                   ((= i (1- width)) ?┘)
+                                   (t ?─)))
+          (push (cons pos-x pos-y) boundaries))))
+
+    ;; Return list of boundary positions
+    boundaries))
 
 (defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
   "Draw a simple line from (x1,y1) to (x2,y2) with arrow."

@@ -921,7 +921,11 @@ This implements the D5.6-D5.8 context analysis requirements:
 (defun dag-draw--has-edge-in-direction (grid x y direction)
   "Check if there's an edge character in DIRECTION from (X,Y) on GRID.
 DIRECTION is one of: up, down, left, right.
-Returns t if edge character found, nil otherwise."
+Returns t if edge character found AND compatible with direction, nil otherwise.
+
+Key insight: Direction matters! A horizontal line (─) only connects left/right,
+a vertical line (│) only connects up/down. Only junction characters connect
+in multiple directions. Node border corners are decorations, not connections."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (check-x (cond ((eq direction 'left) (- x 1))
@@ -930,29 +934,45 @@ Returns t if edge character found, nil otherwise."
          (check-y (cond ((eq direction 'up) (- y 1))
                        ((eq direction 'down) (+ y 1))
                        (t y)))
-         ;; Edge and junction characters that indicate connectivity
-         ;; Include ?+ as it's used as a fallback junction character
-         ;; Include arrow characters as they indicate edge connectivity
-         (edge-chars (list ?─ ?│ ?┼ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?+ ?\u25bc ?\u25b2 ?\u25ba ?\u25c4))
+         ;; Direction-specific characters
+         (vertical-chars (list ?│ ?\u25bc ?\u25b2))      ; │ ▼ ▲ (only connect up/down)
+         (horizontal-chars (list ?─ ?\u25ba ?\u25c4))    ; ─ ► ◄ (only connect left/right)
+         ;; Junction characters can connect in multiple directions
+         (junction-chars (list ?┼ ?├ ?┤ ?┬ ?┴ ?+))
+         ;; Note: Node border corners (?┌ ?┐ ?└ ?┘) are NOT included - they're decorations!
          (char-at-pos (if (and (>= check-x 0) (< check-x grid-width)
                               (>= check-y 0) (< check-y grid-height))
                          (aref (aref grid check-y) check-x)
                        nil)))
 
-    ;; Check bounds and character type, return t or nil (not list tail)
-    (if (and (>= check-x 0) (< check-x grid-width)
-             (>= check-y 0) (< check-y grid-height)
-             (memq (aref (aref grid check-y) check-x) edge-chars))
-        t
-      nil)))
+    ;; Check if character is compatible with the direction
+    (cond
+     ;; Checking vertical directions (up/down): only vertical chars and junctions
+     ((or (eq direction 'up) (eq direction 'down))
+      (and char-at-pos
+           (or (memq char-at-pos vertical-chars)
+               (memq char-at-pos junction-chars))))
+
+     ;; Checking horizontal directions (left/right): only horizontal chars and junctions
+     ((or (eq direction 'left) (eq direction 'right))
+      (and char-at-pos
+           (or (memq char-at-pos horizontal-chars)
+               (memq char-at-pos junction-chars))))
+
+     (t nil))))
 
 ;;; Junction Character Application (Priority 4: Integration)
 
-(defun dag-draw--apply-junction-chars-to-grid (grid)
-  "Apply junction characters throughout GRID based on local context analysis.
+(defun dag-draw--apply-junction-chars-to-grid (grid node-boundaries)
+  "Apply junction characters throughout GRID, excluding NODE-BOUNDARIES.
 Walks through all grid positions, analyzes connectivity, and updates characters.
 This is the integration point for D5.1-D5.8 junction character enhancement.
-CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'"
+CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
+
+NODE-BOUNDARIES is a list of (x . y) cons cells marking node border positions.
+These positions are excluded from junction enhancement to prevent corruption
+of node box borders."
+  (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries))
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          ;; Include ?+ as it's used as a fallback junction character
@@ -964,16 +984,18 @@ CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
     (dotimes (y grid-height)
       (dotimes (x grid-width)
         (let ((current-char (aref (aref grid y) x)))
-          ;; Only process edge/junction characters, but NOT arrows
-          (when (and (memq current-char edge-chars)
-                    (not (memq current-char arrow-chars)))
-            ;; Analyze local context and determine proper junction character
-            (let* ((context (dag-draw--analyze-local-grid-junction-context
-                           grid x y current-char current-char))
-                   (junction-char (dag-draw--get-enhanced-junction-char context)))
-              ;; Update grid with enhanced junction character
-              (when junction-char
-                (aset (aref grid y) x junction-char)))))))))
+          ;; Skip if this position is a node boundary
+          (unless (member (cons x y) node-boundaries)
+            ;; Only process edge/junction characters, but NOT arrows
+            (when (and (memq current-char edge-chars)
+                      (not (memq current-char arrow-chars)))
+              ;; Analyze local context and determine proper junction character
+              (let* ((context (dag-draw--analyze-local-grid-junction-context
+                             grid x y current-char current-char))
+                     (junction-char (dag-draw--get-enhanced-junction-char context)))
+                ;; Update grid with enhanced junction character
+                (when junction-char
+                  (aset (aref grid y) x junction-char))))))))))
 
 (provide 'dag-draw-ascii-grid)
 

@@ -80,7 +80,9 @@ This function respects the GKNV 4-pass algorithm and performs only coordinate co
 (defun dag-draw--render-ascii-native (graph)
   "Render graph with ASCII-native coordinates - no scale conversion needed.
 Coordinates are already in grid units from ASCII-native GKNV positioning."
-  
+
+  (message "DEBUG: Starting dag-draw--render-ascii-native - SOURCE FILE VERSION")
+
   ;; Calculate grid bounds directly from ASCII coordinates
   (let* ((nodes (ht-values (dag-draw-graph-nodes graph)))
          (min-x (apply #'min (mapcar (lambda (n) (or (dag-draw-node-x-coord n) 0)) nodes)))
@@ -99,27 +101,42 @@ Coordinates are already in grid units from ASCII-native GKNV positioning."
     (message "Grid size: %dx%d" grid-width grid-height)
     
     ;; Draw nodes directly using ASCII coordinates (ensure integers)
-    (dolist (node nodes)
-      (let ((x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
-            (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
-            (label (dag-draw-node-label node))
-            (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
-            (height 3))  ; Standard node height
-        (dag-draw--draw-node-box grid x y width height label)))
-    
-    ;; Draw edges directly using ASCII coordinates (ensure integers)
-    (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-             (from-x (round (- (or (dag-draw-node-x-coord from-node) 0) min-x)))
-             (from-y (round (- (or (dag-draw-node-y-coord from-node) 0) min-y)))
-             (to-x (round (- (or (dag-draw-node-x-coord to-node) 0) min-x)))
-             (to-y (round (- (or (dag-draw-node-y-coord to-node) 0) min-y))))
-        (dag-draw--draw-simple-edge grid from-x from-y to-x to-y from-node to-node)))
+    ;; Collect node boundary positions to exclude from junction enhancement
+    (let ((node-boundaries nil))
+      (message "DEBUG: About to loop over %d nodes" (length nodes))
+      (dolist (node nodes)
+        (message "DEBUG: Processing node: %s" (dag-draw-node-label node))
+        (let ((x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
+              (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
+              (label (dag-draw-node-label node))
+              (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
+              (height 3))  ; Standard node height
+          ;; Draw node and collect its boundary positions
+          (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d" label x y width height)
+          (let ((boundaries (dag-draw--draw-node-box grid x y width height label)))
+            (message "DEBUG: Got %d boundaries back, first few: %S"
+                     (length boundaries)
+                     (seq-take boundaries 5))
+            (setq node-boundaries (append node-boundaries boundaries)))))
 
-    ;; CLAUDE.md: Apply junction characters after routing, before final output
-    ;; "walks the edge in order to determine the locally-relevant algorithm"
-    (dag-draw--apply-junction-chars-to-grid grid)
+      ;; Draw edges directly using ASCII coordinates (ensure integers)
+      (dolist (edge (dag-draw-graph-edges graph))
+        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+               (from-x (round (- (or (dag-draw-node-x-coord from-node) 0) min-x)))
+               (from-y (round (- (or (dag-draw-node-y-coord from-node) 0) min-y)))
+               (to-x (round (- (or (dag-draw-node-x-coord to-node) 0) min-x)))
+               (to-y (round (- (or (dag-draw-node-y-coord to-node) 0) min-y))))
+          (message "DEBUG: Drawing edge from (%d,%d) to (%d,%d)" from-x from-y to-x to-y)
+          (dag-draw--draw-simple-edge grid from-x from-y to-x to-y from-node to-node)))
+
+      ;; CLAUDE.md: Apply junction characters after routing, before final output
+      ;; "walks the edge in order to determine the locally-relevant algorithm"
+      ;; FIX: Exclude node boundaries from junction enhancement to prevent corruption
+      (message "DEBUG: Total node boundaries collected: %d" (length node-boundaries))
+      (when (< (length node-boundaries) 15)
+        (message "DEBUG: First few boundaries: %S" (seq-take node-boundaries 10)))
+      (dag-draw--apply-junction-chars-to-grid grid node-boundaries))
 
     ;; Convert grid to string
     (dag-draw--ascii-grid-to-string grid)))
@@ -177,21 +194,28 @@ Each rect is (left top right bottom)."
      (t (list (round center-x) (round center-y))))))
 
 (defun dag-draw--draw-node-box (grid x y width height label)
-  "Draw a node box with label at specified grid position."
+  "Draw a node box with label at specified grid position.
+Returns list of (x . y) cons cells representing node boundary positions."
   (let ((grid-height (length grid))
-        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
+        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
+        (boundaries nil))
+
+    (message "DEBUG draw-node-box: x=%d y=%d width=%d height=%d grid=%dx%d"
+             x y width height grid-width grid-height)
 
     ;; Only draw if within grid bounds
     (when (and (>= x 0) (>= y 0)
                (< (+ x width) grid-width)
                (< (+ y height) grid-height))
 
-      ;; Draw top border
+      ;; Draw top border and record boundary positions
       (dotimes (i width)
-        (dag-draw--set-char grid (+ x i) y
-                            (cond ((= i 0) ?┌)
-                                  ((= i (1- width)) ?┐)
-                                  (t ?─))))
+        (let ((pos-x (+ x i)))
+          (dag-draw--set-char grid pos-x y
+                              (cond ((= i 0) ?┌)
+                                    ((= i (1- width)) ?┐)
+                                    (t ?─)))
+          (push (cons pos-x y) boundaries)))
 
       ;; Draw middle rows with label (supports multiline text)
       (let ((label-lines (split-string label "\n")))  ; Split multiline labels
@@ -202,6 +226,7 @@ Each rect is (left top right bottom)."
                               "")))  ; Empty string for rows without text
             ;; Left border
             (dag-draw--set-char grid x actual-row ?│)
+            (push (cons x actual-row) boundaries)
             ;; Content area with proper multiline text rendering
             (dotimes (col (- width 2))
               (let ((char-pos (+ x col 1)))
@@ -209,14 +234,22 @@ Each rect is (left top right bottom)."
                     (dag-draw--set-char grid char-pos actual-row (aref current-line col))
                   (dag-draw--set-char grid char-pos actual-row ?\s))))
             ;; Right border
-            (dag-draw--set-char grid (+ x width -1) actual-row ?│))))
+            (dag-draw--set-char grid (+ x width -1) actual-row ?│)
+            (push (cons (+ x width -1) actual-row) boundaries))))
 
-      ;; Draw bottom border
+      ;; Draw bottom border and record boundary positions
       (dotimes (i width)
-        (dag-draw--set-char grid (+ x i) (+ y height -1)
-                            (cond ((= i 0) ?└)
-                                  ((= i (1- width)) ?┘)
-                                  (t ?─)))))))
+        (let ((pos-x (+ x i))
+              (pos-y (+ y height -1)))
+          (dag-draw--set-char grid pos-x pos-y
+                              (cond ((= i 0) ?└)
+                                    ((= i (1- width)) ?┘)
+                                    (t ?─)))
+          (push (cons pos-x pos-y) boundaries))))
+
+    ;; Return list of boundary positions
+    (message "DEBUG draw-node-box returning: %d boundaries" (length boundaries))
+    boundaries))
 
 
 (defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
