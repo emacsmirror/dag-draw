@@ -67,8 +67,8 @@
              (y-separation (- (dag-draw-node-y-coord bottom-node)
                              (dag-draw-node-y-coord top-node))))
         
-        ;; Should have reasonable separation (updated for improved compact layout)
-        (expect y-separation :to-be-greater-than 24)  ; Default minimum separation for compact layout
+        ;; Should have reasonable separation (updated for ASCII-specific compact layout)
+        (expect y-separation :to-be-greater-than 4)  ; ASCII compact separation (ranksep=5)
         (expect y-separation :to-be-less-than 150)    ; Maximum reasonable separation
         
         ;; ASCII output should show clear separation and connections

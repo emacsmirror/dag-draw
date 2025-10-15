@@ -93,6 +93,20 @@ Optimized for compact, readable layouts following GKNV algorithm principles."
   :type 'integer
   :group 'dag-draw)
 
+(defcustom dag-draw-ascii-node-separation 6
+  "Horizontal spacing between nodes in ASCII mode (characters).
+Used when coordinate-mode is 'ascii for compact terminal output.
+This provides readable spacing for 80-column terminals while allowing edge routing."
+  :type 'integer
+  :group 'dag-draw)
+
+(defcustom dag-draw-ascii-rank-separation 5
+  "Vertical spacing between ranks in ASCII mode (rows).
+Used when coordinate-mode is 'ascii for compact terminal output.
+This provides clean vertical separation with enough space for edge routing."
+  :type 'integer
+  :group 'dag-draw)
+
 (defcustom dag-draw-ascii-coordinate-scale 0.15
   "Scale factor for converting GKNV algorithm coordinates to ASCII grid positions.
 
@@ -242,6 +256,14 @@ Optional keyword arguments:
 
     ;; Store coordinate mode in graph for use by GKNV passes
     (setf (dag-draw-graph-coordinate-mode graph) coordinate-mode)
+
+    ;; Apply ASCII-specific separations for compact terminal output
+    ;; Only apply if user hasn't explicitly customized separations
+    (when (eq coordinate-mode 'ascii)
+      (when (= (dag-draw-graph-node-separation graph) dag-draw-default-node-separation)
+        (setf (dag-draw-graph-node-separation graph) dag-draw-ascii-node-separation))
+      (when (= (dag-draw-graph-rank-separation graph) dag-draw-default-rank-separation)
+        (setf (dag-draw-graph-rank-separation graph) dag-draw-ascii-rank-separation)))
 
     ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
     (dag-draw--process-edge-labels graph)
