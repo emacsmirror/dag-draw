@@ -6,6 +6,12 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Complete Positioning
 ;;
+;; NOTE: This file contains proper mix of UNIT TESTS and INTEGRATION TESTS.
+;; - Unit tests (Y-coords, X-coords, auxiliary graph, bounds, omega) test specific
+;;   Pass 3 functions with manually set ranks/orders - this is appropriate.
+;; - Integration tests (lines 214+) correctly use full pipeline (rank, order, position). ✅
+;; This file follows correct testing patterns.
+;;
 ;; This module tests complete GKNV Pass 3 coordinate assignment as specified in
 ;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
 ;;

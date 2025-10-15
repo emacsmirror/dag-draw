@@ -41,6 +41,8 @@
   
   (describe "box overlap prevention"
     (it "should prevent node boxes from overlapping or touching"
+      ;; RENDERER STRESS TEST: Artificially creates collision scenario
+      ;; Manual coordinates intentional - testing renderer collision handling
       ;; This test replicates the ┐┌ overlap issue in demo output
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'node-a "API Design")
@@ -48,8 +50,7 @@
         (dag-draw-add-node graph 'source "Research Phase")
         (dag-draw-add-edge graph 'source 'node-a)
         (dag-draw-add-edge graph 'source 'node-b)
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         ;; Position nodes to potentially cause overlap (like in demo)
         (let* ((source-node (dag-draw-get-node graph 'source))
                (node-a (dag-draw-get-node graph 'node-a))
@@ -76,12 +77,12 @@
             (message "===================================")))))
     
     (it "should maintain minimum safe distances between adjacent nodes"
-      ;; Test for proper spacing algorithm
+      ;; RENDERER STRESS TEST: Artificially creates spacing violation scenario
+      ;; Manual coordinates intentional - testing renderer spacing handling
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'left "Left Node")
         (dag-draw-add-node graph 'right "Right Node")
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         ;; Force nodes close together to test spacing
         (let* ((left-node (dag-draw-get-node graph 'left))
                (right-node (dag-draw-get-node graph 'right)))
@@ -104,6 +105,8 @@
   
   (describe "junction character placement"
     (it "should only place junction characters at proper intersections"
+      ;; RENDERER STRESS TEST: Artificially creates junction scenario
+      ;; Manual coordinates intentional - testing junction character selection
       ;; This test addresses the ┼────── issue from demo
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'source "Source")
@@ -111,8 +114,7 @@
         (dag-draw-add-node graph 'target-b "Target B")
         (dag-draw-add-edge graph 'source 'target-a)
         (dag-draw-add-edge graph 'source 'target-b)
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         (let* ((source-node (dag-draw-get-node graph 'source))
                (target-a-node (dag-draw-get-node graph 'target-a))
                (target-b-node (dag-draw-get-node graph 'target-b)))
@@ -163,14 +165,15 @@
   
   (describe "edge routing through nodes"
     (it "should route edges around nodes, not through them"
+      ;; RENDERER STRESS TEST: Artificially creates routing obstruction scenario
+      ;; Manual coordinates intentional - testing renderer routing around obstacles
       ;; This addresses edges that pass through other node boxes
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'start "Start")
         (dag-draw-add-node graph 'middle "Middle Blocker")
         (dag-draw-add-node graph 'end "End")
         (dag-draw-add-edge graph 'start 'end)  ; Edge should route around middle
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         ;; Position middle node between start and end to force routing decision
         (let* ((start-node (dag-draw-get-node graph 'start))
                (middle-node (dag-draw-get-node graph 'middle))

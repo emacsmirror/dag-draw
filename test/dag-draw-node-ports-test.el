@@ -6,6 +6,14 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Node Ports (X-Offsets)
 ;;
+;; NOTE: These are UNIT TESTS for port calculation mathematical functions.
+;; Tests create nodes with specific coordinates (without calling layout) to test
+;; port calculation functions in isolation with controlled inputs. This tests:
+;; - dag-draw--get-node-port (boundary position calculation)
+;; - dag-draw--calculate-edge-ports (port selection logic)
+;; - dag-draw--get-edge-connection-points (edge endpoint calculation)
+;; Manual coordinates are necessary to verify mathematical correctness.
+;;
 ;; This module tests GKNV node port support as specified in
 ;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
 ;;

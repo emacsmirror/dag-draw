@@ -11,6 +11,11 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Virtual Chain Straightening
 ;;
+;; NOTE: Tests in this file are UNIT TESTS for the minpath chain straightening algorithm.
+;; They use manually set ranks and coordinates to create specific test scenarios.
+;; FUTURE IMPROVEMENT: Could be strengthened by running layout first, then testing
+;; straightening behavior on real virtual chains created by the layout algorithm.
+;;
 ;; This module tests GKNV virtual edge chain straightening via omega weights as
 ;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
 ;; North, Vo).

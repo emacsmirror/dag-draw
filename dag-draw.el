@@ -263,7 +263,19 @@ Optional keyword arguments:
       (when (= (dag-draw-graph-node-separation graph) dag-draw-default-node-separation)
         (setf (dag-draw-graph-node-separation graph) dag-draw-ascii-node-separation))
       (when (= (dag-draw-graph-rank-separation graph) dag-draw-default-rank-separation)
-        (setf (dag-draw-graph-rank-separation graph) dag-draw-ascii-rank-separation)))
+        (setf (dag-draw-graph-rank-separation graph) dag-draw-ascii-rank-separation))
+
+      ;; Scale node sizes down to ASCII scale
+      ;; Node sizes are calculated in "world" coordinates (60-170), but ASCII mode
+      ;; needs them in character-grid scale (roughly 10-30 characters)
+      (let ((scale dag-draw-ascii-coordinate-scale))
+        (ht-each (lambda (node-id node)
+                   (let ((world-xsize (dag-draw-node-x-size node))
+                         (world-ysize (dag-draw-node-y-size node)))
+                     ;; Scale down to ASCII units
+                     (setf (dag-draw-node-x-size node) (* world-xsize scale))
+                     (setf (dag-draw-node-y-size node) (* world-ysize scale))))
+                 (dag-draw-graph-nodes graph))))
 
     ;; GKNV Edge Label Processing (before Pass 1 per Section 5.3)
     (dag-draw--process-edge-labels graph)

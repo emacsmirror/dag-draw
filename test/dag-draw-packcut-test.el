@@ -11,6 +11,12 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Layout Compaction
 ;;
+;; NOTE: Most tests in this file are UNIT TESTS for the packcut compaction algorithm.
+;; They use manually set coordinates to create specific compaction scenarios.
+;; FUTURE IMPROVEMENT: These tests could be strengthened by first running layout
+;; to get valid initial state, then testing compaction behavior on real output.
+;; See test at line 293 "should integrate with GKNV Pass 3" for correct approach.
+;;
 ;; This module tests GKNV layout compaction via separation constraints as
 ;; specified in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios,
 ;; North, Vo).

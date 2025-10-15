@@ -6,6 +6,13 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Side-Centered Port Positioning
 ;;
+;; NOTE: These tests use the "call layout then override coordinates" pattern.
+;; Tests call layout for rank/structure setup, then override coordinates (lines 68-71, 120-123)
+;; to create specific geometric scenarios for port calculation testing.
+;; CAVEAT: Port side determination occurs during layout Pass 4. Post-layout coordinate
+;; overrides do not trigger port recalculation (see deleted test comments lines 144-158).
+;; These remaining tests work because they test vertical edges which are handled correctly.
+;;
 ;; This module tests GKNV side-centered port positioning as specified in
 ;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
 ;;

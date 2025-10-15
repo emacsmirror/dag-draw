@@ -53,7 +53,7 @@
       
       ;; Run layout
       (dag-draw-layout-graph graph)
-      
+
       ;; Get output
       (let ((output (dag-draw-render-ascii graph)))
         (message "\n=== COMPLEX OVERLAP TEST ===")

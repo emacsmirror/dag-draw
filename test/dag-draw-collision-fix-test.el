@@ -29,16 +29,15 @@
   
   (describe "Text corruption prevention"
     (it "should not corrupt node text with edge characters"
+      ;; RENDERER STRESS TEST: Artificially creates text corruption scenario
+      ;; Manual coordinates intentional - testing renderer text preservation
       (let ((graph (dag-draw-create-graph)))
         ;; Create nodes that are likely to have edge routing through them
         (dag-draw-add-node graph 'task-d "Task D")
         (dag-draw-add-node graph 'task-e "Task E")
         (dag-draw-add-edge graph 'task-d 'task-e)
-        
-        ;; Run layout to set ranks and positions  
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
-        ;; Override coordinates to create vertical edge routing
+
+        ;; Set vertical coordinates to create vertical edge routing
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'task-d)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'task-d)) 50)
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'task-e)) 100)
@@ -95,13 +94,14 @@
             (expect (plist-get boundary-validation :valid) :to-be t)))))
     
     (it "should connect simple two-node graph with visible edges"
-      ;; This replicates the failing boundary connection test
+      ;; RENDERER STRESS TEST: Artificially creates boundary connection scenario
+      ;; Manual coordinates intentional - testing renderer edge-to-boundary connection
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'source "Source")
         (dag-draw-add-node graph 'target "Target")
         (dag-draw-add-edge graph 'source 'target)
-        
-        ;; Set coordinates like the failing test
+
+        ;; Set vertical coordinates for boundary connection test
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'source)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'source)) 50)
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'target)) 100)
@@ -120,13 +120,14 @@
             (expect (plist-get connectivity-validation :all-connected) :to-be t)))))
     
     (it "should produce correct arrow character based on layout direction"
-      ;; This replicates the failing arrow direction test
+      ;; RENDERER STRESS TEST: Artificially creates arrow direction scenario
+      ;; Manual coordinates intentional - testing renderer arrow character selection
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'node-a "Node A")
         (dag-draw-add-node graph 'node-b "Node B")
         (dag-draw-add-edge graph 'node-a 'node-b)
-        
-        ;; Set coordinates for vertical layout (should produce 'v' arrow)
+
+        ;; Set coordinates for vertical layout (should produce downward arrow)
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'node-a)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'node-a)) 50)
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'node-b)) 100)
@@ -145,12 +146,11 @@
             (expect (plist-get arrow-validation :valid-arrows) :to-be-greater-than 0)))))
     
     (it "should preserve box drawing characters in node borders"
+      ;; RENDERER STRESS TEST: Testing renderer border character preservation
+      ;; Manual coordinates intentional - testing renderer box drawing quality
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'test "Test")
-        
-        ;; Run layout to set ranks
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'test)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'test)) 100)
         
@@ -162,21 +162,20 @@
             (expect (plist-get boundary-validation :valid) :to-be t)))))
     
     (it "should handle complex graph without text corruption"
+      ;; RENDERER STRESS TEST: Artificially creates complex diamond scenario
+      ;; Manual coordinates intentional - testing renderer complex pattern handling
       (let ((graph (dag-draw-create-graph)))
         ;; Create a diamond pattern that has been problematic
         (dag-draw-add-node graph 'top "Top")
-        (dag-draw-add-node graph 'left "Left")  
+        (dag-draw-add-node graph 'left "Left")
         (dag-draw-add-node graph 'right "Right")
         (dag-draw-add-node graph 'bottom "Bottom")
-        
+
         (dag-draw-add-edge graph 'top 'left)
         (dag-draw-add-edge graph 'top 'right)
         (dag-draw-add-edge graph 'left 'bottom)
         (dag-draw-add-edge graph 'right 'bottom)
-        
-        ;; Run layout to set ranks
-        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
+
         ;; Set diamond coordinates
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'top)) 100)
         (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'top)) 50)

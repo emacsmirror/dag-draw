@@ -6,6 +6,13 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 4: Region-Constrained Splines
 ;;
+;; NOTE: This file contains both UNIT TESTS and INTEGRATION TESTS.
+;; - Unit tests (structure, classification, ports, math, utilities) use manual coords
+;;   to test specific functions in isolation - this is appropriate.
+;; - Some spline creation tests (lines 186-295) use manual coords to test spline
+;;   generation in controlled scenarios - could be improved with layout-first approach.
+;; - Integration tests (lines 298-333) correctly use full layout pipeline. ✅
+;;
 ;; This module tests GKNV region-constrained spline generation as specified in
 ;; "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
 ;;

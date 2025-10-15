@@ -57,9 +57,8 @@
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "Node A")
 
-        ;; Set explicit coordinates for predictable output
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'a)) 100)
+        ;; Use layout algorithm for proper integration test
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
 
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (expect ascii-output :to-be-truthy)
@@ -76,11 +75,8 @@
         (dag-draw-add-node graph 'b "B")
         (dag-draw-add-edge graph 'a 'b)
 
-        ;; Set explicit coordinates for vertical layout
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'a)) 50)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'b)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'b)) 150)
+        ;; Use layout algorithm for proper integration test
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
 
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (expect ascii-output :to-be-truthy)
@@ -102,15 +98,8 @@
         (dag-draw-add-edge graph 'left 'bottom)
         (dag-draw-add-edge graph 'right 'bottom)
 
-        ;; Set diamond layout coordinates
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'top)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'top)) 50)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'left)) 50)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'left)) 100)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'right)) 150)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'right)) 100)
-        (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'bottom)) 100)
-        (setf (dag-draw-node-y-coord (dag-draw-get-node graph 'bottom)) 150)
+        ;; Use layout algorithm for proper integration test
+        (dag-draw-layout-graph graph :coordinate-mode 'ascii)
 
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (expect ascii-output :to-be-truthy)
@@ -277,6 +266,8 @@
             (expect (plist-get node-validation :complete) :to-be t)))))
 
     (it "should handle very large coordinates"
+      ;; RENDERER TEST: Explicitly testing renderer coordinate handling edge case
+      ;; Manual coordinates are intentional - not testing layout algorithm
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "Node A")
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 10000)
@@ -286,6 +277,8 @@
           (expect ascii-output :to-be-truthy))))
 
     (it "should handle zero coordinates"
+      ;; RENDERER TEST: Explicitly testing renderer coordinate handling edge case
+      ;; Manual coordinates are intentional - not testing layout algorithm
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "Origin")
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'a)) 0)
@@ -298,6 +291,8 @@
             (expect (plist-get node-validation :complete) :to-be t)))))
 
     (it "should handle special characters in labels"
+      ;; RENDERER TEST: Explicitly testing renderer special character handling
+      ;; Manual coordinates are intentional - not testing layout algorithm
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'special "Node→←↑↓")
         (setf (dag-draw-node-x-coord (dag-draw-get-node graph 'special)) 100)

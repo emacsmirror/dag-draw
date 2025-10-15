@@ -4,6 +4,11 @@
 
 ;; GKNV Baseline Compliance Tests - ASCII: Grid Sizing
 ;;
+;; NOTE: This is a RENDERER TEST that uses manual coordinates to reproduce
+;; a specific grid sizing bug (nodes positioned outside grid boundaries).
+;; Test calls layout then overrides coordinates (lines 60-69) to create
+;; the problematic scenario. This is appropriate for regression testing.
+;;
 ;; This module tests ASCII grid dimension calculation as specified in
 ;; doc/implementation-decisions.md (ASCII adaptations).
 ;;

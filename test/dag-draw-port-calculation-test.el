@@ -6,6 +6,12 @@
 
 ;; GKNV Baseline Compliance Tests - Pass 3: Port Delta Calculation
 ;;
+;; NOTE: These are UNIT TESTS for port calculation functions.
+;; Tests call layout then override coordinates (lines 57-64, 114-120) to create
+;; specific test scenarios for port calculation. This tests the port calculation
+;; function in isolation with controlled inputs.
+;; FUTURE IMPROVEMENT: Could rely solely on layout output for more realistic testing.
+;;
 ;; This module tests GKNV port delta calculation for auxiliary graph as specified
 ;; in "A Technique for Drawing Directed Graphs" (Gansner, Koutsofios, North, Vo).
 ;;
@@ -92,12 +98,15 @@
             ;; (message "From node x=%.1f, width=%.1f" 
             ;;          (dag-draw-node-x-coord from-node) (dag-draw-node-x-size from-node))
 
-            ;; GKNV SECTION 5.2 COMPLIANCE: Ports positioned exactly at node boundaries  
-            ;; Node height is 20.0 (calculated from ASCII-first sizing), center positions are 0.0 and 25.0
-            (expect (dag-draw-point-y from-port) :to-equal 10.0)  ; Bottom boundary of first node (0 + 20/2 = 10)
-            (expect (dag-draw-point-y to-port) :to-equal 15.0)    ; Top boundary of second node (25 - 20/2 = 15)
-            (expect (dag-draw-point-x from-port) :to-equal 0.0)   ; Same x for vertical layout
-            (expect (dag-draw-point-x to-port) :to-equal 0.0)))))
+            ;; GKNV SECTION 5.2 COMPLIANCE: Ports positioned exactly at node boundaries
+            ;; After ASCII scaling: node heights are scaled by 0.15, so 20.0 becomes 3.0
+            ;; Center positions are 0.0 and 25.0 (manually set above)
+            (let ((from-node-height (dag-draw-node-y-size from-node))
+                  (to-node-height (dag-draw-node-y-size to-node)))
+              (expect (dag-draw-point-y from-port) :to-equal (+ 0.0 (/ from-node-height 2.0)))  ; Bottom boundary of first node
+              (expect (dag-draw-point-y to-port) :to-equal (- 25.0 (/ to-node-height 2.0)))     ; Top boundary of second node
+              (expect (dag-draw-point-x from-port) :to-equal 0.0)   ; Same x for vertical layout
+              (expect (dag-draw-point-x to-port) :to-equal 0.0))))))
 
   (xit "should select appropriate sides for horizontally separated nodes"
       ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"

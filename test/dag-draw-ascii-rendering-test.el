@@ -6,6 +6,14 @@
 
 ;; GKNV Baseline Compliance Tests - ASCII: Complete Rendering
 ;;
+;; NOTE: These are UNIT TESTS for low-level ASCII rendering utility functions.
+;; Tests do NOT call layout - they test pure mathematical/utility functions:
+;; - dag-draw--create-ascii-grid (grid creation)
+;; - dag-draw-get-graph-bounds (bounds calculation from coordinates)
+;; - Grid manipulation and conversion utilities
+;; Manual coordinates in bounds tests (lines 103-111, 136-139, 150-153) are
+;; necessary to test the bounds calculation function with specific inputs.
+;;
 ;; This module tests complete ASCII rendering adaptation of GKNV algorithm as
 ;; specified in doc/implementation-decisions.md (ASCII adaptations).
 ;;

@@ -5,6 +5,14 @@
 ;;; Commentary:
 
 ;; Tests for graph rendering functionality.
+;;
+;; NOTE: Most tests in this file are RENDERER TESTS that explicitly test
+;; rendering output formats (SVG, ASCII, DOT). Manual coordinates are used
+;; intentionally to test specific renderer behaviors (arrow markers, box drawing,
+;; XML escaping, etc.) rather than layout algorithm output.
+;;
+;; Integration tests that validate full layout pipeline are clearly marked and
+;; use dag-draw-layout-graph.
 
 ;;; Code:
 
