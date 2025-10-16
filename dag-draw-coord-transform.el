@@ -1,0 +1,143 @@
+;;; dag-draw-coord-transform.el --- Coordinate transformation layer -*- lexical-binding: t -*-
+
+;; Copyright (C) 2024
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;;; Commentary:
+
+;; Coordinate Transformation - Anti-Corruption Layer
+;;
+;; BOUNDED CONTEXT: Anti-Corruption Layer (Transform)
+;; UPSTREAM CONTEXT: GKNV Algorithm Context
+;; DOWNSTREAM CONTEXT: ASCII Rendering Context
+;; LAYER: Translation/Integration
+;; AUTHORITY: doc/implementation-decisions.md (D5.1) + DDD pattern
+;;
+;; This module implements the anti-corruption layer between two bounded contexts:
+;;
+;; 1. GKNV Algorithm Context (world coordinates - float values)
+;;    - Authority: "A Technique for Drawing Directed Graphs" paper
+;;    - Coordinates: Continuous floating-point (x, y) positions
+;;    - Units: Abstract "world units" from GKNV algorithm
+;;    - Purpose: Optimal graph layout using network simplex
+;;
+;; 2. ASCII Rendering Context (grid coordinates - integer values)
+;;    - Authority: Implementation decisions (D5.1-D5.8)
+;;    - Coordinates: Discrete integer grid positions
+;;    - Units: Character cells in terminal grid
+;;    - Purpose: Rendering with box-drawing characters
+;;
+;; Anti-Corruption Layer Responsibilities:
+;; - Translate between world coordinates and grid coordinates
+;; - Maintain coordinate context (offsets, scaling factors)
+;; - Ensure ASCII coordinates are always non-negative
+;; - Preserve GKNV layout proportions during transformation
+;; - Provide single source of truth for all coordinate conversions
+;;
+;; Key Concepts:
+;; - World coordinates: GKNV output, can be negative, floating-point
+;; - Grid coordinates: ASCII grid, always non-negative integers
+;; - Scale factor: Conversion ratio between world and grid units
+;; - Offset: Translation to ensure non-negative grid coordinates
+;;
+;; Bounded Context: Anti-Corruption Layer (Transform)
+;; Upstream: GKNV Algorithm Context
+;; Downstream: ASCII Rendering Context
+;;
+;; See doc/implementation-decisions.md (D5.1) for coordinate scaling decisions.
+
+;;; Code:
+
+(require 'ht)
+(require 'dag-draw-core)
+
+;;; Coordinate Transformation Functions
+
+(defun dag-draw--world-to-grid-coord (world-coord min-coord scale)
+  "Convert world coordinate to grid coordinate.
+WORLD-COORD is the world position (float).
+MIN-COORD is the world minimum (float).
+SCALE is the scaling factor (float).
+Returns integer grid coordinate."
+  (round (/ (- world-coord min-coord) scale)))
+
+(defun dag-draw--world-to-grid-size (world-size scale)
+  "Convert world size to grid size.
+WORLD-SIZE is the world dimension (float).
+SCALE is the scaling factor (float).
+Returns integer grid size (minimum 1)."
+  (max 1 (round (/ world-size scale))))
+
+;;; ASCII Coordinate Context
+
+(defun dag-draw--create-ascii-coordinate-context (graph)
+  "Create a normalized coordinate context specifically for ASCII rendering.
+This layer isolates ASCII coordinate normalization from other rendering paths.
+
+The coordinate context ensures:
+- All grid coordinates are non-negative (required for array indices)
+- Original GKNV proportions are preserved
+- Offsets are tracked for accurate transformation
+
+Returns a hash table with:
+  'offset-x - X offset to make coordinates non-negative
+  'offset-y - Y offset to make coordinates non-negative
+  'original-bounds - Original GKNV bounds (min-x min-y max-x max-y)
+  'ascii-bounds - ASCII-safe bounds (0 0 width height)"
+  (let* ((raw-bounds (dag-draw-get-graph-bounds graph))
+         (min-x (nth 0 raw-bounds))
+         (min-y (nth 1 raw-bounds))
+         (max-x (nth 2 raw-bounds))
+         (max-y (nth 3 raw-bounds))
+         ;; Calculate offsets to make coordinates non-negative
+         (offset-x (if (< min-x 0) (- min-x) 0))
+         (offset-y (if (< min-y 0) (- min-y) 0))
+         (context (ht-create)))
+
+    ;; Store the normalization offsets for coordinate conversion
+    (ht-set! context 'offset-x offset-x)
+    (ht-set! context 'offset-y offset-y)
+    (ht-set! context 'original-bounds raw-bounds)
+
+    ;; Calculate ASCII-safe bounds (guaranteed non-negative)
+    (ht-set! context 'ascii-bounds
+             (list 0 0
+                   (- max-x min-x)  ; Original width preserved
+                   (- max-y min-y))) ; Original height preserved
+
+    ;; Debug output
+    (message "ASCII-CONTEXT: offset-x=%.1f offset-y=%.1f" offset-x offset-y)
+    (message "ASCII-CONTEXT: original bounds (%.1f,%.1f,%.1f,%.1f) → ascii bounds (%.1f,%.1f,%.1f,%.1f)"
+             min-x min-y max-x max-y
+             0.0 0.0 (nth 2 (ht-get context 'ascii-bounds)) (nth 3 (ht-get context 'ascii-bounds)))
+
+    context))
+
+(defun dag-draw--ascii-world-to-grid (world-x world-y context scale)
+  "Convert world coordinates to ASCII grid using normalized context.
+This ensures all ASCII grid coordinates are non-negative.
+
+WORLD-X, WORLD-Y - World coordinates from GKNV algorithm
+CONTEXT - Coordinate context from dag-draw--create-ascii-coordinate-context
+SCALE - Scaling factor
+
+Returns (grid-x grid-y) as a list of integers."
+  (let ((offset-x (ht-get context 'offset-x))
+        (offset-y (ht-get context 'offset-y)))
+    (list (dag-draw--world-to-grid-coord (+ world-x offset-x) 0 scale)
+          (dag-draw--world-to-grid-coord (+ world-y offset-y) 0 scale))))
+
+(defun dag-draw--ascii-get-bounds (context)
+  "Get ASCII bounds from context.
+CONTEXT - Coordinate context from dag-draw--create-ascii-coordinate-context
+
+Returns (min-x min-y max-x max-y) where min-x and min-y are always 0."
+  (ht-get context 'ascii-bounds))
+
+(provide 'dag-draw-coord-transform)
+
+;;; dag-draw-coord-transform.el ends here
