@@ -774,8 +774,7 @@ Argument GRAPH ."
 
         (when (< current-tree-size total-nodes)
           ;; Step 4-9: Find boundary edge with minimal slack and adjust ranks
-          (dag-draw--expand-tight-tree graph fixed-node)
-          )
+          (dag-draw--expand-tight-tree graph fixed-node))
 
         (cl-incf iteration-count))
 

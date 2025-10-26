@@ -16,26 +16,73 @@
 ;;; Generated autoloads from dag-draw.el
 
 (autoload 'dag-draw-create-graph "dag-draw" "\
-Create a new empty directed graph with optional ATTRIBUTES.
+Create a new empty directed graph.
+
+ATTRIBUTES is an optional hash table of graph-level attributes.
+
+Returns a new `dag-draw-graph' structure ready for adding nodes
+and edges.
 
 (fn &optional ATTRIBUTES)")
 (autoload 'dag-draw-add-node "dag-draw" "\
-Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES.
-Auto-sizes the node based on label length using 2 rows × 20 characters constraint.
+Add a node with NODE-ID to GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+NODE-ID is a unique identifier (typically a symbol).
+LABEL is an optional string for display (defaults to NODE-ID's name).
+ATTRIBUTES is an optional hash table of node-specific attributes.
+
+The node is auto-sized based on label length using text wrapping
+constraints (up to 2 rows of 25 characters each).
+
+Returns the created `dag-draw-node' structure.
 
 (fn GRAPH NODE-ID &optional LABEL ATTRIBUTES)")
 (autoload 'dag-draw-add-edge "dag-draw" "\
 Add an edge from FROM-NODE to TO-NODE in GRAPH.
-Optional WEIGHT, LABEL, and ATTRIBUTES can be specified.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+FROM-NODE is the node ID of the edge source.
+TO-NODE is the node ID of the edge target.
+WEIGHT is an optional edge weight for optimization (defaults to 1).
+LABEL is an optional string label for the edge.
+ATTRIBUTES is an optional hash table of edge-specific attributes.
+
+The min-length constraint can be specified via ATTRIBUTES with key
+`min-length' (defaults to 1).
+
+Returns the created `dag-draw-edge' structure.
 
 (fn GRAPH FROM-NODE TO-NODE &optional WEIGHT LABEL ATTRIBUTES)")
 (autoload 'dag-draw-layout-graph "dag-draw" "\
 Apply the GKNV layout algorithm to GRAPH.
-This performs all four passes: ranking, ordering, positioning, and spline generation.
 
-(fn GRAPH)")
+GRAPH is a `dag-draw-graph' structure to layout.
+
+This performs the four GKNV passes:
+1. Ranking - assigns vertical levels to nodes
+2. Ordering - arranges nodes within ranks to minimize crossings
+3. Positioning - assigns x,y coordinates to nodes
+4. Spline generation - creates edge routing paths
+
+Optional keyword arguments (passed as ARGS):
+  :coordinate-mode MODE - Sets coordinate system mode
+                         `ascii': ASCII-native coordinates (default)
+                         `high-res': Legacy high-resolution mode
+
+Returns the GRAPH with layout information assigned to nodes and edges.
+
+(fn GRAPH &rest ARGS)")
 (autoload 'dag-draw-render-graph "dag-draw" "\
-Render GRAPH in the specified FORMAT (default: `dag-draw-default-output-format').
+Render GRAPH in the specified output format.
+
+GRAPH is a `dag-draw-graph' structure that has been laid out.
+FORMAT is an optional symbol specifying output format:
+  `svg' - Scalable Vector Graphics
+  `ascii' - ASCII art text representation
+  `dot' - Graphviz DOT language
+  Defaults to `dag-draw-default-output-format'.
+
 Returns a string representation of the rendered graph.
 
 (fn GRAPH &optional FORMAT)")
@@ -54,7 +101,7 @@ Returns a string representation of the rendered graph.
 
 ;;; Generated autoloads from dag-draw-ascii-grid.el
 
-(register-definition-prefixes "dag-draw-ascii-grid" '("dag-draw-"))
+(register-definition-prefixes "dag-draw-ascii-grid" '("dag-draw--"))
 
 
 ;;; Generated autoloads from dag-draw-ascii-nodes.el
@@ -125,6 +172,76 @@ Returns a string representation of the rendered graph.
 ;;; Generated autoloads from test-research-final.el
 
 (register-definition-prefixes "test-research-final" '("test-research-node-final"))
+
+
+;;; Generated autoloads from dag-draw-aesthetic-principles.el
+
+(register-definition-prefixes "dag-draw-aesthetic-principles" '("dag-draw--"))
+
+
+;;; Generated autoloads from dag-draw-ascii-junctions.el
+
+(register-definition-prefixes "dag-draw-ascii-junctions" '("dag-draw--"))
+
+
+;;; Generated autoloads from dag-draw-ascii-splines.el
+
+(register-definition-prefixes "dag-draw-ascii-splines" '("dag-draw-ascii-"))
+
+
+;;; Generated autoloads from dag-draw-coord-transform.el
+
+(register-definition-prefixes "dag-draw-coord-transform" '("dag-draw--"))
+
+
+;;; Generated autoloads from dag-draw-cycle-breaking.el
+
+(register-definition-prefixes "dag-draw-cycle-breaking" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-pass1-ranking.el
+
+(register-definition-prefixes "dag-draw-pass1-ranking" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-pass2-ordering.el
+
+(register-definition-prefixes "dag-draw-pass2-ordering" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-pass3-positioning.el
+
+(register-definition-prefixes "dag-draw-pass3-positioning" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-pass4-splines.el
+
+(register-definition-prefixes "dag-draw-pass4-splines" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-quality.el
+
+(register-definition-prefixes "dag-draw-quality" '("dag-draw--"))
+
+
+;;; Generated autoloads from dag-draw-rank-balancing.el
+
+(register-definition-prefixes "dag-draw-rank-balancing" '("dag-draw-"))
+
+
+;;; Generated autoloads from dag-draw-render-gknv-compliant.el
+
+(register-definition-prefixes "dag-draw-render-gknv-compliant" '("dag-draw--"))
+
+
+;;; Generated autoloads from dag-draw-test-harness.el
+
+(register-definition-prefixes "dag-draw-test-harness" '("dag-draw-test--"))
+
+
+;;; Generated autoloads from dag-draw-topological.el
+
+(register-definition-prefixes "dag-draw-topological" '("dag-draw--assign-ranks-topological"))
 
 ;;; End of scraped data
 
