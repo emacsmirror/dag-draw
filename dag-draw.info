@@ -1,0 +1,2802 @@
+This is dag-draw.info, produced by makeinfo version 7.2 from
+dag-draw.texi.
+
+Copyright (C) 2024-2025
+
+   You can redistribute this document and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+   This document is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+INFO-DIR-SECTION Emacs
+START-INFO-DIR-ENTRY
+* Dag Draw: (dag-draw). Draw directed acyclic graphs that don't suck.
+END-INFO-DIR-ENTRY
+
+
+File: dag-draw.info,  Node: Top,  Next: Introduction,  Up: (dir)
+
+Dag Draw User Manual
+********************
+
+Dag Draw is an Emacs Lisp library for drawing directed acyclic graphs
+(DAGs) using the industry-standard GKNV algorithm from Graphviz.
+
+This manual is for Dag Draw version 0.1.0
+
+* Menu:
+
+* Introduction::                 What is dag-draw and why should you care?
+* Getting Started::              Your first graph in 30 seconds
+* Tutorial From Basics to Advanced:: Learn to use dag-draw effectively
+* Reference::                    Complete API documentation
+* Troubleshooting::              Common problems and solutions
+* Advanced Topics::              Advanced usage and customization
+* Contributing::                 How to contribute to dag-draw
+* Index::                        Complete index
+* Function Index::
+* Variable Index::
+
+-- The Detailed Node Listing --
+
+Introduction
+
+* What is dag-draw?::
+* Why use dag-draw?::
+* What's a DAG?::
+* How does it work?::
+
+Getting Started
+
+* Installation::                 Get dag-draw into your Emacs
+* Your First Graph (The Black Triangle):: A working example in 30 seconds
+* Understanding What Just Happened::
+* A Slightly More Complex Example::
+
+Installation
+
+* Dependencies::
+* From Source::
+* Using package.el: Using packageel.
+
+
+Understanding What Just Happened
+
+* Step 1 Create a Graph::
+* Step 2 Add Nodes::
+* Step 3 Connect with Edges::
+* Step 4 Layout and Render::
+
+
+Tutorial: From Basics to Advanced
+
+* Working with Nodes::           Creating and customizing nodes
+* Working with Edges::           Creating and customizing edges
+* Layout The Magic Step::        Understanding layout and customization
+* Rendering From Coordinates to Pictures:: Producing visual output
+* Practical Examples::           Real-world use cases
+
+Working with Nodes
+
+* Basic Node Creation::
+* Node Labels::
+* Node Attributes::
+* Retrieving Nodes::
+
+
+Working with Edges
+
+* Basic Edge Creation::
+* Multiple Edges::
+* Edge Weights::
+* Edge Labels::
+* Edge Constraints::
+
+
+Layout: The Magic Step
+
+* Basic Layout::
+* What Layout Does::
+* Customizing Spacing::
+* ASCII vs High-Resolution Layout::
+* Rank Constraints::
+
+
+Rendering: From Coordinates to Pictures
+
+* ASCII Rendering::
+* SVG Rendering::
+* DOT Rendering::
+* Choosing the Right Format::
+
+
+Practical Examples
+
+* Example 1 Course Prerequisites::
+* Example 2 Build Dependencies::
+* Example 3 Project Task Dependencies::
+
+
+Reference
+
+* Graph Functions::              Creating and manipulating graphs
+* Node Functions::               Working with nodes
+* Edge Functions::               Working with edges
+* Rendering Functions::          Producing visual output
+* Configuration Variables::      Customization options
+* Graph Structure Accessors::    Direct graph structure access
+* Data Structure Details::       Understanding the internal structures
+
+Graph Functions
+
+* dag-draw-create-graph::
+* dag-draw-layout-graph::
+
+
+Node Functions
+
+* dag-draw-add-node::
+* dag-draw-get-node::
+* Node Accessors::
+
+
+Edge Functions
+
+* dag-draw-add-edge::
+* dag-draw-get-edges::
+* Edge Accessors::
+
+
+Rendering Functions
+
+* dag-draw-render-graph::
+
+
+Configuration Variables
+
+* dag-draw-default-node-separation::
+* dag-draw-default-rank-separation::
+* dag-draw-ascii-node-separation::
+* dag-draw-ascii-rank-separation::
+* dag-draw-default-output-format::
+
+
+Graph Structure Accessors
+
+* dag-draw-graph-nodes::
+* dag-draw-graph-edges::
+* dag-draw-graph-node-separation::
+* dag-draw-graph-rank-separation::
+* dag-draw-graph-coordinate-mode::
+
+
+Data Structure Details
+
+* Node Structure::
+* Edge Structure::
+* Graph Structure::
+
+
+Troubleshooting
+
+* Graph has cycles::
+* Node not found::
+* Nodes overlap in ASCII output::
+* Graph looks cramped::
+* Graph looks too spread out::
+* Must call layout before rendering::
+* ASCII output shows broken characters::
+* SVG doesn't display in Emacs::
+* Performance is slow for large graphs::
+* Edges cross when they shouldn't::
+
+Advanced Topics
+
+* Understanding the GKNV Algorithm::
+* Custom Renderers::
+* Integration Examples::
+* Performance Optimization::
+* Coordinate Systems::
+
+Understanding the GKNV Algorithm
+
+* The Four Passes::
+* Why This Algorithm?::
+
+
+Custom Renderers
+
+* Renderer Interface::
+* Accessing Layout Information::
+* Example Simple Text Renderer::
+
+
+Integration Examples
+
+* With Org Mode::
+* With Project Management::
+
+
+Performance Optimization
+
+* Caching Layouts::
+* Incremental Updates::
+
+
+Coordinate Systems
+
+* ASCII Mode (Default)::
+* High-Resolution Mode::
+* When to Use Which::
+
+
+Contributing
+
+* Development Setup::
+* Testing::
+* Code Style::
+* Pull Requests::
+* Reporting Bugs::
+
+
+File: dag-draw.info,  Node: Introduction,  Next: Getting Started,  Prev: Top,  Up: Top
+
+1 Introduction
+**************
+
+* Menu:
+
+* What is dag-draw?::
+* Why use dag-draw?::
+* What's a DAG?::
+* How does it work?::
+
+
+File: dag-draw.info,  Node: What is dag-draw?,  Next: Why use dag-draw?,  Up: Introduction
+
+1.1 What is dag-draw?
+=====================
+
+Ever tried to draw a flowchart?  You spend hours moving boxes around,
+trying to untangle crossing lines, and the result still looks like
+spaghetti.
+
+   *dag-draw.el* solves this problem.  You focus on the *structure*
+(what connects to what), and it handles the *layout* (where everything
+goes).
+
+   Instead of manually positioning boxes and arrows, you write:
+
+     ;; You write this:
+     (setq my-graph (dag-draw-create-graph))
+     (dag-draw-add-node my-graph 'design "Design")
+     (dag-draw-add-node my-graph 'build "Build")
+     (dag-draw-add-node my-graph 'test "Test")
+     (dag-draw-add-edge my-graph 'design 'build)
+     (dag-draw-add-edge my-graph 'design 'test)
+     (dag-draw-add-edge my-graph 'build 'test)
+     (dag-draw-layout-graph my-graph)
+     (dag-draw-render-graph my-graph 'ascii)
+
+   And it produces:
+
+     ┌──────┐
+     │Design│
+     └───┬──┘
+         │
+         ├────────────────┐
+         │                │
+         ▼                ▼
+     ┌───────┐        ┌──────┐
+     │Build  │───────▶│Test  │
+     └───────┘        └──────┘
+
+   *No manual positioning.  No tangled arrows.  Just clean, hierarchical
+layouts.*
+
+
+File: dag-draw.info,  Node: Why use dag-draw?,  Next: What's a DAG?,  Prev: What is dag-draw?,  Up: Introduction
+
+1.2 Why use dag-draw?
+=====================
+
+*For end users:*
+   • *Save time*: No more manual layout adjustments
+   • *Professional results*: Uses the same algorithm as Graphviz
+   • *Multiple formats*: Output to ASCII (terminal/docs) or SVG
+     (web/presentations)
+   • *Pure Elisp*: No external dependencies, works anywhere Emacs runs
+
+   *Common use cases:*
+   • Project dependency visualization (Task A must finish before B and
+     C)
+   • Course prerequisite charts (You need Calc I before Calc II)
+   • File dependency graphs (main.c includes utils.h)
+   • Workflow diagrams (Design → Build → Test → Deploy)
+   • Any hierarchical relationship that forms a DAG
+
+
+File: dag-draw.info,  Node: What's a DAG?,  Next: How does it work?,  Prev: Why use dag-draw?,  Up: Introduction
+
+1.3 What's a DAG?
+=================
+
+A *Directed Acyclic Graph* is:
+   • *Directed*: Arrows point in specific directions (A → B means "A
+     comes before B")
+   • *Acyclic*: No loops (you can't follow arrows and end up back where
+     you started)
+   • *Graph*: Nodes (boxes) connected by edges (arrows)
+
+   Think of a family tree, or a course prerequisite chart.  These are
+DAGs because:
+   • Relationships have direction (parent → child, prerequisite →
+     course)
+   • No cycles exist (you can't be your own ancestor, a course can't
+     require itself)
+
+   Valid DAG:
+     A → B → C
+
+   Invalid (has a cycle):
+     A → B → C → A  (cycle!)
+
+
+File: dag-draw.info,  Node: How does it work?,  Prev: What's a DAG?,  Up: Introduction
+
+1.4 How does it work?
+=====================
+
+dag-draw implements the *GKNV algorithm* from a seminal 1993 paper:
+
+     Gansner, E.  R., Koutsofios, E., North, S.  C., & Vo, K.  P.
+     (1993).  "A Technique for Drawing Directed Graphs."  IEEE
+     Transactions on Software Engineering, 19(3), 214-230.
+
+   This is the same algorithm used by *Graphviz*, the industry standard
+for graph layout.  It has been cited thousands of times and is optimal
+for hierarchical graphs.
+
+   The algorithm runs in four automatic passes:
+  1. *Ranking*: Assigns vertical levels (what goes on top, middle,
+     bottom)
+  2. *Ordering*: Arranges nodes horizontally to minimize crossing arrows
+  3. *Positioning*: Calculates exact X,Y coordinates
+  4. *Splines*: Draws smooth curves for edges
+
+   You don't need to understand the algorithm to use dag-draw.  Just
+call ‘dag-draw-layout-graph’ and it handles everything.
+
+
+File: dag-draw.info,  Node: Getting Started,  Next: Tutorial From Basics to Advanced,  Prev: Introduction,  Up: Top
+
+2 Getting Started
+*****************
+
+This section will teach you to create and render your first graph.  By
+the end, you'll have a working example you can modify.
+
+* Menu:
+
+* Installation::                 Get dag-draw into your Emacs
+* Your First Graph (The Black Triangle):: A working example in 30 seconds
+* Understanding What Just Happened::
+* A Slightly More Complex Example::
+
+
+File: dag-draw.info,  Node: Installation,  Next: Your First Graph (The Black Triangle),  Up: Getting Started
+
+2.1 Installation
+================
+
+* Menu:
+
+* Dependencies::
+* From Source::
+* Using package.el: Using packageel.
+
+
+File: dag-draw.info,  Node: Dependencies,  Next: From Source,  Up: Installation
+
+2.1.1 Dependencies
+------------------
+
+dag-draw requires:
+   • Emacs 26.1 or higher
+   • ‘dash’ library (list manipulation)
+   • ‘ht’ library (hash tables)
+
+
+File: dag-draw.info,  Node: From Source,  Next: Using packageel,  Prev: Dependencies,  Up: Installation
+
+2.1.2 From Source
+-----------------
+
+Clone the repository and add to your load path:
+
+     git clone https://github.com/example/dag-draw.el.git
+
+   Add to your Emacs configuration:
+
+     (add-to-list 'load-path "~/path/to/dag-draw.el")
+     (require 'dag-draw)
+
+
+File: dag-draw.info,  Node: Using packageel,  Prev: From Source,  Up: Installation
+
+2.1.3 Using package.el
+----------------------
+
+When released on MELPA:
+
+     M-x package-install RET dag-draw RET
+
+
+File: dag-draw.info,  Node: Your First Graph (The Black Triangle),  Next: Understanding What Just Happened,  Prev: Installation,  Up: Getting Started
+
+2.2 Your First Graph (The Black Triangle)
+=========================================
+
+Let's create a simple three-step workflow.  Type this into your
+‘*scratch*’ buffer and evaluate with ‘C-x C-e’:
+
+     (require 'dag-draw)
+
+     ;; Step 1: Create a graph
+     (setq my-graph (dag-draw-create-graph))
+
+     ;; Step 2: Add nodes
+     (dag-draw-add-node my-graph 'start "Start Here")
+     (dag-draw-add-node my-graph 'middle "Do Work")
+     (dag-draw-add-node my-graph 'done "Finish")
+
+     ;; Step 3: Connect them with edges
+     (dag-draw-add-edge my-graph 'start 'middle)
+     (dag-draw-add-edge my-graph 'middle 'done)
+
+     ;; Step 4: Layout and render
+     (dag-draw-layout-graph my-graph)
+     (dag-draw-render-graph my-graph 'ascii)
+
+   You should see:
+
+     ┌────────────┐
+     │Start Here  │
+     └──────┬─────┘
+            │
+            ▼
+     ┌────────────┐
+     │Do Work     │
+     └──────┬─────┘
+            │
+            ▼
+     ┌────────────┐
+     │Finish      │
+     └────────────┘
+
+   *Congratulations!*  You just created your first
+automatically-laid-out graph.
+
+
+File: dag-draw.info,  Node: Understanding What Just Happened,  Next: A Slightly More Complex Example,  Prev: Your First Graph (The Black Triangle),  Up: Getting Started
+
+2.3 Understanding What Just Happened
+====================================
+
+Let's break down each step:
+
+* Menu:
+
+* Step 1 Create a Graph::
+* Step 2 Add Nodes::
+* Step 3 Connect with Edges::
+* Step 4 Layout and Render::
+
+
+File: dag-draw.info,  Node: Step 1 Create a Graph,  Next: Step 2 Add Nodes,  Up: Understanding What Just Happened
+
+2.3.1 Step 1: Create a Graph
+----------------------------
+
+     (setq my-graph (dag-draw-create-graph))
+
+   This creates an empty graph structure.  Think of it as a blank
+canvas.
+
+
+File: dag-draw.info,  Node: Step 2 Add Nodes,  Next: Step 3 Connect with Edges,  Prev: Step 1 Create a Graph,  Up: Understanding What Just Happened
+
+2.3.2 Step 2: Add Nodes
+-----------------------
+
+     (dag-draw-add-node my-graph 'start "Start Here")
+
+   • *First argument*: The graph to add to
+   • *Second argument*: A unique ID (can be symbol or string)
+   • *Third argument*: The display label (what users see)
+
+   The ID is for your code to reference.  The label is what appears in
+the rendered output.
+
+
+File: dag-draw.info,  Node: Step 3 Connect with Edges,  Next: Step 4 Layout and Render,  Prev: Step 2 Add Nodes,  Up: Understanding What Just Happened
+
+2.3.3 Step 3: Connect with Edges
+--------------------------------
+
+     (dag-draw-add-edge my-graph 'start 'middle)
+
+   This creates a directed edge from ‘start’ to ‘middle’.  The arrow
+points from the first ID to the second.
+
+
+File: dag-draw.info,  Node: Step 4 Layout and Render,  Prev: Step 3 Connect with Edges,  Up: Understanding What Just Happened
+
+2.3.4 Step 4: Layout and Render
+-------------------------------
+
+     (dag-draw-layout-graph my-graph)
+     (dag-draw-render-graph my-graph 'ascii)
+
+   • ‘dag-draw-layout-graph’ runs the GKNV algorithm (assigns positions)
+   • ‘dag-draw-render-graph’ converts positions to visual output
+
+   You must layout before rendering.  Layout calculates where everything
+goes; render draws it.
+
+
+File: dag-draw.info,  Node: A Slightly More Complex Example,  Prev: Understanding What Just Happened,  Up: Getting Started
+
+2.4 A Slightly More Complex Example
+===================================
+
+Let's add some branching to make it interesting:
+
+     (setq project-graph (dag-draw-create-graph))
+
+     ;; Add nodes for a project workflow
+     (dag-draw-add-node project-graph 'plan "Planning")
+     (dag-draw-add-node project-graph 'design "Design")
+     (dag-draw-add-node project-graph 'code "Write Code")
+     (dag-draw-add-node project-graph 'test "Testing")
+     (dag-draw-add-node project-graph 'docs "Documentation")
+     (dag-draw-add-node project-graph 'deploy "Deploy")
+
+     ;; Create dependencies
+     (dag-draw-add-edge project-graph 'plan 'design)
+     (dag-draw-add-edge project-graph 'plan 'docs)
+     (dag-draw-add-edge project-graph 'design 'code)
+     (dag-draw-add-edge project-graph 'code 'test)
+     (dag-draw-add-edge project-graph 'test 'deploy)
+     (dag-draw-add-edge project-graph 'docs 'deploy)
+
+     ;; Layout and render
+     (dag-draw-layout-graph project-graph)
+     (dag-draw-render-graph project-graph 'ascii)
+
+   Output:
+
+          ┌─────────┐
+          │Planning │
+          └────┬────┘
+               │
+          ┌────┴──────────────┐
+          │                   │
+          ▼                   ▼
+     ┌────────┐         ┌──────────────┐
+     │Design  │         │Documentation │
+     └────┬───┘         └──────┬───────┘
+          │                    │
+          ▼                    │
+     ┌──────────────┐          │
+     │Write Code    │          │
+     └──────┬───────┘          │
+            │                  │
+            ▼                  │
+     ┌────────┐                │
+     │Testing │                │
+     └────┬───┘                │
+          │                    │
+          ├────────────────────┘
+          │
+          ▼
+     ┌────────┐
+     │Deploy  │
+     └────────┘
+
+   Notice how dag-draw automatically:
+   • Positioned "Planning" at the top (no dependencies)
+   • Arranged "Design" and "Documentation" in parallel (both depend only
+     on Planning)
+   • Minimized crossing lines
+   • Made edges merge cleanly at "Deploy"
+
+   *You specified structure.  dag-draw handled layout.*
+
+
+File: dag-draw.info,  Node: Tutorial From Basics to Advanced,  Next: Reference,  Prev: Getting Started,  Up: Top
+
+3 Tutorial: From Basics to Advanced
+***********************************
+
+This section teaches you everything you need to use dag-draw
+effectively, from simple graphs to advanced customization.
+
+* Menu:
+
+* Working with Nodes::           Creating and customizing nodes
+* Working with Edges::           Creating and customizing edges
+* Layout The Magic Step::        Understanding layout and customization
+* Rendering From Coordinates to Pictures:: Producing visual output
+* Practical Examples::           Real-world use cases
+
+
+File: dag-draw.info,  Node: Working with Nodes,  Next: Working with Edges,  Up: Tutorial From Basics to Advanced
+
+3.1 Working with Nodes
+======================
+
+* Menu:
+
+* Basic Node Creation::
+* Node Labels::
+* Node Attributes::
+* Retrieving Nodes::
+
+
+File: dag-draw.info,  Node: Basic Node Creation,  Next: Node Labels,  Up: Working with Nodes
+
+3.1.1 Basic Node Creation
+-------------------------
+
+The simplest form uses just an ID and label:
+
+     (dag-draw-add-node graph 'my-node "Display Label")
+
+   The node ID must be unique within the graph.  Use symbols or strings:
+
+     ;; Both work
+     (dag-draw-add-node graph 'node1 "First Node")
+     (dag-draw-add-node graph "node2" "Second Node")
+
+   *Convention*: Use symbols for IDs (easier to type, no quotes needed
+in most places).
+
+
+File: dag-draw.info,  Node: Node Labels,  Next: Node Attributes,  Prev: Basic Node Creation,  Up: Working with Nodes
+
+3.1.2 Node Labels
+-----------------
+
+Labels can be any string.  They're what users see in the rendered
+output:
+
+     ;; Short labels
+     (dag-draw-add-node graph 'start "Start")
+
+     ;; Long labels (will be auto-wrapped)
+     (dag-draw-add-node graph 'analyze "Analyze Requirements and Create Specifications")
+
+     ;; Labels with special characters
+     (dag-draw-add-node graph 'build "Build (v2.0)")
+
+   *Note*: Long labels are automatically wrapped to fit within node
+boundaries.  The default constraint is 2 rows × 20 characters maximum.
+
+
+File: dag-draw.info,  Node: Node Attributes,  Next: Retrieving Nodes,  Prev: Node Labels,  Up: Working with Nodes
+
+3.1.3 Node Attributes
+---------------------
+
+You can attach custom attributes to nodes for rendering hints:
+
+     (require 'ht)  ; Hash table library
+
+     ;; Create attributes hash
+     (setq node-attrs (ht ("color" "red")
+                          ("shape" "diamond")
+                          ("style" "bold")))
+
+     (dag-draw-add-node graph 'critical "Critical Task" node-attrs)
+
+   Attributes are used by renderers (especially SVG) for styling.  ASCII
+rendering ignores most attributes but uses them for semantic meaning in
+your code.
+
+
+File: dag-draw.info,  Node: Retrieving Nodes,  Prev: Node Attributes,  Up: Working with Nodes
+
+3.1.4 Retrieving Nodes
+----------------------
+
+After adding nodes, you can retrieve them:
+
+     (setq node (dag-draw-get-node graph 'my-node))
+
+     ;; Access node properties
+     (dag-draw-node-id node)       ; => 'my-node
+     (dag-draw-node-label node)    ; => "Display Label"
+     (dag-draw-node-x-coord node)  ; => nil (before layout) or number (after)
+     (dag-draw-node-y-coord node)  ; => nil (before layout) or number (after)
+     (dag-draw-node-rank node)     ; => nil (before layout) or rank number (after)
+
+   *Coordinate properties are nil until you call
+‘dag-draw-layout-graph’.*
+
+
+File: dag-draw.info,  Node: Working with Edges,  Next: Layout The Magic Step,  Prev: Working with Nodes,  Up: Tutorial From Basics to Advanced
+
+3.2 Working with Edges
+======================
+
+* Menu:
+
+* Basic Edge Creation::
+* Multiple Edges::
+* Edge Weights::
+* Edge Labels::
+* Edge Constraints::
+
+
+File: dag-draw.info,  Node: Basic Edge Creation,  Next: Multiple Edges,  Up: Working with Edges
+
+3.2.1 Basic Edge Creation
+-------------------------
+
+Edges connect two nodes by their IDs:
+
+     (dag-draw-add-edge graph 'node-a 'node-b)
+
+   This creates a directed edge from ‘node-a’ to ‘node-b’.  The arrow
+points from first to second.
+
+   *Direction matters*: ‘(dag-draw-add-edge graph 'a 'b)’ is NOT the
+same as ‘(dag-draw-add-edge graph 'b 'a)’.
+
+
+File: dag-draw.info,  Node: Multiple Edges,  Next: Edge Weights,  Prev: Basic Edge Creation,  Up: Working with Edges
+
+3.2.2 Multiple Edges
+--------------------
+
+You can add multiple edges from the same node:
+
+     ;; A depends on both B and C
+     (dag-draw-add-edge graph 'b 'a)
+     (dag-draw-add-edge graph 'c 'a)
+
+     ;; D depends on A
+     (dag-draw-add-edge graph 'a 'd)
+
+   This creates a diamond pattern:
+
+     ┌─┐  ┌─┐
+     │B│  │C│
+     └┬┘  └┬┘
+      │    │
+      └─┬──┘
+        ▼
+       ┌─┐
+       │A│
+       └┬┘
+        │
+        ▼
+       ┌─┐
+       │D│
+       └─┘
+
+
+File: dag-draw.info,  Node: Edge Weights,  Next: Edge Labels,  Prev: Multiple Edges,  Up: Working with Edges
+
+3.2.3 Edge Weights
+------------------
+
+Weights influence the layout algorithm (higher weights pull nodes
+closer):
+
+     ;; High-priority dependency (pulls nodes close)
+     (dag-draw-add-edge graph 'a 'b (ht ("weight" 10)))
+
+     ;; Low-priority dependency (allows more distance)
+     (dag-draw-add-edge graph 'a 'c (ht ("weight" 1)))
+
+   *Default weight is 1*.  Higher weights (5-10) make the algorithm try
+harder to keep nodes close vertically.
+
+
+File: dag-draw.info,  Node: Edge Labels,  Next: Edge Constraints,  Prev: Edge Weights,  Up: Working with Edges
+
+3.2.4 Edge Labels
+-----------------
+
+Edges can have labels (useful for documenting relationships):
+
+     (setq edge-attrs (ht ("label" "requires")))
+     (dag-draw-add-edge graph 'design 'coding edge-attrs)
+
+   *Note*: Edge label rendering support varies by format.  SVG supports
+them well; ASCII may not display them.
+
+
+File: dag-draw.info,  Node: Edge Constraints,  Prev: Edge Labels,  Up: Working with Edges
+
+3.2.5 Edge Constraints
+----------------------
+
+Minimum length constraints force vertical separation:
+
+     ;; Force at least 2 ranks between nodes
+     (setq edge-attrs (ht ("min-length" 2)))
+     (dag-draw-add-edge graph 'top 'bottom edge-attrs)
+
+   Use this when you need visual separation between certain nodes.
+
+
+File: dag-draw.info,  Node: Layout The Magic Step,  Next: Rendering From Coordinates to Pictures,  Prev: Working with Edges,  Up: Tutorial From Basics to Advanced
+
+3.3 Layout: The Magic Step
+==========================
+
+* Menu:
+
+* Basic Layout::
+* What Layout Does::
+* Customizing Spacing::
+* ASCII vs High-Resolution Layout::
+* Rank Constraints::
+
+
+File: dag-draw.info,  Node: Basic Layout,  Next: What Layout Does,  Up: Layout The Magic Step
+
+3.3.1 Basic Layout
+------------------
+
+Layout is simple: just call the function.
+
+     (dag-draw-layout-graph my-graph)
+
+   This runs the four-pass GKNV algorithm and assigns coordinates to all
+nodes and edges.
+
+   *You must layout before rendering.*  Rendering requires coordinates
+that layout provides.
+
+
+File: dag-draw.info,  Node: What Layout Does,  Next: Customizing Spacing,  Prev: Basic Layout,  Up: Layout The Magic Step
+
+3.3.2 What Layout Does
+----------------------
+
+When you call ‘dag-draw-layout-graph’, four things happen automatically:
+
+   *Pass 1: Ranking (Vertical Levels)*
+
+   Assigns each node to a vertical level (rank):
+
+     Rank 0:  [A] [B]        (no dependencies)
+     Rank 1:  [C] [D]        (depend on rank 0)
+     Rank 2:  [E]            (depends on rank 1)
+
+   Nodes with no incoming edges go at the top.  Each subsequent rank
+depends on previous ranks.
+
+   *Pass 2: Ordering (Horizontal Arrangement)*
+
+   Within each rank, arranges nodes horizontally to minimize crossing
+arrows.
+
+   The algorithm tries thousands of arrangements to find one with few
+crossings.  This is the hardest computational problem in graph layout.
+
+   *Pass 3: Positioning (Exact Coordinates)*
+
+   Calculates precise X,Y coordinates that:
+   • Respect the ordering from Pass 2
+   • Keep minimum separation between nodes
+   • Align connected nodes nicely
+
+   *Pass 4: Splines (Smooth Edges)*
+
+   Generates Bézier curve control points for edges that:
+   • Route smoothly from source to destination
+   • Avoid overlapping nodes
+   • Create professional-looking curves
+
+
+File: dag-draw.info,  Node: Customizing Spacing,  Next: ASCII vs High-Resolution Layout,  Prev: What Layout Does,  Up: Layout The Magic Step
+
+3.3.3 Customizing Spacing
+-------------------------
+
+Control how much space appears between elements:
+
+     ;; Create graph with custom spacing
+     (setq my-graph (dag-draw-create-graph))
+
+     ;; Set spacing before adding nodes
+     (setf (dag-draw-graph-node-separation my-graph) 30)  ; horizontal space
+     (setf (dag-draw-graph-rank-separation my-graph) 50)  ; vertical space
+
+     ;; Add nodes and edges...
+     ;; Then layout
+     (dag-draw-layout-graph my-graph)
+
+   *Default values*:
+   • Node separation: 20 units
+   • Rank separation: 25 units
+
+   *Increase these values* if your graphs look cramped.  *Decrease them*
+for more compact output.
+
+
+File: dag-draw.info,  Node: ASCII vs High-Resolution Layout,  Next: Rank Constraints,  Prev: Customizing Spacing,  Up: Layout The Magic Step
+
+3.3.4 ASCII vs High-Resolution Layout
+-------------------------------------
+
+dag-draw supports two coordinate modes:
+
+     ;; ASCII mode (default, optimized for terminal output)
+     (setf (dag-draw-graph-coordinate-mode my-graph) 'ascii)
+
+     ;; High-resolution mode (for SVG/detailed graphics)
+     (setf (dag-draw-graph-coordinate-mode my-graph) 'high-res)
+
+   *ASCII mode* uses smaller separation values appropriate for character
+grids.  *High-res mode* uses the standard GKNV algorithm spacing.
+
+   *Recommendation*: Use default (ASCII) unless you're only generating
+SVG output.
+
+
+File: dag-draw.info,  Node: Rank Constraints,  Prev: ASCII vs High-Resolution Layout,  Up: Layout The Magic Step
+
+3.3.5 Rank Constraints
+----------------------
+
+Sometimes you want to force certain nodes onto the same level:
+
+     ;; Force nodes 'a and 'b onto the same rank
+     (setf (dag-draw-graph-rank-sets my-graph)
+           '(('a 'b)))
+
+   This is advanced usage.  Most graphs don't need rank constraints.
+
+
+File: dag-draw.info,  Node: Rendering From Coordinates to Pictures,  Next: Practical Examples,  Prev: Layout The Magic Step,  Up: Tutorial From Basics to Advanced
+
+3.4 Rendering: From Coordinates to Pictures
+===========================================
+
+* Menu:
+
+* ASCII Rendering::
+* SVG Rendering::
+* DOT Rendering::
+* Choosing the Right Format::
+
+
+File: dag-draw.info,  Node: ASCII Rendering,  Next: SVG Rendering,  Up: Rendering From Coordinates to Pictures
+
+3.4.1 ASCII Rendering
+---------------------
+
+ASCII rendering produces box-drawing character output for terminals and
+plain text:
+
+     (dag-draw-render-graph my-graph 'ascii)
+
+   Returns a string you can insert into buffers or print:
+
+     (with-current-buffer (get-buffer-create "*Graph*")
+       (erase-buffer)
+       (insert (dag-draw-render-graph my-graph 'ascii))
+       (goto-char (point-min))
+       (pop-to-buffer (current-buffer)))
+
+   *Best for*:
+   • Quick previews
+   • README files
+   • Source code comments
+   • Email
+   • Terminal output
+
+   *Requirements*:
+   • Monospace font
+   • Unicode box-drawing character support
+
+
+File: dag-draw.info,  Node: SVG Rendering,  Next: DOT Rendering,  Prev: ASCII Rendering,  Up: Rendering From Coordinates to Pictures
+
+3.4.2 SVG Rendering
+-------------------
+
+SVG rendering produces scalable vector graphics:
+
+     (dag-draw-render-graph my-graph 'svg)
+
+   Returns an SVG string you can save to a file:
+
+     (with-temp-file "~/my-graph.svg"
+       (insert (dag-draw-render-graph my-graph 'svg)))
+
+   Or display in Emacs (if your Emacs build supports SVG):
+
+     (with-current-buffer (get-buffer-create "*Graph SVG*")
+       (erase-buffer)
+       (insert-image (create-image
+                      (dag-draw-render-graph my-graph 'svg)
+                      'svg t))
+       (pop-to-buffer (current-buffer)))
+
+   *Best for*:
+   • Documentation websites
+   • Presentations
+   • High-quality printouts
+   • Scalable diagrams
+
+   *Advantages*:
+   • Crisp at any zoom level
+   • Smooth curves
+   • Customizable styling
+   • Embeddable in HTML
+
+
+File: dag-draw.info,  Node: DOT Rendering,  Next: Choosing the Right Format,  Prev: SVG Rendering,  Up: Rendering From Coordinates to Pictures
+
+3.4.3 DOT Rendering
+-------------------
+
+DOT format is Graphviz's input language:
+
+     (dag-draw-render-graph my-graph 'dot)
+
+   This outputs DOT language source that you can process with Graphviz
+tools.
+
+   *Use this when*:
+   • You need Graphviz-specific features
+   • You want to post-process with Graphviz
+   • You're debugging layout differences
+
+
+File: dag-draw.info,  Node: Choosing the Right Format,  Prev: DOT Rendering,  Up: Rendering From Coordinates to Pictures
+
+3.4.4 Choosing the Right Format
+-------------------------------
+
+     Use ASCII when:
+       - Quick preview needed
+       - Terminal/text-only environment
+       - Including in code comments
+       - Email or plain text documentation
+
+     Use SVG when:
+       - Presentation quality matters
+       - Web publishing
+       - Need scalability
+       - Want custom styling
+
+     Use DOT when:
+       - Interfacing with Graphviz
+       - Need Graphviz-specific features
+       - Comparing layouts
+
+
+File: dag-draw.info,  Node: Practical Examples,  Prev: Rendering From Coordinates to Pictures,  Up: Tutorial From Basics to Advanced
+
+3.5 Practical Examples
+======================
+
+* Menu:
+
+* Example 1 Course Prerequisites::
+* Example 2 Build Dependencies::
+* Example 3 Project Task Dependencies::
+
+
+File: dag-draw.info,  Node: Example 1 Course Prerequisites,  Next: Example 2 Build Dependencies,  Up: Practical Examples
+
+3.5.1 Example 1: Course Prerequisites
+-------------------------------------
+
+     (setq course-graph (dag-draw-create-graph))
+
+     ;; First year courses
+     (dag-draw-add-node course-graph 'cs101 "Intro to CS")
+     (dag-draw-add-node course-graph 'math101 "Calculus I")
+     (dag-draw-add-node course-graph 'math102 "Calculus II")
+
+     ;; Second year courses
+     (dag-draw-add-node course-graph 'cs201 "Data Structures")
+     (dag-draw-add-node course-graph 'cs202 "Algorithms")
+     (dag-draw-add-node course-graph 'math201 "Linear Algebra")
+
+     ;; Third year courses
+     (dag-draw-add-node course-graph 'cs301 "Machine Learning")
+
+     ;; Prerequisites
+     (dag-draw-add-edge course-graph 'cs101 'cs201)
+     (dag-draw-add-edge course-graph 'cs201 'cs202)
+     (dag-draw-add-edge course-graph 'math101 'math102)
+     (dag-draw-add-edge course-graph 'math102 'math201)
+     (dag-draw-add-edge course-graph 'cs202 'cs301)
+     (dag-draw-add-edge course-graph 'math201 'cs301)
+
+     (dag-draw-layout-graph course-graph)
+     (dag-draw-render-graph course-graph 'ascii)
+
+
+File: dag-draw.info,  Node: Example 2 Build Dependencies,  Next: Example 3 Project Task Dependencies,  Prev: Example 1 Course Prerequisites,  Up: Practical Examples
+
+3.5.2 Example 2: Build Dependencies
+-----------------------------------
+
+     (setq build-graph (dag-draw-create-graph))
+
+     ;; Source files
+     (dag-draw-add-node build-graph 'utils-h "utils.h")
+     (dag-draw-add-node build-graph 'utils-c "utils.c")
+     (dag-draw-add-node build-graph 'main-c "main.c")
+
+     ;; Object files
+     (dag-draw-add-node build-graph 'utils-o "utils.o")
+     (dag-draw-add-node build-graph 'main-o "main.o")
+
+     ;; Executable
+     (dag-draw-add-node build-graph 'program "program")
+
+     ;; Dependencies
+     (dag-draw-add-edge build-graph 'utils-h 'utils-c)
+     (dag-draw-add-edge build-graph 'utils-c 'utils-o)
+     (dag-draw-add-edge build-graph 'utils-h 'main-c)
+     (dag-draw-add-edge build-graph 'main-c 'main-o)
+     (dag-draw-add-edge build-graph 'utils-o 'program)
+     (dag-draw-add-edge build-graph 'main-o 'program)
+
+     (dag-draw-layout-graph build-graph)
+     (dag-draw-render-graph build-graph 'ascii)
+
+
+File: dag-draw.info,  Node: Example 3 Project Task Dependencies,  Prev: Example 2 Build Dependencies,  Up: Practical Examples
+
+3.5.3 Example 3: Project Task Dependencies
+------------------------------------------
+
+     (defun visualize-project-tasks ()
+       "Create a visualization of project tasks."
+       (let ((graph (dag-draw-create-graph)))
+
+         ;; Define tasks
+         (dag-draw-add-node graph 'requirements "Requirements")
+         (dag-draw-add-node graph 'architecture "Architecture")
+         (dag-draw-add-node graph 'ui-design "UI Design")
+         (dag-draw-add-node graph 'backend "Backend Dev")
+         (dag-draw-add-node graph 'frontend "Frontend Dev")
+         (dag-draw-add-node graph 'integration "Integration")
+         (dag-draw-add-node graph 'testing "Testing")
+         (dag-draw-add-node graph 'deployment "Deployment")
+
+         ;; Define dependencies
+         (dag-draw-add-edge graph 'requirements 'architecture)
+         (dag-draw-add-edge graph 'requirements 'ui-design)
+         (dag-draw-add-edge graph 'architecture 'backend)
+         (dag-draw-add-edge graph 'architecture 'frontend)
+         (dag-draw-add-edge graph 'ui-design 'frontend)
+         (dag-draw-add-edge graph 'backend 'integration)
+         (dag-draw-add-edge graph 'frontend 'integration)
+         (dag-draw-add-edge graph 'integration 'testing)
+         (dag-draw-add-edge graph 'testing 'deployment)
+
+         ;; Layout and display
+         (dag-draw-layout-graph graph)
+
+         ;; Insert into a buffer
+         (with-current-buffer (get-buffer-create "*Project Tasks*")
+           (erase-buffer)
+           (insert "Project Task Dependencies\n")
+           (insert "========================\n\n")
+           (insert (dag-draw-render-graph graph 'ascii))
+           (goto-char (point-min))
+           (pop-to-buffer (current-buffer)))))
+
+   Call it with:
+
+     (visualize-project-tasks)
+
+
+File: dag-draw.info,  Node: Reference,  Next: Troubleshooting,  Prev: Tutorial From Basics to Advanced,  Up: Top
+
+4 Reference
+***********
+
+This section documents every public function and variable in dag-draw.
+
+* Menu:
+
+* Graph Functions::              Creating and manipulating graphs
+* Node Functions::               Working with nodes
+* Edge Functions::               Working with edges
+* Rendering Functions::          Producing visual output
+* Configuration Variables::      Customization options
+* Graph Structure Accessors::    Direct graph structure access
+* Data Structure Details::       Understanding the internal structures
+
+
+File: dag-draw.info,  Node: Graph Functions,  Next: Node Functions,  Up: Reference
+
+4.1 Graph Functions
+===================
+
+* Menu:
+
+* dag-draw-create-graph::
+* dag-draw-layout-graph::
+
+
+File: dag-draw.info,  Node: dag-draw-create-graph,  Next: dag-draw-layout-graph,  Up: Graph Functions
+
+4.1.1 dag-draw-create-graph
+---------------------------
+
+     (dag-draw-create-graph &optional attributes)
+
+   Create a new empty directed graph.
+
+   *Arguments*:
+   • ‘attributes’ (optional): Hash table of graph-level attributes
+
+   *Returns*: A new ‘dag-draw-graph’ structure
+
+   *Example*:
+     ;; Basic graph
+     (setq g (dag-draw-create-graph))
+
+     ;; Graph with attributes
+     (setq g (dag-draw-create-graph (ht ("name" "My Graph")
+                                         ("type" "workflow"))))
+
+
+File: dag-draw.info,  Node: dag-draw-layout-graph,  Prev: dag-draw-create-graph,  Up: Graph Functions
+
+4.1.2 dag-draw-layout-graph
+---------------------------
+
+     (dag-draw-layout-graph graph)
+
+   Run the GKNV layout algorithm on a graph.
+
+   This function modifies the graph in-place, assigning coordinates to
+nodes and generating spline points for edges.
+
+   *Arguments*:
+   • ‘graph’: A ‘dag-draw-graph’ structure
+
+   *Returns*: The modified graph (for chaining)
+
+   *Side effects*: Sets coordinates on all nodes and spline points on
+all edges
+
+   *Example*:
+     (dag-draw-add-node g 'a "A")
+     (dag-draw-add-node g 'b "B")
+     (dag-draw-add-edge g 'a 'b)
+     (dag-draw-layout-graph g)  ; Now nodes have coordinates
+
+   *Note*: You must call this before rendering.
+
+
+File: dag-draw.info,  Node: Node Functions,  Next: Edge Functions,  Prev: Graph Functions,  Up: Reference
+
+4.2 Node Functions
+==================
+
+* Menu:
+
+* dag-draw-add-node::
+* dag-draw-get-node::
+* Node Accessors::
+
+
+File: dag-draw.info,  Node: dag-draw-add-node,  Next: dag-draw-get-node,  Up: Node Functions
+
+4.2.1 dag-draw-add-node
+-----------------------
+
+     (dag-draw-add-node graph node-id &optional label attributes)
+
+   Add a node to a graph.
+
+   *Arguments*:
+   • ‘graph’: The graph to add to
+   • ‘node-id’: Unique identifier (symbol or string)
+   • ‘label’ (optional): Display label (defaults to node-id as string)
+   • ‘attributes’ (optional): Hash table of node attributes
+
+   *Returns*: The created node structure
+
+   *Example*:
+     ;; Minimal
+     (dag-draw-add-node graph 'my-node)
+
+     ;; With label
+     (dag-draw-add-node graph 'task1 "First Task")
+
+     ;; With attributes
+     (dag-draw-add-node graph 'critical "Critical"
+                        (ht ("color" "red")
+                            ("priority" "high")))
+
+   *Note*: Node IDs must be unique within a graph.  Adding a node with
+an existing ID replaces the old node.
+
+
+File: dag-draw.info,  Node: dag-draw-get-node,  Next: Node Accessors,  Prev: dag-draw-add-node,  Up: Node Functions
+
+4.2.2 dag-draw-get-node
+-----------------------
+
+     (dag-draw-get-node graph node-id)
+
+   Retrieve a node by ID.
+
+   *Arguments*:
+   • ‘graph’: The graph to search
+   • ‘node-id’: The node's unique identifier
+
+   *Returns*: The node structure, or ‘nil’ if not found
+
+   *Example*:
+     (setq node (dag-draw-get-node graph 'my-node))
+     (when node
+       (message "Label: %s" (dag-draw-node-label node)))
+
+
+File: dag-draw.info,  Node: Node Accessors,  Prev: dag-draw-get-node,  Up: Node Functions
+
+4.2.3 Node Accessors
+--------------------
+
+* Menu:
+
+* dag-draw-node-id::
+* dag-draw-node-label::
+* dag-draw-node-x-coord::
+* dag-draw-node-y-coord::
+* dag-draw-node-rank::
+* dag-draw-node-order::
+* dag-draw-node-attributes::
+
+
+File: dag-draw.info,  Node: dag-draw-node-id,  Next: dag-draw-node-label,  Up: Node Accessors
+
+dag-draw-node-id
+................
+
+     (dag-draw-node-id node)
+
+   Get the node's unique identifier.
+
+   *Returns*: The node ID (symbol or string)
+
+
+File: dag-draw.info,  Node: dag-draw-node-label,  Next: dag-draw-node-x-coord,  Prev: dag-draw-node-id,  Up: Node Accessors
+
+dag-draw-node-label
+...................
+
+     (dag-draw-node-label node)
+
+   Get the node's display label.
+
+   *Returns*: String label
+
+
+File: dag-draw.info,  Node: dag-draw-node-x-coord,  Next: dag-draw-node-y-coord,  Prev: dag-draw-node-label,  Up: Node Accessors
+
+dag-draw-node-x-coord
+.....................
+
+     (dag-draw-node-x-coord node)
+
+   Get the node's X coordinate.
+
+   *Returns*: Number (after layout), or ‘nil’ (before layout)
+
+
+File: dag-draw.info,  Node: dag-draw-node-y-coord,  Next: dag-draw-node-rank,  Prev: dag-draw-node-x-coord,  Up: Node Accessors
+
+dag-draw-node-y-coord
+.....................
+
+     (dag-draw-node-y-coord node)
+
+   Get the node's Y coordinate.
+
+   *Returns*: Number (after layout), or ‘nil’ (before layout)
+
+
+File: dag-draw.info,  Node: dag-draw-node-rank,  Next: dag-draw-node-order,  Prev: dag-draw-node-y-coord,  Up: Node Accessors
+
+dag-draw-node-rank
+..................
+
+     (dag-draw-node-rank node)
+
+   Get the node's assigned rank (vertical level).
+
+   *Returns*: Integer rank (after layout), or ‘nil’ (before layout)
+
+   Rank 0 is the top level.  Higher ranks are lower in the visual
+output.
+
+
+File: dag-draw.info,  Node: dag-draw-node-order,  Next: dag-draw-node-attributes,  Prev: dag-draw-node-rank,  Up: Node Accessors
+
+dag-draw-node-order
+...................
+
+     (dag-draw-node-order node)
+
+   Get the node's order within its rank.
+
+   *Returns*: Integer order (after layout), or ‘nil’ (before layout)
+
+   Order 0 is leftmost.  Higher orders are further right.
+
+
+File: dag-draw.info,  Node: dag-draw-node-attributes,  Prev: dag-draw-node-order,  Up: Node Accessors
+
+dag-draw-node-attributes
+........................
+
+     (dag-draw-node-attributes node)
+
+   Get the node's attribute hash table.
+
+   *Returns*: Hash table (possibly empty)
+
+   *Example*:
+     (setq attrs (dag-draw-node-attributes node))
+     (ht-get attrs "color")  ; => "red"
+
+
+File: dag-draw.info,  Node: Edge Functions,  Next: Rendering Functions,  Prev: Node Functions,  Up: Reference
+
+4.3 Edge Functions
+==================
+
+* Menu:
+
+* dag-draw-add-edge::
+* dag-draw-get-edges::
+* Edge Accessors::
+
+
+File: dag-draw.info,  Node: dag-draw-add-edge,  Next: dag-draw-get-edges,  Up: Edge Functions
+
+4.3.1 dag-draw-add-edge
+-----------------------
+
+     (dag-draw-add-edge graph from-id to-id &optional attributes)
+
+   Add a directed edge to a graph.
+
+   *Arguments*:
+   • ‘graph’: The graph to add to
+   • ‘from-id’: Source node ID
+   • ‘to-id’: Destination node ID
+   • ‘attributes’ (optional): Hash table of edge attributes
+
+   *Returns*: The created edge structure
+
+   *Example*:
+     ;; Basic edge
+     (dag-draw-add-edge graph 'a 'b)
+
+     ;; Edge with weight
+     (dag-draw-add-edge graph 'a 'c (ht ("weight" 5)))
+
+     ;; Edge with label
+     (dag-draw-add-edge graph 'a 'd (ht ("label" "requires")))
+
+   *Note*: Both nodes must exist in the graph before adding an edge.
+
+
+File: dag-draw.info,  Node: dag-draw-get-edges,  Next: Edge Accessors,  Prev: dag-draw-add-edge,  Up: Edge Functions
+
+4.3.2 dag-draw-get-edges
+------------------------
+
+     (dag-draw-get-edges graph)
+
+   Get all edges in a graph.
+
+   *Arguments*:
+   • ‘graph’: The graph
+
+   *Returns*: List of edge structures
+
+   *Example*:
+     (dolist (edge (dag-draw-get-edges graph))
+       (message "Edge: %s -> %s"
+                (dag-draw-edge-from-node edge)
+                (dag-draw-edge-to-node edge)))
+
+
+File: dag-draw.info,  Node: Edge Accessors,  Prev: dag-draw-get-edges,  Up: Edge Functions
+
+4.3.3 Edge Accessors
+--------------------
+
+* Menu:
+
+* dag-draw-edge-from-node::
+* dag-draw-edge-to-node::
+* dag-draw-edge-weight::
+* dag-draw-edge-min-length::
+* dag-draw-edge-spline-points::
+* dag-draw-edge-attributes::
+
+
+File: dag-draw.info,  Node: dag-draw-edge-from-node,  Next: dag-draw-edge-to-node,  Up: Edge Accessors
+
+dag-draw-edge-from-node
+.......................
+
+     (dag-draw-edge-from-node edge)
+
+   Get the source node ID.
+
+   *Returns*: Node ID (symbol or string)
+
+
+File: dag-draw.info,  Node: dag-draw-edge-to-node,  Next: dag-draw-edge-weight,  Prev: dag-draw-edge-from-node,  Up: Edge Accessors
+
+dag-draw-edge-to-node
+.....................
+
+     (dag-draw-edge-to-node edge)
+
+   Get the destination node ID.
+
+   *Returns*: Node ID (symbol or string)
+
+
+File: dag-draw.info,  Node: dag-draw-edge-weight,  Next: dag-draw-edge-min-length,  Prev: dag-draw-edge-to-node,  Up: Edge Accessors
+
+dag-draw-edge-weight
+....................
+
+     (dag-draw-edge-weight edge)
+
+   Get the edge weight.
+
+   *Returns*: Number (default: 1)
+
+   Higher weights make the layout algorithm try harder to keep nodes
+close together vertically.
+
+
+File: dag-draw.info,  Node: dag-draw-edge-min-length,  Next: dag-draw-edge-spline-points,  Prev: dag-draw-edge-weight,  Up: Edge Accessors
+
+dag-draw-edge-min-length
+........................
+
+     (dag-draw-edge-min-length edge)
+
+   Get the minimum length constraint.
+
+   *Returns*: Integer (default: 1)
+
+   Minimum number of ranks between source and destination nodes.
+
+
+File: dag-draw.info,  Node: dag-draw-edge-spline-points,  Next: dag-draw-edge-attributes,  Prev: dag-draw-edge-min-length,  Up: Edge Accessors
+
+dag-draw-edge-spline-points
+...........................
+
+     (dag-draw-edge-spline-points edge)
+
+   Get the Bézier curve control points.
+
+   *Returns*: List of (x y) coordinate pairs (after layout), or ‘nil’
+(before layout)
+
+   These points define the smooth curve of the edge in the rendered
+output.
+
+
+File: dag-draw.info,  Node: dag-draw-edge-attributes,  Prev: dag-draw-edge-spline-points,  Up: Edge Accessors
+
+dag-draw-edge-attributes
+........................
+
+     (dag-draw-edge-attributes edge)
+
+   Get the edge's attribute hash table.
+
+   *Returns*: Hash table (possibly empty)
+
+
+File: dag-draw.info,  Node: Rendering Functions,  Next: Configuration Variables,  Prev: Edge Functions,  Up: Reference
+
+4.4 Rendering Functions
+=======================
+
+* Menu:
+
+* dag-draw-render-graph::
+
+
+File: dag-draw.info,  Node: dag-draw-render-graph,  Up: Rendering Functions
+
+4.4.1 dag-draw-render-graph
+---------------------------
+
+     (dag-draw-render-graph graph format)
+
+   Render a graph to a specific format.
+
+   *Arguments*:
+   • ‘graph’: The graph to render (must be laid out first)
+   • ‘format’: Output format symbol (‘'ascii’, ‘'svg’, or ‘'dot’)
+
+   *Returns*: String containing the rendered output
+
+   *Example*:
+     ;; ASCII rendering
+     (setq ascii-output (dag-draw-render-graph graph 'ascii))
+
+     ;; SVG rendering
+     (setq svg-output (dag-draw-render-graph graph 'svg))
+
+     ;; DOT rendering
+     (setq dot-output (dag-draw-render-graph graph 'dot))
+
+   *Error*: Signals an error if the graph hasn't been laid out yet.
+
+
+File: dag-draw.info,  Node: Configuration Variables,  Next: Graph Structure Accessors,  Prev: Rendering Functions,  Up: Reference
+
+4.5 Configuration Variables
+===========================
+
+* Menu:
+
+* dag-draw-default-node-separation::
+* dag-draw-default-rank-separation::
+* dag-draw-ascii-node-separation::
+* dag-draw-ascii-rank-separation::
+* dag-draw-default-output-format::
+
+
+File: dag-draw.info,  Node: dag-draw-default-node-separation,  Next: dag-draw-default-rank-separation,  Up: Configuration Variables
+
+4.5.1 dag-draw-default-node-separation
+--------------------------------------
+
+Default minimum horizontal separation between nodes.
+
+   *Type*: Integer
+
+   *Default*: 20
+
+   Used when creating graphs in high-resolution mode.  Larger values
+create more spacing.
+
+   *Example*:
+     (setq dag-draw-default-node-separation 30)
+
+
+File: dag-draw.info,  Node: dag-draw-default-rank-separation,  Next: dag-draw-ascii-node-separation,  Prev: dag-draw-default-node-separation,  Up: Configuration Variables
+
+4.5.2 dag-draw-default-rank-separation
+--------------------------------------
+
+Default minimum vertical separation between ranks.
+
+   *Type*: Integer
+
+   *Default*: 25
+
+   Used when creating graphs in high-resolution mode.  Larger values
+create more spacing.
+
+   *Example*:
+     (setq dag-draw-default-rank-separation 50)
+
+
+File: dag-draw.info,  Node: dag-draw-ascii-node-separation,  Next: dag-draw-ascii-rank-separation,  Prev: dag-draw-default-rank-separation,  Up: Configuration Variables
+
+4.5.3 dag-draw-ascii-node-separation
+------------------------------------
+
+Horizontal spacing between nodes in ASCII mode (characters).
+
+   *Type*: Integer
+
+   *Default*: 6
+
+   Used when coordinate-mode is ‘'ascii’.  This is the number of
+characters between adjacent nodes.
+
+   *Example*:
+     (setq dag-draw-ascii-node-separation 10)
+
+
+File: dag-draw.info,  Node: dag-draw-ascii-rank-separation,  Next: dag-draw-default-output-format,  Prev: dag-draw-ascii-node-separation,  Up: Configuration Variables
+
+4.5.4 dag-draw-ascii-rank-separation
+------------------------------------
+
+Vertical spacing between ranks in ASCII mode (rows).
+
+   *Type*: Integer
+
+   *Default*: 5
+
+   Used when coordinate-mode is ‘'ascii’.  This is the number of rows
+between adjacent ranks.
+
+   *Example*:
+     (setq dag-draw-ascii-rank-separation 7)
+
+
+File: dag-draw.info,  Node: dag-draw-default-output-format,  Prev: dag-draw-ascii-rank-separation,  Up: Configuration Variables
+
+4.5.5 dag-draw-default-output-format
+------------------------------------
+
+Default output format for rendered graphs.
+
+   *Type*: Symbol (‘'ascii’, ‘'svg’, or ‘'dot’)
+
+   *Default*: ‘'svg’
+
+   *Example*:
+     (setq dag-draw-default-output-format 'ascii)
+
+
+File: dag-draw.info,  Node: Graph Structure Accessors,  Next: Data Structure Details,  Prev: Configuration Variables,  Up: Reference
+
+4.6 Graph Structure Accessors
+=============================
+
+* Menu:
+
+* dag-draw-graph-nodes::
+* dag-draw-graph-edges::
+* dag-draw-graph-node-separation::
+* dag-draw-graph-rank-separation::
+* dag-draw-graph-coordinate-mode::
+
+
+File: dag-draw.info,  Node: dag-draw-graph-nodes,  Next: dag-draw-graph-edges,  Up: Graph Structure Accessors
+
+4.6.1 dag-draw-graph-nodes
+--------------------------
+
+     (dag-draw-graph-nodes graph)
+
+   Get the hash table of nodes.
+
+   *Returns*: Hash table mapping node IDs to node structures
+
+   *Example*:
+     (setq nodes-table (dag-draw-graph-nodes graph))
+     (ht-get nodes-table 'my-node)  ; Get a specific node
+
+
+File: dag-draw.info,  Node: dag-draw-graph-edges,  Next: dag-draw-graph-node-separation,  Prev: dag-draw-graph-nodes,  Up: Graph Structure Accessors
+
+4.6.2 dag-draw-graph-edges
+--------------------------
+
+     (dag-draw-graph-edges graph)
+
+   Get the list of edges.
+
+   *Returns*: List of edge structures
+
+
+File: dag-draw.info,  Node: dag-draw-graph-node-separation,  Next: dag-draw-graph-rank-separation,  Prev: dag-draw-graph-edges,  Up: Graph Structure Accessors
+
+4.6.3 dag-draw-graph-node-separation
+------------------------------------
+
+     (dag-draw-graph-node-separation graph)
+
+   Get or set the horizontal node separation for this graph.
+
+   *Returns*: Integer
+
+   *Settable*: Use ‘setf’ to change:
+     (setf (dag-draw-graph-node-separation graph) 30)
+
+
+File: dag-draw.info,  Node: dag-draw-graph-rank-separation,  Next: dag-draw-graph-coordinate-mode,  Prev: dag-draw-graph-node-separation,  Up: Graph Structure Accessors
+
+4.6.4 dag-draw-graph-rank-separation
+------------------------------------
+
+     (dag-draw-graph-rank-separation graph)
+
+   Get or set the vertical rank separation for this graph.
+
+   *Returns*: Integer
+
+   *Settable*: Use ‘setf’ to change:
+     (setf (dag-draw-graph-rank-separation graph) 50)
+
+
+File: dag-draw.info,  Node: dag-draw-graph-coordinate-mode,  Prev: dag-draw-graph-rank-separation,  Up: Graph Structure Accessors
+
+4.6.5 dag-draw-graph-coordinate-mode
+------------------------------------
+
+     (dag-draw-graph-coordinate-mode graph)
+
+   Get or set the coordinate system mode.
+
+   *Returns*: Symbol (‘'ascii’ or ‘'high-res’)
+
+   *Settable*: Use ‘setf’ to change:
+     (setf (dag-draw-graph-coordinate-mode graph) 'high-res)
+
+
+File: dag-draw.info,  Node: Data Structure Details,  Prev: Graph Structure Accessors,  Up: Reference
+
+4.7 Data Structure Details
+==========================
+
+* Menu:
+
+* Node Structure::
+* Edge Structure::
+* Graph Structure::
+
+
+File: dag-draw.info,  Node: Node Structure,  Next: Edge Structure,  Up: Data Structure Details
+
+4.7.1 Node Structure
+--------------------
+
+The ‘dag-draw-node’ structure has these slots:
+
+   • ‘id’ - Unique identifier (symbol or string)
+   • ‘label’ - Display label (string)
+   • ‘x-size’ - Width of node bounding box (integer)
+   • ‘y-size’ - Height of node bounding box (integer)
+   • ‘x-coord’ - X coordinate (number, nil before layout)
+   • ‘y-coord’ - Y coordinate (number, nil before layout)
+   • ‘rank’ - Assigned rank (integer, nil before layout)
+   • ‘order’ - Order within rank (integer, nil before layout)
+   • ‘virtual-p’ - Whether this is a virtual node (boolean)
+   • ‘attributes’ - Custom attributes (hash table)
+
+
+File: dag-draw.info,  Node: Edge Structure,  Next: Graph Structure,  Prev: Node Structure,  Up: Data Structure Details
+
+4.7.2 Edge Structure
+--------------------
+
+The ‘dag-draw-edge’ structure has these slots:
+
+   • ‘from-node’ - Source node ID
+   • ‘to-node’ - Destination node ID
+   • ‘weight’ - Edge weight (number, default: 1)
+   • ‘min-length’ - Minimum length constraint (integer, default: 1)
+   • ‘label’ - Optional edge label (string)
+   • ‘spline-points’ - Bézier control points (list, nil before layout)
+   • ‘label-position’ - Position for edge label (coordinate pair)
+   • ‘attributes’ - Custom attributes (hash table)
+
+
+File: dag-draw.info,  Node: Graph Structure,  Prev: Edge Structure,  Up: Data Structure Details
+
+4.7.3 Graph Structure
+---------------------
+
+The ‘dag-draw-graph’ structure has these slots:
+
+   • ‘nodes’ - Hash table mapping IDs to nodes
+   • ‘edges’ - List of edge structures
+   • ‘node-separation’ - Horizontal spacing (integer)
+   • ‘rank-separation’ - Vertical spacing (integer)
+   • ‘max-rank’ - Maximum assigned rank (integer, nil before layout)
+   • ‘rank-sets’ - User-specified rank constraints (list)
+   • ‘adjusted-positions’ - Adjusted coordinates (hash table)
+   • ‘coordinate-mode’ - Coordinate system (‘'ascii’ or ‘'high-res’)
+   • ‘attributes’ - Graph-level attributes (hash table)
+
+
+File: dag-draw.info,  Node: Troubleshooting,  Next: Advanced Topics,  Prev: Reference,  Up: Top
+
+5 Troubleshooting
+*****************
+
+* Menu:
+
+* Graph has cycles::
+* Node not found::
+* Nodes overlap in ASCII output::
+* Graph looks cramped::
+* Graph looks too spread out::
+* Must call layout before rendering::
+* ASCII output shows broken characters::
+* SVG doesn't display in Emacs::
+* Performance is slow for large graphs::
+* Edges cross when they shouldn't::
+
+
+File: dag-draw.info,  Node: Graph has cycles,  Next: Node not found,  Up: Troubleshooting
+
+5.1 Graph has cycles
+====================
+
+*Error message*:
+     Error: Graph contains a cycle
+
+   *Problem*: Your graph has a circular dependency (A → B → C → A).
+
+   *Solution*: DAGs must be acyclic.  Find and remove the edge that
+creates the cycle.
+
+   *How to debug*:
+     ;; Manual inspection: print all edges
+     (dolist (edge (dag-draw-get-edges graph))
+       (message "%s -> %s"
+                (dag-draw-edge-from-node edge)
+                (dag-draw-edge-to-node edge)))
+
+     ;; Look for cycles in the output
+
+
+File: dag-draw.info,  Node: Node not found,  Next: Nodes overlap in ASCII output,  Prev: Graph has cycles,  Up: Troubleshooting
+
+5.2 Node not found
+==================
+
+*Error message*:
+     Error: Node 'foo not found in graph
+
+   *Problem*: You're trying to add an edge to a node that doesn't exist.
+
+   *Solution*: Add nodes before adding edges that reference them.
+
+   *Wrong order*:
+     (dag-draw-add-edge graph 'a 'b)  ; ERROR: nodes don't exist yet
+     (dag-draw-add-node graph 'a "A")
+     (dag-draw-add-node graph 'b "B")
+
+   *Correct order*:
+     (dag-draw-add-node graph 'a "A")
+     (dag-draw-add-node graph 'b "B")
+     (dag-draw-add-edge graph 'a 'b)  ; Now it works
+
+
+File: dag-draw.info,  Node: Nodes overlap in ASCII output,  Next: Graph looks cramped,  Prev: Node not found,  Up: Troubleshooting
+
+5.3 Nodes overlap in ASCII output
+=================================
+
+*Problem*: Node boxes overlap or text collides in ASCII rendering.
+
+   *Solution*: Increase ASCII node separation:
+
+     (setq dag-draw-ascii-node-separation 10)  ; Default is 6
+
+   Or set it per-graph:
+     (setf (dag-draw-graph-node-separation graph) 10)
+
+
+File: dag-draw.info,  Node: Graph looks cramped,  Next: Graph looks too spread out,  Prev: Nodes overlap in ASCII output,  Up: Troubleshooting
+
+5.4 Graph looks cramped
+=======================
+
+*Problem*: Everything is squished together.
+
+   *Solution 1*: Increase separation values before layout:
+
+     ;; For ASCII
+     (setq dag-draw-ascii-node-separation 10)
+     (setq dag-draw-ascii-rank-separation 7)
+
+     ;; For high-res/SVG
+     (setq dag-draw-default-node-separation 40)
+     (setq dag-draw-default-rank-separation 60)
+
+   *Solution 2*: Set per-graph:
+
+     (setf (dag-draw-graph-node-separation graph) 40)
+     (setf (dag-draw-graph-rank-separation graph) 60)
+     (dag-draw-layout-graph graph)  ; Re-layout with new spacing
+
+
+File: dag-draw.info,  Node: Graph looks too spread out,  Next: Must call layout before rendering,  Prev: Graph looks cramped,  Up: Troubleshooting
+
+5.5 Graph looks too spread out
+==============================
+
+*Problem*: Too much white space between nodes.
+
+   *Solution*: Decrease separation values:
+
+     ;; For ASCII
+     (setq dag-draw-ascii-node-separation 4)
+     (setq dag-draw-ascii-rank-separation 3)
+
+     ;; For high-res/SVG
+     (setq dag-draw-default-node-separation 15)
+     (setq dag-draw-default-rank-separation 20)
+
+
+File: dag-draw.info,  Node: Must call layout before rendering,  Next: ASCII output shows broken characters,  Prev: Graph looks too spread out,  Up: Troubleshooting
+
+5.6 Must call layout before rendering
+=====================================
+
+*Error message*:
+     Error: Graph must be laid out before rendering
+
+   *Problem*: You called ‘dag-draw-render-graph’ without calling
+‘dag-draw-layout-graph’ first.
+
+   *Solution*: Always layout before rendering:
+
+     ;; WRONG
+     (dag-draw-render-graph graph 'ascii)  ; ERROR
+
+     ;; RIGHT
+     (dag-draw-layout-graph graph)
+     (dag-draw-render-graph graph 'ascii)  ; Works
+
+
+File: dag-draw.info,  Node: ASCII output shows broken characters,  Next: SVG doesn't display in Emacs,  Prev: Must call layout before rendering,  Up: Troubleshooting
+
+5.7 ASCII output shows broken characters
+========================================
+
+*Problem*: Box-drawing characters appear as question marks or broken
+symbols.
+
+   *Solution 1*: Ensure your terminal/buffer supports Unicode:
+
+     ;; Check your buffer encoding
+     (describe-current-coding-system)
+
+     ;; Set UTF-8 if needed
+     (set-buffer-file-coding-system 'utf-8-unix)
+
+   *Solution 2*: Use a font that supports box-drawing characters:
+   • Courier New
+   • DejaVu Sans Mono
+   • Consolas
+   • Monaco
+   • Any modern monospace font
+
+
+File: dag-draw.info,  Node: SVG doesn't display in Emacs,  Next: Performance is slow for large graphs,  Prev: ASCII output shows broken characters,  Up: Troubleshooting
+
+5.8 SVG doesn't display in Emacs
+================================
+
+*Problem*: SVG output is generated but doesn't show as an image.
+
+   *Cause*: Your Emacs build doesn't have SVG support compiled in.
+
+   *Check SVG support*:
+     (image-type-available-p 'svg)  ; Should return t
+
+   *Solution*: If it returns ‘nil’, either:
+  1. Rebuild Emacs with SVG support (requires librsvg)
+  2. Save SVG to a file and view in a web browser:
+
+     (with-temp-file "~/graph.svg"
+       (insert (dag-draw-render-graph graph 'svg)))
+     ;; Then open graph.svg in Firefox/Chrome
+
+
+File: dag-draw.info,  Node: Performance is slow for large graphs,  Next: Edges cross when they shouldn't,  Prev: SVG doesn't display in Emacs,  Up: Troubleshooting
+
+5.9 Performance is slow for large graphs
+========================================
+
+*Problem*: Layout takes a long time for graphs with many nodes.
+
+   *Expected performance*:
+   • 100 nodes: <1 second
+   • 500 nodes: ~5 seconds
+   • 1000+ nodes: May take minutes
+
+   *Solutions*:
+
+  1. *Simplify the graph*: Combine related nodes
+  2. *Remove transitive edges*: If A→B and B→C, you don't need A→C
+  3. *Use subgraphs*: Break into smaller related graphs
+  4. *Cache layouts*: Layout once, render multiple times
+
+     ;; Layout once
+     (dag-draw-layout-graph big-graph)
+
+     ;; Render multiple times (fast)
+     (dag-draw-render-graph big-graph 'ascii)
+     (dag-draw-render-graph big-graph 'svg)
+
+
+File: dag-draw.info,  Node: Edges cross when they shouldn't,  Prev: Performance is slow for large graphs,  Up: Troubleshooting
+
+5.10 Edges cross when they shouldn't
+====================================
+
+*Problem*: The layout has crossing edges that look messy.
+
+   *Explanation*: The GKNV algorithm minimizes crossings using
+heuristics, but it's not perfect.  Some crossings are unavoidable in
+complex graphs.
+
+   *Solutions*:
+
+  1. *Accept it*: Some graphs inherently require crossings
+  2. *Adjust edge weights*: Higher weights keep nodes closer
+
+     ;; Increase weight to pull nodes together
+     (dag-draw-add-edge graph 'a 'b (ht ("weight" 10)))
+
+  1. *Reorder manually*: Use rank constraints to force certain
+     arrangements
+
+     ;; Force 'a and 'b on the same rank
+     (setf (dag-draw-graph-rank-sets graph) '(('a 'b)))
+
+  1. *Simplify*: Fewer nodes and edges = fewer crossings
+
+
+File: dag-draw.info,  Node: Advanced Topics,  Next: Contributing,  Prev: Troubleshooting,  Up: Top
+
+6 Advanced Topics
+*****************
+
+* Menu:
+
+* Understanding the GKNV Algorithm::
+* Custom Renderers::
+* Integration Examples::
+* Performance Optimization::
+* Coordinate Systems::
+
+
+File: dag-draw.info,  Node: Understanding the GKNV Algorithm,  Next: Custom Renderers,  Up: Advanced Topics
+
+6.1 Understanding the GKNV Algorithm
+====================================
+
+dag-draw implements the complete GKNV algorithm from the 1993 paper.
+Understanding the algorithm helps you use the library more effectively.
+
+* Menu:
+
+* The Four Passes::
+* Why This Algorithm?::
+
+
+File: dag-draw.info,  Node: The Four Passes,  Next: Why This Algorithm?,  Up: Understanding the GKNV Algorithm
+
+6.1.1 The Four Passes
+---------------------
+
+Each pass has a specific job:
+
+   *Pass 1: Ranking (Vertical Assignment)*
+
+   *Goal*: Assign each node to a vertical level (rank).
+
+   *Method*: Network simplex optimization that minimizes total edge
+length.
+
+   *Constraints*:
+   • Nodes with no incoming edges get rank 0 (top)
+   • Each edge must go from a lower rank to a higher rank
+   • Minimize the sum of edge lengths
+
+   *User control*: You can force nodes onto the same rank with
+‘rank-sets’.
+
+   *Pass 2: Ordering (Horizontal Arrangement)*
+
+   *Goal*: Within each rank, arrange nodes left-to-right to minimize
+edge crossings.
+
+   *Method*: Weighted median heuristic with local transposition.
+
+   *Why it's hard*: This is an NP-complete problem.  The algorithm uses
+heuristics that work well in practice but don't guarantee optimal
+results.
+
+   *User control*: Limited.  The algorithm decides the order
+automatically.
+
+   *Pass 3: Positioning (Coordinate Assignment)*
+
+   *Goal*: Calculate exact X,Y coordinates for each node.
+
+   *Method*: Constructs an auxiliary graph and runs another network
+simplex optimization.
+
+   *Constraints*:
+   • Respect the ordering from Pass 2
+   • Maintain minimum separation between nodes
+   • Align edges nicely when possible
+
+   *User control*: Adjust separation values before layout.
+
+   *Pass 4: Splines (Edge Drawing)*
+
+   *Goal*: Generate smooth Bézier curves for edges.
+
+   *Method*: Calculates control points that route edges around nodes.
+
+   *Result*: Professional-looking curves that avoid overlapping nodes.
+
+   *User control*: None.  This is purely algorithmic.
+
+
+File: dag-draw.info,  Node: Why This Algorithm?,  Prev: The Four Passes,  Up: Understanding the GKNV Algorithm
+
+6.1.2 Why This Algorithm?
+-------------------------
+
+Other layout algorithms exist (force-directed, circular, etc.), but GKNV
+is optimal for hierarchical DAGs because:
+
+  1. *Respects hierarchy*: Graphs flow in a consistent direction
+  2. *Minimizes crossings*: Uses sophisticated heuristics proven in
+     practice
+  3. *Fast*: Polynomial time complexity handles large graphs
+  4. *Extensible*: Each pass can be customized independently
+
+
+File: dag-draw.info,  Node: Custom Renderers,  Next: Integration Examples,  Prev: Understanding the GKNV Algorithm,  Up: Advanced Topics
+
+6.2 Custom Renderers
+====================
+
+You can create custom renderers for new output formats.
+
+* Menu:
+
+* Renderer Interface::
+* Accessing Layout Information::
+* Example Simple Text Renderer::
+
+
+File: dag-draw.info,  Node: Renderer Interface,  Next: Accessing Layout Information,  Up: Custom Renderers
+
+6.2.1 Renderer Interface
+------------------------
+
+A renderer is a function that takes a graph and returns a string:
+
+     (defun my-custom-renderer (graph)
+       "Render GRAPH to my custom format."
+       ;; Access laid-out nodes
+       (let ((nodes (ht-values (dag-draw-graph-nodes graph)))
+             (edges (dag-draw-graph-edges graph)))
+         ;; Generate output based on node coordinates and edge splines
+         (my-format-output nodes edges)))
+
+
+File: dag-draw.info,  Node: Accessing Layout Information,  Next: Example Simple Text Renderer,  Prev: Renderer Interface,  Up: Custom Renderers
+
+6.2.2 Accessing Layout Information
+----------------------------------
+
+After layout, each node has coordinates:
+
+     (defun print-node-positions (graph)
+       "Print all node positions."
+       (ht-each
+        (lambda (id node)
+          (message "Node %s: (%d, %d)"
+                   id
+                   (dag-draw-node-x-coord node)
+                   (dag-draw-node-y-coord node)))
+        (dag-draw-graph-nodes graph)))
+
+   And each edge has spline points:
+
+     (defun print-edge-curves (graph)
+       "Print all edge spline points."
+       (dolist (edge (dag-draw-graph-edges graph))
+         (message "Edge %s -> %s: %S"
+                  (dag-draw-edge-from-node edge)
+                  (dag-draw-edge-to-node edge)
+                  (dag-draw-edge-spline-points edge))))
+
+
+File: dag-draw.info,  Node: Example Simple Text Renderer,  Prev: Accessing Layout Information,  Up: Custom Renderers
+
+6.2.3 Example: Simple Text Renderer
+-----------------------------------
+
+     (defun dag-draw-render-simple-text (graph)
+       "Simple text-only renderer (no graphics)."
+       (let ((output ""))
+         ;; List nodes by rank
+         (ht-each
+          (lambda (id node)
+            (setq output
+                  (concat output
+                          (format "Node %s (rank %d, order %d): %s\n"
+                                  id
+                                  (dag-draw-node-rank node)
+                                  (dag-draw-node-order node)
+                                  (dag-draw-node-label node)))))
+          (dag-draw-graph-nodes graph))
+
+         ;; List edges
+         (setq output (concat output "\nEdges:\n"))
+         (dolist (edge (dag-draw-graph-edges graph))
+           (setq output
+                 (concat output
+                         (format "  %s -> %s\n"
+                                 (dag-draw-edge-from-node edge)
+                                 (dag-draw-edge-to-node edge)))))
+         output))
+
+
+File: dag-draw.info,  Node: Integration Examples,  Next: Performance Optimization,  Prev: Custom Renderers,  Up: Advanced Topics
+
+6.3 Integration Examples
+========================
+
+* Menu:
+
+* With Org Mode::
+* With Project Management::
+
+
+File: dag-draw.info,  Node: With Org Mode,  Next: With Project Management,  Up: Integration Examples
+
+6.3.1 With Org Mode
+-------------------
+
+Generate graphs from org-mode data:
+
+     (defun org-visualize-dependencies ()
+       "Visualize current subtree's task dependencies."
+       (interactive)
+       (let ((graph (dag-draw-create-graph))
+             (tasks '()))
+         ;; Collect tasks from current subtree
+         (org-map-entries
+          (lambda ()
+            (let ((id (org-id-get-create))
+                  (heading (org-get-heading t t t t)))
+              (dag-draw-add-node graph (intern id) heading)
+              (push (cons id heading) tasks)))
+          nil 'tree)
+
+         ;; Add edges based on org-edna dependencies
+         ;; (simplified example)
+         (org-map-entries
+          (lambda ()
+            (let ((id (org-id-get))
+                  (deps (org-entry-get nil "BLOCKER")))
+              (when deps
+                (dolist (dep (split-string deps))
+                  (dag-draw-add-edge graph (intern dep) (intern id))))))
+          nil 'tree)
+
+         ;; Layout and display
+         (dag-draw-layout-graph graph)
+         (with-current-buffer (get-buffer-create "*Task Dependencies*")
+           (erase-buffer)
+           (insert (dag-draw-render-graph graph 'ascii))
+           (pop-to-buffer (current-buffer)))))
+
+
+File: dag-draw.info,  Node: With Project Management,  Prev: With Org Mode,  Up: Integration Examples
+
+6.3.2 With Project Management
+-----------------------------
+
+Track project dependencies:
+
+     (defvar my-project-tasks
+       '((requirements . "Requirements")
+         (design . "Design")
+         (coding . "Coding")
+         (testing . "Testing")
+         (deploy . "Deployment"))
+       "Project tasks.")
+
+     (defvar my-project-dependencies
+       '((requirements design)
+         (design coding)
+         (coding testing)
+         (testing deploy))
+       "Task dependencies as (from to) pairs.")
+
+     (defun visualize-project ()
+       "Show project task dependencies."
+       (interactive)
+       (let ((graph (dag-draw-create-graph)))
+         ;; Add tasks as nodes
+         (dolist (task my-project-tasks)
+           (dag-draw-add-node graph (car task) (cdr task)))
+
+         ;; Add dependencies as edges
+         (dolist (dep my-project-dependencies)
+           (dag-draw-add-edge graph (car dep) (cadr dep)))
+
+         ;; Layout and render
+         (dag-draw-layout-graph graph)
+         (message "%s" (dag-draw-render-graph graph 'ascii))))
+
+
+File: dag-draw.info,  Node: Performance Optimization,  Next: Coordinate Systems,  Prev: Integration Examples,  Up: Advanced Topics
+
+6.4 Performance Optimization
+============================
+
+* Menu:
+
+* Caching Layouts::
+* Incremental Updates::
+
+
+File: dag-draw.info,  Node: Caching Layouts,  Next: Incremental Updates,  Up: Performance Optimization
+
+6.4.1 Caching Layouts
+---------------------
+
+If you render the same graph multiple times, layout once:
+
+     ;; Expensive (layouts every time)
+     (dotimes (i 10)
+       (dag-draw-layout-graph graph)
+       (dag-draw-render-graph graph 'ascii))
+
+     ;; Efficient (layouts once)
+     (dag-draw-layout-graph graph)
+     (dotimes (i 10)
+       (dag-draw-render-graph graph 'ascii))
+
+
+File: dag-draw.info,  Node: Incremental Updates,  Prev: Caching Layouts,  Up: Performance Optimization
+
+6.4.2 Incremental Updates
+-------------------------
+
+For dynamic graphs that change frequently, consider:
+
+  1. Keep the graph structure
+  2. Modify only what changed
+  3. Re-layout when needed
+  4. Render on demand
+
+     (defvar my-dynamic-graph (dag-draw-create-graph))
+
+     (defun add-task (id label &optional deps)
+       "Add a task to the dynamic graph."
+       (dag-draw-add-node my-dynamic-graph id label)
+       (dolist (dep deps)
+         (dag-draw-add-edge my-dynamic-graph dep id)))
+
+     (defun show-current-graph ()
+       "Display the current state."
+       (dag-draw-layout-graph my-dynamic-graph)
+       (message "%s" (dag-draw-render-graph my-dynamic-graph 'ascii)))
+
+     ;; Use it
+     (add-task 'start "Start")
+     (add-task 'middle "Middle" '(start))
+     (add-task 'end "End" '(middle))
+     (show-current-graph)
+
+
+File: dag-draw.info,  Node: Coordinate Systems,  Prev: Performance Optimization,  Up: Advanced Topics
+
+6.5 Coordinate Systems
+======================
+
+dag-draw supports two coordinate systems:
+
+* Menu:
+
+* ASCII Mode (Default)::
+* High-Resolution Mode::
+* When to Use Which::
+
+
+File: dag-draw.info,  Node: ASCII Mode (Default),  Next: High-Resolution Mode,  Up: Coordinate Systems
+
+6.5.1 ASCII Mode (Default)
+--------------------------
+
+Optimized for character grid output:
+   • Uses smaller separation values
+   • Coordinates are integers
+   • Designed for 80-column terminals
+
+     (setf (dag-draw-graph-coordinate-mode graph) 'ascii)
+
+
+File: dag-draw.info,  Node: High-Resolution Mode,  Next: When to Use Which,  Prev: ASCII Mode (Default),  Up: Coordinate Systems
+
+6.5.2 High-Resolution Mode
+--------------------------
+
+Optimized for SVG and detailed graphics:
+   • Uses larger separation values
+   • Coordinates are floats
+   • Designed for scalable output
+
+     (setf (dag-draw-graph-coordinate-mode graph) 'high-res)
+
+
+File: dag-draw.info,  Node: When to Use Which,  Prev: High-Resolution Mode,  Up: Coordinate Systems
+
+6.5.3 When to Use Which
+-----------------------
+
+*Use ASCII mode when*:
+   • Primarily rendering to ASCII
+   • Terminal output
+   • Want compact layout
+   • Working with small graphs
+
+   *Use high-res mode when*:
+   • Primarily rendering to SVG
+   • Need precise positioning
+   • Creating publication-quality output
+   • Large graphs with many nodes
+
+
+File: dag-draw.info,  Node: Contributing,  Next: Index,  Prev: Advanced Topics,  Up: Top
+
+7 Contributing
+**************
+
+* Menu:
+
+* Development Setup::
+* Testing::
+* Code Style::
+* Pull Requests::
+* Reporting Bugs::
+
+
+File: dag-draw.info,  Node: Development Setup,  Next: Testing,  Up: Contributing
+
+7.1 Development Setup
+=====================
+
+Clone the repository:
+
+     git clone https://github.com/example/dag-draw.el.git
+     cd dag-draw.el
+
+   Install development dependencies:
+
+     eldev test  # Runs test suite
+
+
+File: dag-draw.info,  Node: Testing,  Next: Code Style,  Prev: Development Setup,  Up: Contributing
+
+7.2 Testing
+===========
+
+dag-draw uses Test-Driven Development with Buttercup:
+
+     # Run all tests
+     eldev test
+
+     # Run specific test file
+     eldev test test/dag-draw-core-test.el
+
+     # Run with debugging output
+     eldev -dtT test
+
+
+File: dag-draw.info,  Node: Code Style,  Next: Pull Requests,  Prev: Testing,  Up: Contributing
+
+7.3 Code Style
+==============
+
+   • Follow standard Emacs Lisp conventions
+   • Use ‘lexical-binding: t’
+   • Document all public functions with docstrings
+   • Keep functions small and focused
+   • Write tests before implementation
+
+
+File: dag-draw.info,  Node: Pull Requests,  Next: Reporting Bugs,  Prev: Code Style,  Up: Contributing
+
+7.4 Pull Requests
+=================
+
+  1. Fork the repository
+  2. Create a feature branch
+  3. Write tests that fail
+  4. Implement the feature
+  5. Ensure all tests pass
+  6. Submit a pull request
+
+
+File: dag-draw.info,  Node: Reporting Bugs,  Prev: Pull Requests,  Up: Contributing
+
+7.5 Reporting Bugs
+==================
+
+File issues at: <https://github.com/example/dag-draw.el/issues>
+
+   Include:
+   • Emacs version (‘M-x emacs-version’)
+   • dag-draw version
+   • Minimal reproduction case
+   • Expected vs actual behavior
+
+
+File: dag-draw.info,  Node: Index,  Next: Function Index,  Prev: Contributing,  Up: Top
+
+8 Index
+*******
+
+
+File: dag-draw.info,  Node: Function Index,  Next: Variable Index,  Prev: Index,  Up: Top
+
+9 Function Index
+****************
+
+
+File: dag-draw.info,  Node: Variable Index,  Prev: Function Index,  Up: Top
+
+10 Variable Index
+*****************
+
+
+Tag Table:
+Node: Top698
+Node: Introduction5316
+Node: What is dag-draw?5531
+Node: Why use dag-draw?6985
+Node: What's a DAG?7795
+Node: How does it work?8583
+Node: Getting Started9576
+Node: Installation10078
+Node: Dependencies10305
+Node: From Source10559
+Node: Using packageel10928
+Node: Your First Graph (The Black Triangle)11129
+Node: Understanding What Just Happened12556
+Node: Step 1 Create a Graph12948
+Node: Step 2 Add Nodes13245
+Node: Step 3 Connect with Edges13763
+Node: Step 4 Layout and Render14152
+Node: A Slightly More Complex Example14678
+Node: Tutorial From Basics to Advanced17379
+Node: Working with Nodes18020
+Node: Basic Node Creation18274
+Node: Node Labels18812
+Node: Node Attributes19479
+Node: Retrieving Nodes20138
+Node: Working with Edges20835
+Node: Basic Edge Creation21135
+Node: Multiple Edges21603
+Node: Edge Weights22271
+Node: Edge Labels22831
+Node: Edge Constraints23265
+Node: Layout The Magic Step23674
+Node: Basic Layout24024
+Node: What Layout Does24427
+Node: Customizing Spacing25708
+Node: ASCII vs High-Resolution Layout26512
+Node: Rank Constraints27242
+Node: Rendering From Coordinates to Pictures27659
+Node: ASCII Rendering28010
+Node: SVG Rendering28775
+Node: DOT Rendering29746
+Node: Choosing the Right Format30251
+Node: Practical Examples30871
+Node: Example 1 Course Prerequisites31172
+Node: Example 2 Build Dependencies32374
+Node: Example 3 Project Task Dependencies33498
+Node: Reference35402
+Node: Graph Functions36041
+Node: dag-draw-create-graph36230
+Node: dag-draw-layout-graph36852
+Node: Node Functions37640
+Node: dag-draw-add-node37861
+Node: dag-draw-get-node38823
+Node: Node Accessors39367
+Node: dag-draw-node-id39686
+Node: dag-draw-node-label39932
+Node: dag-draw-node-x-coord40195
+Node: dag-draw-node-y-coord40507
+Node: dag-draw-node-rank40818
+Node: dag-draw-node-order41217
+Node: dag-draw-node-attributes41598
+Node: Edge Functions41981
+Node: dag-draw-add-edge42207
+Node: dag-draw-get-edges43008
+Node: Edge Accessors43517
+Node: dag-draw-edge-from-node43833
+Node: dag-draw-edge-to-node44095
+Node: dag-draw-edge-weight44385
+Node: dag-draw-edge-min-length44755
+Node: dag-draw-edge-spline-points45127
+Node: dag-draw-edge-attributes45581
+Node: Rendering Functions45867
+Node: dag-draw-render-graph46074
+Node: Configuration Variables46845
+Node: dag-draw-default-node-separation47224
+Node: dag-draw-default-rank-separation47684
+Node: dag-draw-ascii-node-separation48181
+Node: dag-draw-ascii-rank-separation48693
+Node: dag-draw-default-output-format49188
+Node: Graph Structure Accessors49590
+Node: dag-draw-graph-nodes49952
+Node: dag-draw-graph-edges50376
+Node: dag-draw-graph-node-separation50684
+Node: dag-draw-graph-rank-separation51147
+Node: dag-draw-graph-coordinate-mode51618
+Node: Data Structure Details52073
+Node: Node Structure52300
+Node: Edge Structure53094
+Node: Graph Structure53781
+Node: Troubleshooting54547
+Node: Graph has cycles55011
+Node: Node not found55633
+Node: Nodes overlap in ASCII output56317
+Node: Graph looks cramped56778
+Node: Graph looks too spread out57517
+Node: Must call layout before rendering58053
+Node: ASCII output shows broken characters58687
+Node: SVG doesn't display in Emacs59407
+Node: Performance is slow for large graphs60148
+Node: Edges cross when they shouldn't61026
+Node: Advanced Topics61919
+Node: Understanding the GKNV Algorithm62203
+Node: The Four Passes62585
+Node: Why This Algorithm?64328
+Node: Custom Renderers64881
+Node: Renderer Interface65220
+Node: Accessing Layout Information65789
+Node: Example Simple Text Renderer66722
+Node: Integration Examples67889
+Node: With Org Mode68128
+Node: With Project Management69489
+Node: Performance Optimization70650
+Node: Caching Layouts70897
+Node: Incremental Updates71385
+Node: Coordinate Systems72330
+Node: ASCII Mode (Default)72607
+Node: High-Resolution Mode72975
+Node: When to Use Which73369
+Node: Contributing73839
+Node: Development Setup74058
+Node: Testing74363
+Node: Code Style74713
+Node: Pull Requests75060
+Node: Reporting Bugs75366
+Node: Index75709
+Node: Function Index75817
+Node: Variable Index75945
+
+End Tag Table
+
+
+Local Variables:
+coding: utf-8
+Info-documentlanguage: en
+End:
