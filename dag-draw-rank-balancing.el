@@ -3,8 +3,8 @@
 ;; Copyright (C) 2024
 
 ;; Author: Claude Code
-;; Version: 1.0
-;; Keywords: graphs, layout, ranking, balancing
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: internal
 
 ;;; Commentary:
 

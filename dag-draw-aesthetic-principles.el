@@ -3,8 +3,8 @@
 ;; Copyright (C) 2024
 
 ;; Author: Claude Code
-;; Version: 1.0
-;; Keywords: graphs, layout, aesthetics
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: internal
 
 ;;; Commentary:
 
@@ -252,12 +252,12 @@ all connected nodes are within the proximity threshold (100 units)."
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-             (distance (dag-draw--calculate-edge-length from-node to-node)))
+             (edge-distance (dag-draw--calculate-edge-length from-node to-node)))
 
-        (when distance
+        (when edge-distance
           (setq total-pairs (1+ total-pairs))
-          ;; Consider "close" if distance is below threshold
-          (when (< distance 100)  ; Arbitrary threshold
+          ;; Consider "close" if edge-distance is below threshold
+          (when (< edge-distance 100)  ; Arbitrary threshold
             (setq close-pairs (1+ close-pairs))))))
 
     (if (zerop total-pairs) 1.0

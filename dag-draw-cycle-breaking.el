@@ -3,8 +3,8 @@
 ;; Copyright (C) 2024
 
 ;; Author: Claude Code
-;; Version: 1.0
-;; Keywords: graphs, layout, cycles
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: internal
 
 ;;; Commentary:
 
