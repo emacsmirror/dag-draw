@@ -24,7 +24,7 @@
 ;;; Safe Box Character Drawing
 
 (defun dag-draw--safe-draw-box-char (grid x y char)
-  "Draw box character safely, preventing overwrites that create malformed sequences.
+  "Draw box character safely, preventing overwrites.
 
 GRID is a 2D vector representing the ASCII character grid (modified in place).
 X and Y are numbers representing grid coordinates (rounded to integers).
@@ -194,7 +194,7 @@ positions for stray edge lines and removing them."
          (grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (corner-char (aref (aref grid int-y) int-x)))
-    
+
     ;; Only clean up if we just drew a corner character
     (when (memq corner-char '(?┌ ?┐ ?└ ?┘))
       ;; Check only horizontally adjacent positions for corners that should have horizontal cleanup
@@ -208,8 +208,8 @@ positions for stray edge lines and removing them."
             (let ((char-at-pos (aref (aref grid check-y) check-x)))
               (when (eq char-at-pos ?─)  ; Remove trailing horizontal line
                 (aset (aref grid check-y) check-x ?\s))))))
-       
-       ;; Top-left and bottom-left corners: clean up leading horizontal lines to the left  
+
+       ;; Top-left and bottom-left corners: clean up leading horizontal lines to the left
        ((memq corner-char '(?┌ ?└))
         (let ((check-x (- int-x 1))
               (check-y int-y))

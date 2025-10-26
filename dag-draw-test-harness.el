@@ -35,7 +35,7 @@ Returns hash table with keys:
          (width (if lines (apply #'max (mapcar #'length lines)) 0))
          (grid (make-vector height nil))
          (result (make-hash-table :test 'equal)))
-    
+
     ;; Build character grid
     (dotimes (y height)
       (let ((line (or (nth y lines) ""))
@@ -43,7 +43,7 @@ Returns hash table with keys:
         (dotimes (x (length line))
           (aset row x (aref line x)))
         (aset grid y row)))
-    
+
     (puthash 'width width result)
     (puthash 'height height result)
     (puthash 'grid grid result)
@@ -77,7 +77,7 @@ Searches for box corner characters and parses node structures.
 Returns list of node plists with :x, :y, :width, :height, :text keys."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (nodes '()))
-    
+
     ;; Look for top-left corners of boxes (┌ or other box corner chars)
     (dotimes (y (gethash 'height grid))
       (dotimes (x (gethash 'width grid))
@@ -85,7 +85,7 @@ Returns list of node plists with :x, :y, :width, :height, :text keys."
           (let ((node (dag-draw-test--parse-node-at grid x y)))
             (when node
               (push node nodes))))))
-    
+
     (nreverse nodes)))
 
 (defun dag-draw-test--find-nodes-using-graph-data (ascii-string graph)
@@ -99,7 +99,7 @@ More reliable than character-based detection as it uses expected positions.
 Returns list of node plists with :id, :text, :x, :y, :width, :height keys."
   (let ((found-nodes '())
         (grid (dag-draw-test--parse-ascii-grid ascii-string)))
-    
+
     ;; Extract nodes from graph (handles both real graphs and mock structures)
     (let ((expected-nodes (dag-draw-test--extract-expected-nodes graph)))
       (dolist (expected expected-nodes)
@@ -114,7 +114,7 @@ Returns list of node plists with :id, :text, :x, :y, :width, :height keys."
                         :width (length label)
                         :height 1)
                   found-nodes)))))
-    
+
     found-nodes))
 
 (defun dag-draw-test--find-text-in-grid (grid text)
@@ -129,16 +129,16 @@ Returns cons cell (x . y) of text position, or nil if not found."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (result nil))
-    
-    ;; Search for the text in the grid 
+
+    ;; Search for the text in the grid
     (catch 'found
       (dotimes (y grid-height)
         (dotimes (x grid-width)
           ;; Extract a line of text to search within
           (let ((line-length (min 40 (- grid-width x))))  ; Look ahead up to 40 chars
             (when (> line-length (length text))
-              (let ((line-text (apply #'string 
-                                     (mapcar (lambda (i) 
+              (let ((line-text (apply #'string
+                                     (mapcar (lambda (i)
                                                (dag-draw-test--get-char-at grid (+ x i) y))
                                              (number-sequence 0 (1- line-length))))))
                 ;; Look for the text within the line (allowing for spacing/padding)
@@ -147,7 +147,7 @@ Returns cons cell (x . y) of text position, or nil if not found."
                     ;; Found the text - return coordinate pair as cons cell
                     (setq result (cons (+ x text-start) y))
                     (throw 'found result)))))))))
-    
+
     result))
 
 (defun dag-draw-test--parse-node-at (grid start-x start-y)
@@ -165,20 +165,20 @@ Returns node plist with :x, :y, :width, :height, :text keys, or nil if invalid."
         (width 0)
         (height 0)
         (text-lines '()))
-    
+
     ;; Find width by following top border (including junction chars and arrows)
     (while (and (< x (gethash 'width grid))
                 (memq (dag-draw-test--get-char-at grid x y) '(?┌ ?─ ?┐ ?┬ ?┼ ?▼ ?▲ ?▶ ?◀)))
       (setq x (1+ x)))
     (setq width (- x start-x))
-    
+
     ;; Find height by following left border (including junction chars)
     (setq x start-x)
     (while (and (< y (gethash 'height grid))
                 (memq (dag-draw-test--get-char-at grid x y) '(?┌ ?│ ?└ ?├ ?┤ ?┼ ?▼ ?▲ ?▶ ?◀)))
       (setq y (1+ y)))
     (setq height (- y start-y))
-    
+
     ;; Extract text content (skip borders)
     (when (and (> width 2) (> height 2))
       (dotimes (row (- height 2))
@@ -188,7 +188,7 @@ Returns node plist with :x, :y, :width, :height, :text keys, or nil if invalid."
             (let ((text-x (+ start-x 1 col)))
               (setq line (concat line (string (dag-draw-test--get-char-at grid text-x text-y))))))
           (push (string-trim line) text-lines)))
-      
+
       (list :x start-x
             :y start-y
             :width width
@@ -208,12 +208,12 @@ Returns list of edge plists with :from, :to, :path keys."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (nodes (dag-draw-test--find-nodes ascii-string))
         (edges '()))
-    
+
     ;; For each node, trace outgoing edges
     (dolist (node nodes)
       (let ((node-edges (dag-draw-test--trace-edges-from-node grid node nodes)))
         (setq edges (append edges node-edges))))
-    
+
     edges))
 
 (defun dag-draw-test--trace-edges-from-node (grid from-node all-nodes)
@@ -224,7 +224,7 @@ Returns list of edge plists."
         (from-y (plist-get from-node :y))
         (from-width (plist-get from-node :width))
         (from-height (plist-get from-node :height)))
-    
+
     ;; Check all edge exit points on node boundary
     (let ((exit-points (dag-draw-test--find-edge-exit-points grid from-node)))
       (dolist (exit-point exit-points)
@@ -234,7 +234,7 @@ Returns list of edge plists."
                         :to (plist-get path :destination)
                         :path (plist-get path :coordinates))
                   edges)))))
-    
+
     edges))
 
 (defun dag-draw-test--find-edge-exit-points (grid node)
@@ -245,28 +245,28 @@ Returns list of (x y) coordinate pairs."
         (width (plist-get node :width))
         (height (plist-get node :height))
         (exit-points '()))
-    
+
     ;; Check for junction characters on node boundary that indicate edge starts
     ;; Top border
     (dotimes (i width)
       (when (memq (dag-draw-test--get-char-at grid (+ x i) y) '(?┬ ?┼))
         (push (list (+ x i) y) exit-points)))
-    
+
     ;; Bottom border
     (dotimes (i width)
       (when (memq (dag-draw-test--get-char-at grid (+ x i) (+ y height -1)) '(?┴ ?┼))
         (push (list (+ x i) (+ y height -1)) exit-points)))
-    
+
     ;; Left border
     (dotimes (i height)
       (when (memq (dag-draw-test--get-char-at grid x (+ y i)) '(?├ ?┼))
         (push (list x (+ y i)) exit-points)))
-    
+
     ;; Right border
     (dotimes (i height)
       (when (memq (dag-draw-test--get-char-at grid (+ x width -1) (+ y i)) '(?┤ ?┼))
         (push (list (+ x width -1) (+ y i)) exit-points)))
-    
+
     exit-points))
 
 (defun dag-draw-test--trace-edge-path (grid start-point target-nodes)
@@ -278,16 +278,16 @@ Returns plist with :destination and :coordinates or nil."
         (path (list start-point))
         (visited (make-hash-table :test 'equal))
         (found-target nil))
-    
+
     ;; Simple flood-fill following edge characters
     (while (and (not found-target) (< (length path) 100)) ; prevent infinite loops
       (puthash (list current-x current-y) t visited)
-      
+
       ;; Check if we've reached a target node
       (dolist (target target-nodes)
         (when (dag-draw-test--point-in-node-p current-x current-y target)
           (setq found-target target)))
-      
+
       (unless found-target
         ;; Find next edge character in adjacent positions
         (let ((next-pos (dag-draw-test--find-next-edge-char grid current-x current-y visited)))
@@ -298,7 +298,7 @@ Returns plist with :destination and :coordinates or nil."
                 (push next-pos path))
             ;; No more edge characters found
             (setq found-target 'none)))))
-    
+
     (when (and found-target (not (eq found-target 'none)))
       (list :destination found-target :coordinates (nreverse path)))))
 
@@ -306,7 +306,7 @@ Returns plist with :destination and :coordinates or nil."
   "Find next edge character adjacent to (X,Y) in GRID, avoiding VISITED positions."
   (let ((edge-chars '(?│ ?─ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼ ?▼ ?▲ ?▶ ?◀))
         (directions '((0 1) (0 -1) (1 0) (-1 0))))
-    
+
     (catch 'found
       (dolist (dir directions)
         (let ((new-x (+ x (car dir)))
@@ -341,22 +341,22 @@ Returns plist with :complete (boolean) and :missing-text (list) keys."
   (let ((found-nodes (dag-draw-test--find-nodes-using-graph-data ascii-string graph))
         (missing-text '())
         (complete t))
-    
+
     ;; Extract expected nodes from graph
     (let ((expected-nodes (dag-draw-test--extract-expected-nodes graph)))
       (dolist (expected expected-nodes)
         (let ((expected-text (plist-get expected :label))
               (found-match nil))
-          
+
           ;; Check if expected text appears in any found node
           (dolist (found found-nodes)
             (when (string-match-p (regexp-quote expected-text) (plist-get found :text))
               (setq found-match t)))
-          
+
           (unless found-match
             (push expected-text missing-text)
             (setq complete nil)))))
-    
+
     (list :complete complete :missing-text missing-text)))
 
 (defun dag-draw-test--extract-expected-nodes (graph)
@@ -375,11 +375,11 @@ Returns list of plists with :id and :label keys."
                  (push (list :id id :label (dag-draw-node-label node)) nodes))
                (dag-draw-graph-nodes graph))
       nodes))
-   
+
    ;; Hash table with 'nodes key (mock structure)
    ((hash-table-p graph)
     (gethash 'nodes graph))
-   
+
    ;; Default empty
    (t '())))
 
@@ -394,12 +394,12 @@ Returns plist with :valid (boolean) and :broken-boundaries (list) keys."
   (let ((nodes (dag-draw-test--find-nodes ascii-string))
         (broken-boundaries '())
         (valid t))
-    
+
     (dolist (node nodes)
       (unless (dag-draw-test--check-node-boundary-integrity node ascii-string)
         (push node broken-boundaries)
         (setq valid nil)))
-    
+
     (list :valid valid :broken-boundaries broken-boundaries)))
 
 (defun dag-draw-test--check-node-boundary-integrity (node ascii-string)
@@ -423,14 +423,14 @@ Returns plist with :all-connected, :missing-connections, :broken-paths keys."
         (missing-connections '())
         (broken-paths '())
         (all-connected t))
-    
+
     ;; Simplified validation - if we have edges to check connectivity
     (when (> (length expected-edges) 0)
       (setq all-connected (>= (length found-edges) 0)))
-    
+
     ;; TODO: Implement proper edge matching
     ;; For now, be permissive to test core functionality
-    
+
     (list :all-connected all-connected
           :missing-connections missing-connections
           :broken-paths broken-paths)))
@@ -450,8 +450,8 @@ Returns plist with :all-connected, :missing-connections, :broken-paths keys."
   ;; Simplified matching based on node text content
   (let ((expected-from (plist-get expected :from))
         (expected-to (plist-get expected :to)))
-    
-    ;; For now, return t if we have any found edges 
+
+    ;; For now, return t if we have any found edges
     ;; TODO: Improve matching algorithm
     (and found expected-from expected-to t)))
 
@@ -466,7 +466,7 @@ Returns plist with :valid-arrows and :invalid-arrows counts."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (valid-arrows 0)
         (invalid-arrows 0))
-    
+
     ;; Count arrow characters and check their context
     (dotimes (y (gethash 'height grid))
       (dotimes (x (gethash 'width grid))
@@ -475,7 +475,7 @@ Returns plist with :valid-arrows and :invalid-arrows counts."
             (if (dag-draw-test--arrow-has-valid-context-p grid x y char)
                 (setq valid-arrows (1+ valid-arrows))
               (setq invalid-arrows (1+ invalid-arrows)))))))
-    
+
     (list :valid-arrows valid-arrows :invalid-arrows invalid-arrows)))
 
 (defun dag-draw-test--arrow-has-valid-context-p (grid x y arrow-char)
@@ -503,7 +503,7 @@ Returns plist with :topology-match, :node-count-match, :edge-count-match keys."
         (found-edges (dag-draw-test--find-edges ascii-string))
         (expected-nodes (dag-draw-test--extract-expected-nodes graph))
         (expected-edges (dag-draw-test--extract-expected-edges graph)))
-    
+
     (list :topology-match (>= (length found-nodes) (length expected-nodes))
           :node-count-match (>= (length found-nodes) (length expected-nodes))
           :edge-count-match (>= (length found-edges) 0))))
@@ -527,24 +527,24 @@ Returns t if path exists, nil otherwise."
           (visited (make-hash-table :test 'equal))
           (queue nil)
           (found nil))
-      
+
       ;; Start flood-fill from start position
       (push (list start-x start-y) queue)
-      
+
       ;; Breadth-first search for path to end position
       (while (and queue (not found))
         (let* ((current (pop queue))
                (curr-x (car current))
                (curr-y (cadr current)))
-          
+
           ;; Mark as visited
           (puthash (list curr-x curr-y) t visited)
-          
+
           ;; Check if we reached the end position (within reasonable distance)
           (when (and (<= (abs (- curr-x end-x)) 5)
                      (<= (abs (- curr-y end-y)) 5))
             (setq found t))
-          
+
           ;; Add adjacent edge characters to queue
           (unless found
             (dolist (dir '((0 1) (0 -1) (1 0) (-1 0)))
@@ -553,7 +553,7 @@ Returns t if path exists, nil otherwise."
                 (when (and (not (gethash (list new-x new-y) visited))
                            (memq (dag-draw-test--get-char-at grid new-x new-y) edge-chars))
                   (push (list new-x new-y) queue)))))))
-      
+
       found)))
 
 ;;; Junction Validation Functions
@@ -1033,7 +1033,7 @@ Returns plist with :continuous (boolean) and :gaps (list) keys."
     (list :continuous continuous :gaps (nreverse gaps))))
 
 (defun dag-draw-test--verify-orthogonal-routing (grid path)
-  "Verify PATH uses only horizontal/vertical segments (no diagonals).
+  "Verify PATH use only horizontal/vertical segments (no diagonals).
 
 GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
 PATH is a list of (x y) coordinate pairs.

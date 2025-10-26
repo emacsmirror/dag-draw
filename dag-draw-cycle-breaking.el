@@ -25,7 +25,7 @@
 ;; - Preserves semantic structure (sources stay at top)
 ;;
 ;; Baseline Status: ✅ Compliant
-;; 
+;;
 ;; GKNV Section 2.1 states: "From the standpoint of stability, the depth-first
 ;; cycle-breaking heuristic seems preferable. It also makes more informative
 ;; drawings than would be obtained by collapsing all the nodes in a cycle."
@@ -79,7 +79,7 @@ Each key maps to a list of `dag-draw-edge' structures."
            (remaining-nodes (sort (cl-set-difference all-nodes sources)
                                   (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
            (node-order (append sorted-sources remaining-nodes)))
-      
+
       (dolist (node-id node-order)
         (unless (ht-get visited node-id)
           (setq time-counter (dag-draw--dfs-classify-edges
@@ -96,7 +96,8 @@ NODE is a symbol representing the current node ID.
 VISITED is a hash table tracking node visit states (gray/black).
 DISCOVERY-TIME is a hash table mapping node IDs to discovery times.
 FINISH-TIME is a hash table mapping node IDs to finish times.
-TIME-COUNTER is an integer representing current time (incremented during traversal).
+TIME-COUNTER is an integer representing current time
+\(incremented during traversal).
 PARENT is a hash table mapping nodes to their DFS parent.
 CLASSIFICATION is a hash table accumulating edge classifications.
 

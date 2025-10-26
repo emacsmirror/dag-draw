@@ -81,7 +81,7 @@ box-drawing characters for nodes and edges."
   ;; Handle empty graphs
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       "(Empty Graph)"
-    
+
     ;; ASCII-first mode: coordinates are already in grid units, no conversion needed
     (dag-draw--render-ascii-native graph)))
 
@@ -105,16 +105,16 @@ Returns a string containing the ASCII representation of the graph."
                                                      (length (dag-draw-node-label n)))) nodes)))
          (min-y (apply #'min (mapcar (lambda (n) (or (dag-draw-node-y-coord n) 0)) nodes)))
          (max-y (apply #'max (mapcar (lambda (n) (+ (or (dag-draw-node-y-coord n) 0) 3)) nodes)))
-         
+
          ;; Create grid with padding (ensure integers for make-vector)
          (grid-width (round (max 20 (+ (- max-x min-x) 10))))
          (grid-height (round (max 10 (+ (- max-y min-y) 5))))
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))
-    
+
     (message "\n=== ASCII-NATIVE RENDERING ===")
     (message "Grid bounds: (%d,%d) to (%d,%d)" min-x min-y max-x max-y)
     (message "Grid size: %dx%d" grid-width grid-height)
-    
+
     ;; Draw nodes directly using ASCII coordinates (ensure integers)
     ;; Collect node boundary positions to exclude from junction enhancement
     (let ((node-boundaries nil))
@@ -299,16 +299,17 @@ used later to exclude these positions from junction character enhancement."
   "Draw a simple line from (X1,Y1) to (X2,Y2) with arrow.
 
 GRID is a 2D vector representing the ASCII character grid (modified in place).
-X1, Y1, X2, Y2 are integers representing start and end positions in grid coordinates.
+X1, Y1, X2, Y2 are integers representing start
+and end positions in grid coordinates.
 
 Draws an L-shaped path (vertical first, then horizontal) using line characters
-(─ │) and adds a directional arrow (▼ ▲ ▶ ◀) at the endpoint.
+\(─ │) and adds a directional arrow (▼ ▲ ▶ ◀) at the endpoint.
 
 GKNV-compliant: splines are pre-clipped to boundaries, enabling simple drawing."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
 
-    ;; Draw vertical line first  
+    ;; Draw vertical line first
     (when (not (= y1 y2))
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2)))
@@ -369,24 +370,24 @@ TO-NODE is a `dag-draw-node' structure for the destination node.
 Calculates proper port positions on node boundaries per GKNV Section 4.2,
 then draws an orthogonal path with vertical and horizontal segments using
 line characters (─ │) and a downward arrow (▼) at the destination."
-  
+
   ;; Calculate port positions per GKNV Section 4.2: Node Port as X-direction offset from node center
   (let* ((from-node-width (+ (length (dag-draw-node-label from-node)) 4))  ; Actual from-node width
          (to-node-width (+ (length (dag-draw-node-label to-node)) 4))       ; Actual to-node width
          (from-port-x (+ from-x (/ from-node-width 2))) ; Center X of from-node
-         (from-port-y (+ from-y 3))                     ; Bottom Y of from-node  
+         (from-port-y (+ from-y 3))                     ; Bottom Y of from-node
          (to-port-x (+ to-x (/ to-node-width 2)))       ; Center X of to-node
          (to-port-y to-y)                               ; Top Y of to-node
          ;; Calculate inter-rank routing position (midway between ranks)
          (routing-y (- to-port-y 1))) ; One row above destination node
-    
+
     ;; Draw vertical line down from from-node to routing level
     (when (< from-port-y routing-y)
       (let ((y from-port-y))
         (while (< y routing-y)
           (dag-draw--set-grid-char grid from-port-x y ?│)
           (setq y (1+ y)))))
-    
+
     ;; Draw horizontal line at inter-rank routing level
     (when (/= from-port-x to-port-x)
       (let ((start-x (min from-port-x to-port-x))
@@ -394,11 +395,11 @@ line characters (─ │) and a downward arrow (▼) at the destination."
         (while (<= start-x end-x)
           (dag-draw--set-grid-char grid start-x routing-y ?─)
           (setq start-x (1+ start-x)))))
-    
+
     ;; Draw final vertical segment down to destination node
     (when (< routing-y to-port-y)
       (dag-draw--set-grid-char grid to-port-x routing-y ?│))
-    
+
     ;; Draw arrow at destination
     (dag-draw--set-grid-char grid to-port-x to-port-y ?▼)))
 

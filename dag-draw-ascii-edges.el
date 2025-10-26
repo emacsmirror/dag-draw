@@ -8,10 +8,16 @@
 ;; ASCII COORDINATE CONTEXT: Direct character placement with unified coordinates.
 ;; The ASCII coordinate context eliminates negative coordinates and provides
 ;; unified positioning, making defensive checks unnecessary.;;; Code:(require 'dash)
+
+;;; Commentary:
+;;
+
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
 (require 'dag-draw-ports)
 (require 'dag-draw-ascii-splines);; Global variables for current rendering context (needed for node interior detection)
+;;; Code:
+
 (defvar dag-draw--current-graph nil
   "Current graph being rendered (for node interior detection).")
 (defvar dag-draw--current-min-x nil
@@ -21,8 +27,11 @@
 (defvar dag-draw--current-scale nil
   "Current scale factor for rendering context.");; Node boundary detection functions
 (defun dag-draw--get-node-boundary-rect (node min-x min-y scale)
-  "Calculate exact boundary coordinates for a node in grid space.
-Returns (left top right bottom) coordinates."
+  "Calculate exact boundary coordinates for a NODE in grid space.
+Returns (left top right bottom) coordinates.
+Argument MIN-X .
+Argument MIN-Y .
+Argument SCALE ."
   (let* ((world-x (dag-draw-node-x-coord node))
          (world-y (dag-draw-node-y-coord node))
          (world-width (dag-draw-node-x-size node))
@@ -54,7 +63,7 @@ Returns the node if point is inside node area, nil otherwise."
 ;;; Basic Line Drawing
 
 (defun dag-draw--ascii-draw-line (grid x1 y1 x2 y2 &optional)
-  "Draw a simple line from (X1,Y1) to (X2,Y2) on ASCII grid."
+  "Draw a simple line from (X1,Y1) to (X2,Y2) on ASCII GRID."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (dx (- x2 x1))
@@ -97,7 +106,11 @@ Returns the node if point is inside node area, nil otherwise."
   "Track positions where arrows have been placed to prevent conflicts.")
 
 (defun dag-draw--draw-arrow (grid x y arrow-char)
-  "Draw arrow character with GKNV Section 5.2 boundary clipping."
+  "Draw arrow character with GKNV Section 5.2 boundary clipping.
+Argument GRID .
+Argument X .
+Argument Y .
+Argument ARROW-CHAR ."
   (when arrow-char
     (let* ((int-x (round x))
            (int-y (round y))
@@ -124,8 +137,11 @@ Returns the node if point is inside node area, nil otherwise."
              (t
               (aset (aref grid int-y) int-x arrow-char)))))))))
 (defun dag-draw--draw-char (grid x y char)
-  "Draw character at grid position with basic bounds checking.
-ASCII coordinate context ensures coordinates are always valid."
+  "Draw character at GRID position with basic bounds checking.
+ASCII coordinate context ensures coordinates are always valid.
+Argument X .
+Argument Y .
+Argument CHAR ."
   (let* ((int-x (round x))
          (int-y (round y))
          (grid-height (length grid))
@@ -163,7 +179,8 @@ ASCII coordinate context ensures coordinates are always valid."
 (defun dag-draw--is-node-interior-position (grid x y)
   "Check if position (X,Y) is inside a node's interior area.
 Returns t if position is in node interior, nil if boundary or empty space.
-GKNV Section 5.2: Edges should not route through node text areas."
+GKNV Section 5.2: Edges should not route through node text areas.
+Argument GRID ."
   ;; CRITICAL FIX: Use direct node boundary calculation
   ;; This ensures consistency with GKNV edge routing requirements
   (when (and dag-draw--current-graph dag-draw--current-min-x dag-draw--current-min-y dag-draw--current-scale)
@@ -172,7 +189,10 @@ GKNV Section 5.2: Edges should not route through node text areas."
 
 
 (defun dag-draw--has-nearby-vertical-line (grid x y)
-  "Check if there's a vertical line nearby that would create ││ artifacts."
+  "Check if there's a vertical line nearby that would create ││ artifacts.
+Argument GRID .
+Argument X .
+Argument Y ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (nearby-found nil))    ;; Check within 2 positions left and right for existing vertical lines
@@ -185,7 +205,10 @@ GKNV Section 5.2: Edges should not route through node text areas."
 
 (defun dag-draw--consolidate-parallel-lines (grid x y)
   "Consolidate parallel lines to prevent ││ artifacts.
-Detects when vertical lines are adjacent and merges them into proper routing."
+Detects when vertical lines are adjacent and merges them into proper routing.
+Argument GRID .
+Argument X .
+Argument Y ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (current-char (aref (aref grid y) x)))    ;; Only process vertical lines
@@ -211,8 +234,12 @@ Detects when vertical lines are adjacent and merges them into proper routing."
 
 (defun dag-draw--find-node-boundary-intersection (graph node-id x1 y1 x2 y2 min-x min-y scale)
   "Find where line from (X1,Y1) to (X2,Y2) intersects NODE boundary.
-Returns intersection point (x,y) on the node boundary, or nil if no intersection.
-Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint node shapes'."
+Returns intersection point (x,y) on the node boundary,
+or nil if no intersection.
+Implements GKNV Section 5.2: 'clips the spline to the boundaries of the
+endpoint node shapes'.
+Argument GRAPH .
+Argument NODE-ID ."
   (let* ((node (dag-draw-get-node graph node-id))
          ;; GKNV Pass 3 Authority: Only use GKNV-assigned coordinates
          ;; Section 4: "The third pass finds optimal coordinates for nodes"
@@ -263,7 +290,8 @@ Implements GKNV Section 5.2: 'clips the spline to the boundaries of the endpoint
 (defun dag-draw--point-on-node-boundary (graph node-id x y &optional min-x min-y scale)
   "Check if point (X,Y) is exactly on the boundary of NODE-ID.
 Returns t if point is on the node boundary, nil otherwise.
-GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering."
+GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering.
+Argument GRAPH ."
   ;; GKNV FIX: Ensure integer coordinates to prevent type errors
   (let ((int-x (round x))
         (int-y (round y)))
@@ -309,7 +337,9 @@ GKNV Section 5.2 FIX: Use same coordinate priority as visual rendering."
 
 (defun dag-draw--line-intersects-vertical (x1 y1 x2 y2 boundary-x min-y max-y)
   "Find intersection of line (X1,Y1)→(X2,Y2) with vertical boundary at BOUNDARY-X.
-Returns (x,y) intersection point or nil if no intersection within Y range."
+Returns (x,y) intersection point or nil if no intersection within Y range.
+Argument MIN-Y .
+Argument MAX-Y ."
   (when (not (= x1 x2)) ; Avoid division by zero for vertical lines
     (let* ((t-param (/ (float (- boundary-x x1)) (- x2 x1)))
            (intersect-y (+ y1 (* t-param (- y2 y1)))))
@@ -319,8 +349,10 @@ Returns (x,y) intersection point or nil if no intersection within Y range."
         (list boundary-x (round intersect-y))))))
 
 (defun dag-draw--line-intersects-horizontal (x1 y1 x2 y2 boundary-y min-x max-x)
-  "Find intersection of line (X1,Y1)→(X2,Y2) with horizontal boundary at BOUNDARY-Y.
-Returns (x,y) intersection point or nil if no intersection within X range."
+  "Find intersection of line (X1,Y1)→(X2,Y2) w/ horiz. boundary at BOUNDARY-Y.
+Returns (x,y) intersection point or nil if no intersection within X range.
+Argument MIN-X .
+Argument MAX-X ."
   (when (not (= y1 y2)) ; Avoid division by zero for horizontal lines
     (let* ((t-param (/ (float (- boundary-y y1)) (- y2 y1)))
            (intersect-x (+ x1 (* t-param (- x2 x1)))))
@@ -330,9 +362,11 @@ Returns (x,y) intersection point or nil if no intersection within X range."
         (list (round intersect-x) boundary-y)))))
 
 (defun dag-draw--clip-edge-to-boundaries (graph edge x1 y1 x2 y2 min-x min-y scale)
-  "Clip edge endpoints to node boundaries per GKNV Section 5.2.
+  "Clip EDGE endpoints to node boundaries per GKNV Section 5.2.
 Returns (start-x start-y end-x end-y) with boundary-clipped coordinates.
-GKNV FIX: Handles edges that start/end on node boundaries by preventing inward extension."
+GKNV FIX: Handles edges that start/end on node boundaries
+by preventing inward extension.
+Argument GRAPH ."
   (let* ((from-node-id (dag-draw-edge-from-node edge))
          (to-node-id (dag-draw-edge-to-node edge))
          ;; Find boundary intersections
@@ -352,7 +386,18 @@ GKNV FIX: Handles edges that start/end on node boundaries by preventing inward e
 
 (defun dag-draw--ascii-draw-boundary-aware-path-with-arrow (graph grid x1 y1 x2 y2 port-side min-x min-y scale)
   "Draw path that respects node boundaries per GKNV Section 5.2.
-This function ensures edges never extend beyond node boundaries by checking each segment."
+This function ensures edges never extend beyond node boundaries
+by checking each segment.
+Argument GRAPH .
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 .
+Argument PORT-SIDE .
+Argument MIN-X .
+Argument MIN-Y .
+Argument SCALE ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    ;; Only draw if we can do so safely
     (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
@@ -366,8 +411,19 @@ This function ensures edges never extend beyond node boundaries by checking each
       (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))
 
 (defun dag-draw--draw-boundary-aware-l-path (graph grid x1 y1 x2 y2 direction min-x min-y scale)
-  "Draw L-shaped path that never extends beyond node boundaries.
-Implements GKNV Section 5.2 boundary clipping by checking each segment against node boundaries."
+  "Draw L-shaped path that never extend beyond node boundaries.
+Implements GKNV Section 5.2 boundary clipping
+by checking each segment against node boundaries.
+Argument GRAPH .
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 .
+Argument DIRECTION .
+Argument MIN-X .
+Argument MIN-Y .
+Argument SCALE ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
      ;; Pure vertical line
@@ -384,7 +440,17 @@ Implements GKNV Section 5.2 boundary clipping by checking each segment against n
 
 (defun dag-draw--draw-boundary-clipped-horizontal-line (graph grid x1 y1 x2 y2 min-x min-y scale)
   "Draw horizontal line segment that stops at node boundaries.
-GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary exit."
+GKNV Section 5.2 FIX: Prevents drawing through node interiors
+by smart boundary exit.
+Argument GRAPH .
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 .
+Argument MIN-X .
+Argument MIN-Y .
+Argument SCALE ."
   (let* ((start-x (min x1 x2))
          (end-x (max x1 x2))
          (y y1) ; Horizontal line uses y1
@@ -399,7 +465,16 @@ GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary 
         (setq current-x (+ current-x direction))))))
 
 (defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 min-x min-y scale)
-  "Draw vertical line segment that stops at node boundaries."
+  "Draw vertical line segment that stops at node boundaries.
+Argument GRAPH .
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 .
+Argument MIN-X .
+Argument MIN-Y .
+Argument SCALE ."
   (let* ((start-y (min y1 y2))
          (end-y (max y1 y2))
          (x x1)) ; Vertical line uses x1    ;; Draw each character of the vertical line, checking boundaries
@@ -413,7 +488,8 @@ GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary 
 ;;; Enhanced Edge Drawing Functions
 
 (defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale)
-  "Draw orthogonal edge with comprehensive collision avoidance."
+  "Draw orthogonal EDGE with comprehensive collision avoidance.
+Argument GRAPH ."
   ;; COORDINATE SYSTEM FIX: Use regenerated spline endpoints when available
   (let ((connection-points
          (if (dag-draw-edge-spline-points edge)
@@ -467,7 +543,13 @@ GKNV Section 5.2 FIX: Prevents drawing through node interiors by smart boundary 
 
 
 (defun dag-draw--ascii-draw-ultra-safe-path-with-port-arrow (grid x1 y1 x2 y2 port-side)
-  "Draw path with absolute safety and port-based arrow direction."
+  "Draw path with absolute safety and port-based arrow direction.
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 .
+Argument PORT-SIDE ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))) ;; Only draw if we can do so safely
     (when (and (>= x1 0) (< x1 grid-width) (>= y1 0) (< y1 grid-height)
@@ -658,7 +740,13 @@ Draws segments between consecutive spline points per GKNV Section 5.2."
 
 (defun dag-draw--draw-continuous-path-segment (grid x1 y1 x2 y2)
   "Draw a continuous path segment ensuring no gaps or floating characters.
-Uses orthogonal routing (horizontal then vertical) for clean ASCII representation."
+Uses orthogonal routing (horizontal then vertical) for clean
+ASCII representation.
+Argument GRID .
+Argument X1 .
+Argument Y1 .
+Argument X2 .
+Argument Y2 ."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (dx (- x2 x1))
@@ -697,3 +785,7 @@ Uses orthogonal routing (horizontal then vertical) for clean ASCII representatio
         (dag-draw--draw-char grid x2 y1 corner-char))))));;; Boundary Port Calculation
 
 (provide 'dag-draw-ascii-edges) ;;; dag-draw-ascii-edges.el ends here
+
+(provide 'dag-draw-ascii-edges)
+
+;;; dag-draw-ascii-edges.el ends here

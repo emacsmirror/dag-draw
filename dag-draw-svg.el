@@ -10,7 +10,7 @@
 ;;; Commentary:
 
 ;; SVG rendering implementation for dag-draw graphs.
-;; Converts positioned graphs into scalable vector graphics with 
+;; Converts positioned graphs into scalable vector graphics with
 ;; smooth splines, proper arrow markers, and clean styling.
 
 ;;; Code:

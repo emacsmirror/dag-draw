@@ -52,7 +52,8 @@
 
 (defun dag-draw--assign-y-coordinates (graph)
   "Assign Y coordinates to nodes based on their ranks.
-This is straightforward - nodes in the same rank get the same Y coordinate."
+This is straightforward - nodes in the same rank get the same Y coordinate.
+Argument GRAPH ."
   (let ((rank-separation (dag-draw-graph-rank-separation graph))
         (max-rank (or (dag-draw-graph-max-rank graph) 0)))
 
@@ -68,7 +69,10 @@ This is straightforward - nodes in the same rank get the same Y coordinate."
 
 (defun dag-draw--get-omega-factor (graph from-node to-node)
   "Get omega factor for edge cost based on node types.
-Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
+Real-real edges: 1, real-virtual: 2, virtual-virtual: 8
+Argument GRAPH .
+Argument FROM-NODE .
+Argument TO-NODE ."
   (let ((from-virtual (dag-draw--is-virtual-node-p from-node))
         (to-virtual (dag-draw--is-virtual-node-p to-node)))
     (cond
@@ -78,11 +82,14 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
      (t 1))))                                        ; fallback
 
 (defun dag-draw--is-virtual-node-p (node-id)
-  "Check if node is a virtual node (starts with 'virtual_')."
+  "Check if node is a virtual node (start with 'virtual_').
+Argument NODE-ID ."
   (string-match "^virtual_" (symbol-name node-id)))
 
 (defun dag-draw--add-separation-edges (aux-graph original-graph)
-  "Add separation constraint edges between adjacent nodes in same rank."
+  "Add separation constraint edges between adjacent nodes in same rank.
+Argument AUX-GRAPH .
+Argument ORIGINAL-GRAPH ."
   (let ((rank-to-nodes (ht-create)))
 
     ;; Group nodes by rank
@@ -112,7 +119,9 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
              rank-to-nodes)))
 
 (defun dag-draw--get-ordered-nodes-in-rank (graph node-list)
-  "Get nodes in rank ordered by their assigned order."
+  "Get nodes in rank ordered by their assigned order.
+Argument GRAPH .
+Argument NODE-LIST ."
   (sort node-list
         (lambda (a b)
           (let ((order-a (or (dag-draw-node-order (dag-draw-get-node graph a)) 0))
@@ -121,7 +130,10 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
 
 (defun dag-draw--calculate-separation (graph left-node right-node)
   "Calculate minimum separation between two adjacent nodes using GKNV formula.
-ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
+ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+Argument GRAPH .
+Argument LEFT-NODE .
+Argument RIGHT-NODE ."
   (let* ((left (dag-draw-get-node graph left-node))
          (right (dag-draw-get-node graph right-node))
          (left-width (dag-draw-node-x-size left))
@@ -134,7 +146,8 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
 
 
 (defun dag-draw--get-node-targets (graph node-id)
-  "Get list of nodes that NODE-ID connects to (outgoing edges)."
+  "Get list of nodes that NODE-ID connects to (outgoing edges).
+Argument GRAPH ."
   (let ((targets '()))
     (dolist (edge (dag-draw-graph-edges graph))
       (when (eq (dag-draw-edge-from-node edge) node-id)
@@ -142,7 +155,8 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
     targets))
 
 (defun dag-draw--get-node-sources (graph node-id)
-  "Get list of nodes that connect to NODE-ID (incoming edges)."
+  "Get list of nodes that connect to NODE-ID (incoming edges).
+Argument GRAPH ."
   (let ((sources '()))
     (dolist (edge (dag-draw-graph-edges graph))
       (when (eq (dag-draw-edge-to-node edge) node-id)
@@ -188,7 +202,7 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
 
   ;; Check coordinate mode for ASCII-native behavior
   (let ((coordinate-mode (or (dag-draw-graph-coordinate-mode graph) 'high-res)))
-    
+
     ;; First assign Y coordinates (with coordinate-mode awareness)
     (if (eq coordinate-mode 'ascii)
         (dag-draw--assign-y-coordinates-ascii graph)
@@ -199,7 +213,7 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
         (dag-draw--position-with-auxiliary-graph-ascii graph)
       (dag-draw--position-with-auxiliary-graph graph))
 
-    ;; Apply GKNV positioning enhancements  
+    ;; Apply GKNV positioning enhancements
     (dag-draw--apply-gknv-positioning-enhancements graph)
 
     ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
@@ -238,17 +252,18 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
   ;; GKNV Section 1.1: Evaluate aesthetic principles for positioning decisions
   (let ((positioning-aesthetics (dag-draw--evaluate-positioning-aesthetics graph)))
     (when (> (plist-get positioning-aesthetics :average-edge-length) 200)
-      (message "GKNV A3: Average edge length %.1f exceeds threshold - consider tighter layout" 
+      (message "GKNV A3: Average edge length %.1f exceeds threshold - consider tighter layout"
                (plist-get positioning-aesthetics :average-edge-length)))
     (when (< (plist-get positioning-aesthetics :symmetry-score) 0.5)
-      (message "GKNV A4: Layout symmetry score %.2f - consider balance improvements" 
+      (message "GKNV A4: Layout symmetry score %.2f - consider balance improvements"
                (plist-get positioning-aesthetics :symmetry-score))))
 
   graph)
 
 (defun dag-draw--ensure-all-nodes-have-coordinates (graph)
   "Ensure all nodes have valid X and Y coordinates.
-This is a fallback to prevent nil coordinate errors in rendering."
+This is a fallback to prevent nil coordinate errors in rendering.
+Argument GRAPH ."
   (let ((default-x 100)
         (default-y 100)
         (x-offset 0)
@@ -273,7 +288,9 @@ This is a fallback to prevent nil coordinate errors in rendering."
 
 (defun dag-draw--apply-gknv-positioning-enhancements (graph)
   "Apply GKNV positioning enhancements: minpath() and packcut().
-Based on GKNV Figure 4-1 algorithm steps 8-9 within the iterative optimization loop."
+Based on GKNV Figure 4-1 algorithm steps 8-9 within the
+iterative optimization loop.
+Argument GRAPH ."
   (let ((max-iterations 3)  ; GKNV recommends iterative improvement
         (best-layout-width most-positive-fixnum)
         (best-coordinates (ht-create)))
@@ -305,7 +322,8 @@ Based on GKNV Figure 4-1 algorithm steps 8-9 within the iterative optimization l
     (message "GKNV positioning enhancements completed. Final width: %s" best-layout-width)))
 
 (defun dag-draw--store-coordinates (graph coordinate-store)
-  "Store current node coordinates in COORDINATE-STORE hash table."
+  "Store current node coordinates in COORDINATE-STORE hash table.
+Argument GRAPH ."
   (ht-clear! coordinate-store)
   (ht-each (lambda (node-id node)
              (ht-set! coordinate-store node-id
@@ -314,7 +332,8 @@ Based on GKNV Figure 4-1 algorithm steps 8-9 within the iterative optimization l
            (dag-draw-graph-nodes graph)))
 
 (defun dag-draw--restore-coordinates (graph coordinate-store)
-  "Restore node coordinates from COORDINATE-STORE hash table."
+  "Restore node coordinates from COORDINATE-STORE hash table.
+Argument GRAPH ."
   (ht-each (lambda (node-id coords)
              (let ((node (dag-draw-get-node graph node-id)))
                (when node
@@ -328,7 +347,8 @@ Based on GKNV Figure 4-1 algorithm steps 8-9 within the iterative optimization l
   "Find chains of virtual nodes that can be straightened.
 Returns list of virtual node chains, where each chain is a list of node IDs
 that form a continuous path of virtual nodes between real nodes.
-Based on GKNV paper: minpath straightens chains of virtual nodes."
+Based on GKNV paper: minpath straightens chains of virtual nodes.
+Argument GRAPH ."
   (let ((chains '())
         (visited (ht-create)))
 
@@ -346,7 +366,8 @@ Based on GKNV paper: minpath straightens chains of virtual nodes."
 
 (defun dag-draw--trace-virtual-chain (graph start-node visited)
   "Trace a chain of virtual nodes starting from START-NODE.
-Marks visited nodes and returns the chain as a list of node IDs."
+Marks visited nodes and returns the chain as a list of node IDs.
+Argument GRAPH ."
   (let ((chain '())
         (current-node start-node))
 
@@ -367,7 +388,8 @@ Marks visited nodes and returns the chain as a list of node IDs."
 
 (defun dag-draw--find-next-virtual-in-chain (graph current-node)
   "Find the next virtual node connected to CURRENT-NODE.
-Returns the next virtual node ID if found, nil otherwise."
+Returns the next virtual node ID if found, nil otherwise.
+Argument GRAPH ."
   (let ((next-virtual nil))
     (dolist (edge (dag-draw-graph-edges graph))
       (when (eq (dag-draw-edge-from-node edge) current-node)
@@ -378,9 +400,12 @@ Returns the next virtual node ID if found, nil otherwise."
 
 (defun dag-draw--minpath-straighten-virtual-chains (graph)
   "Apply GKNV minpath() algorithm to straighten virtual node chains.
-Sets virtual nodes in each chain to have the same X coordinate for straight lines.
-Based on GKNV paper: 'minpath straightens chains of virtual nodes by sequentially
-finding sub-chains that may be assigned the same X coordinate.'"
+Sets virtual nodes in each chain to have the same X coordinate
+for straight lines.
+Based on GKNV paper: 'minpath straightens chains of virtual nodes
+by sequentially
+finding sub-chains that may be assigned the same X coordinate.'
+Argument GRAPH ."
   (let ((chains (dag-draw--find-virtual-node-chains graph)))
     (dolist (chain chains)
       (when (> (length chain) 0)  ; Handle both single nodes and multi-node chains
@@ -394,7 +419,8 @@ finding sub-chains that may be assigned the same X coordinate.'"
 
 (defun dag-draw--calculate-optimal-chain-x-coordinate (graph chain)
   "Calculate optimal X coordinate for virtual node CHAIN.
-Uses median of chain endpoints and neighbor positions for best alignment."
+Uses median of chain endpoints and neighbor positions for best alignment.
+Argument GRAPH ."
   (let ((x-coordinates '()))
 
     ;; Collect X coordinates of chain endpoints (real nodes connected to chain)
@@ -436,7 +462,8 @@ Uses median of chain endpoints and neighbor positions for best alignment."
 
 (defun dag-draw--get-nodes-in-rank-sorted-by-x (graph rank)
   "Get nodes in RANK sorted by X coordinate (left to right).
-Returns list of node IDs sorted by their X coordinates."
+Returns list of node IDs sorted by their X coordinates.
+Argument GRAPH ."
   (let ((nodes-in-rank '()))
     ;; Collect nodes in this rank
     (ht-each (lambda (node-id node)
@@ -454,7 +481,9 @@ Returns list of node IDs sorted by their X coordinates."
 
 (defun dag-draw--find-rank-compaction-opportunities (graph nodes-in-rank)
   "Find compaction opportunities within a single rank.
-Returns list of compaction operations for this rank."
+Returns list of compaction operations for this rank.
+Argument GRAPH .
+Argument NODES-IN-RANK ."
   (let ((opportunities '()))
     (when (>= (length nodes-in-rank) 2)
       ;; Check gaps between adjacent nodes
@@ -483,8 +512,10 @@ Returns list of compaction operations for this rank."
   "Apply GKNV packcut() compaction algorithm to reduce layout width.
 Sweeps layout from left to right, searching for blocks that can be compacted.
 Based on GKNV specification: 'For each node, if all the nodes to the right of
-it can be shifted to the left by some increment without violating any positioning
-constraints, the shift is performed.'"
+it can be shifted to the left by some increment
+without violating any positioning
+constraints, the shift is performed.'
+Argument GRAPH ."
   (let ((ranks (dag-draw--get-graph-ranks graph)))
     ;; Process each rank independently
     (dolist (rank ranks)
@@ -510,7 +541,10 @@ Implements left-to-right sweep compaction within the rank."
 
 (defun dag-draw--calculate-compaction-amount (graph left-node-id right-node-id)
   "Calculate how much RIGHT-NODE can be shifted left toward LEFT-NODE.
-Returns the amount of compaction possible while respecting GKNV constraints."
+Returns the amount of compaction possible while respecting GKNV constraints.
+Argument GRAPH .
+Argument LEFT-NODE-ID .
+Argument RIGHT-NODE-ID ."
   (let* ((left-node (dag-draw-get-node graph left-node-id))
          (right-node (dag-draw-get-node graph right-node-id))
          (left-x (dag-draw-node-x-coord left-node))
@@ -524,7 +558,8 @@ Returns the amount of compaction possible while respecting GKNV constraints."
 
 (defun dag-draw--shift-nodes-right-of-position (graph rank x-threshold shift-amount)
   "Shift all nodes in RANK that are right of X-THRESHOLD by SHIFT-AMOUNT.
-SHIFT-AMOUNT should be negative for leftward movement (compaction)."
+SHIFT-AMOUNT should be negative for leftward movement (compaction).
+Argument GRAPH ."
   (ht-each (lambda (node-id node)
              (when (and (dag-draw-node-rank node)
                         (= (dag-draw-node-rank node) rank)
@@ -535,7 +570,8 @@ SHIFT-AMOUNT should be negative for leftward movement (compaction)."
            (dag-draw-graph-nodes graph)))
 
 (defun dag-draw--calculate-layout-width (graph)
-  "Calculate total width of the layout from leftmost to rightmost node."
+  "Calculate total width of the layout from leftmost to rightmost node.
+Argument GRAPH ."
   (let ((min-x most-positive-fixnum)
         (max-x most-negative-fixnum))
     (ht-each (lambda (node-id node)
@@ -554,9 +590,9 @@ SHIFT-AMOUNT should be negative for leftward movement (compaction)."
 ;;; GKNV Section 4.2: Network Simplex Constraint Solver
 
 (defun dag-draw--build-constraint-auxiliary-graph (graph)
-  "Build auxiliary graph for GKNV Section 4.2 network simplex constraint solver.
+  "Build auxiliary GRAPH for GKNV Section 4.2 network simplex constraint solver.
 Per GKNV specification: 'Every edge e=(u,v) in G is replaced by two edges
-(n_e,u) and (n_e,v) with δ=0 and ω=ω(e)×Ω(e). If v is the left neighbor
+\(n_e,u) and (n_e,v) with δ=0 and ω=ω(e)×Ω(e). If v is the left neighbor
 of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
   (let ((aux-graph (dag-draw-create-graph)))
 
@@ -582,7 +618,7 @@ of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
 
         ;; Create n_e edge cost node per GKNV terminology
         (dag-draw-add-node aux-graph ne-node-id (format "n_e_%s_%s" from-node to-node))
-        
+
         ;; Set n_e node to a separate rank to avoid separation edge conflicts
         ;; Cost nodes don't participate in rank-based separation
         (let ((ne-node (dag-draw-get-node aux-graph ne-node-id)))
@@ -622,7 +658,9 @@ of w, then G' has an edge f=(v,w) with δ(f)=ρ(v,w) and ω(f)=0.'"
 
 (defun dag-draw--calculate-omega-factor (from-node to-node)
   "Calculate Ω factor for edge cost per GKNV specification.
-Edges between virtual nodes get higher weights to favor straightening."
+Edges between virtual nodes get higher weights to favor straightening.
+Argument FROM-NODE .
+Argument TO-NODE ."
   (let ((from-virtual (dag-draw--is-virtual-node-p from-node))
         (to-virtual (dag-draw--is-virtual-node-p to-node)))
     (cond
@@ -635,7 +673,10 @@ Edges between virtual nodes get higher weights to favor straightening."
 
 (defun dag-draw--calculate-separation (graph left-node right-node)
   "Calculate minimum separation ρ(left,right) between adjacent nodes.
-Based on GKNV: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
+Based on GKNV: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)
+Argument GRAPH .
+Argument LEFT-NODE .
+Argument RIGHT-NODE ."
   (let* ((left (dag-draw-get-node graph left-node))
          (right (dag-draw-get-node graph right-node))
          (left-width (if left (dag-draw-node-x-size left) 60))    ; Use actual node width
@@ -644,7 +685,8 @@ Based on GKNV: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
     (+ (/ (+ left-width right-width) 2.0) nodesep)))
 
 (defun dag-draw--group-nodes-by-rank (graph)
-  "Group nodes by their rank for separation edge creation."
+  "Group nodes by their rank for separation edge creation.
+Argument GRAPH ."
   (let ((rank-groups (ht-create)))
     (ht-each (lambda (node-id node)
                (let ((rank (or (dag-draw-node-rank node) 0)))
@@ -655,18 +697,21 @@ Based on GKNV: ρ(a,b) = (xsize(a) + xsize(b))/2 + nodesep(G)"
 
 
 (defun dag-draw--network-simplex-x-coordinates (aux-graph)
-  "Apply network simplex algorithm to auxiliary graph for X coordinate optimization.
-Reuses existing network simplex infrastructure but optimizes X coordinates instead of ranks."
+  "Apply network simplex algo to auxiliary graph for X coordinate optimization.
+Reuses existing network simplex infrastructure but optimizes
+X coordinates instead of ranks.
+Argument AUX-GRAPH ."
   ;; For now, use a simplified approach that respects separation constraints
   ;; TODO: Full network simplex implementation for X coordinates
   (dag-draw--simple-x-coordinate-solver aux-graph))
 
 (defun dag-draw--simple-x-coordinate-solver (aux-graph)
   "Simplified constraint solver that minimizes GKNV cost function.
-Implements iterative cost minimization with separation constraint compliance."
+Implements iterative cost minimization with separation constraint compliance.
+Argument AUX-GRAPH ."
   ;; Initialize all nodes to reasonable starting positions
   (dag-draw--initialize-x-coordinates aux-graph)
-  
+
   ;; Multiple iterations to converge on optimal positioning
   ;; GKNV edge straightening requires more iterations for proper convergence
   (dotimes (iteration 30)  ; More iterations for better edge straightening
@@ -676,7 +721,8 @@ Implements iterative cost minimization with separation constraint compliance."
   (dag-draw--enforce-separation-constraints aux-graph))
 
 (defun dag-draw--initialize-x-coordinates (aux-graph)
-  "Initialize X coordinates for all nodes in auxiliary graph."
+  "Initialize X coordinates for all nodes in auxiliary graph.
+Argument AUX-GRAPH ."
   (let ((current-x 0)
         (node-spacing 100))  ; Default spacing
     (ht-each (lambda (node-id node)
@@ -687,7 +733,8 @@ Implements iterative cost minimization with separation constraint compliance."
 
 (defun dag-draw--gknv-cost-minimization-iteration (aux-graph)
   "One iteration of GKNV cost minimization across all nodes.
-Updates each node's X coordinate to minimize the GKNV cost function."
+Updates each node's X coordinate to minimize the GKNV cost function.
+Argument AUX-GRAPH ."
   ;; Update each node's position based on cost minimization
   (ht-each (lambda (node-id node)
              (let ((new-x (dag-draw--calculate-cost-minimizing-position aux-graph node-id)))
@@ -698,7 +745,8 @@ Updates each node's X coordinate to minimize the GKNV cost function."
 (defun dag-draw--calculate-cost-minimizing-position (aux-graph node-id)
   "Calculate X position that minimizes GKNV cost function for NODE-ID.
 Per GKNV Section 4.2: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for L1 norm optimization.
-Per GKNV line 1241: 'chains may be aligned vertically and thus straightened'."
+Per GKNV line 1241: 'chains may be aligned vertically and thus straightened'.
+Argument AUX-GRAPH ."
   ;; Standard cost-based positioning with enhanced edge straightening
   (let ((weighted-positions '()))
     ;; Collect all cost edges (weight > 0) connected to this node
@@ -712,7 +760,7 @@ Per GKNV line 1241: 'chains may be aligned vertically and thus straightened'."
                    (target-node (dag-draw-get-node aux-graph target-id))
                    (target-x (or (dag-draw-node-x-coord target-node) 0)))
               (push (cons target-x weight) weighted-positions)))
-           ;; Node is target of edge - minimize distance to source  
+           ;; Node is target of edge - minimize distance to source
            ((eq (dag-draw-edge-to-node edge) node-id)
             (let* ((source-id (dag-draw-edge-from-node edge))
                    (source-node (dag-draw-get-node aux-graph source-id))
@@ -726,7 +774,8 @@ Per GKNV line 1241: 'chains may be aligned vertically and thus straightened'."
 
 (defun dag-draw--calculate-cost-weighted-median (weighted-positions)
   "Calculate weighted median from list of (position . weight) pairs.
-This minimizes the L1 norm cost function Σ weight×|x - position|."
+This minimizes the L1 norm cost function Σ weight×|x - position|.
+Argument WEIGHTED-POSITIONS ."
   (when weighted-positions
     ;; Sort positions by X coordinate
     (let* ((sorted-positions (sort (copy-sequence weighted-positions)
@@ -734,7 +783,7 @@ This minimizes the L1 norm cost function Σ weight×|x - position|."
            (total-weight (apply #'+ (mapcar #'cdr sorted-positions)))
            (half-weight (/ total-weight 2.0))
            (cumulative-weight 0))
-      
+
       ;; Find the weighted median
       (catch 'found
         (dolist (pos-weight sorted-positions)
@@ -747,7 +796,8 @@ This minimizes the L1 norm cost function Σ weight×|x - position|."
         (car (car sorted-positions))))))
 
 (defun dag-draw--enforce-separation-constraints (aux-graph)
-  "Final pass to ensure all separation constraints are met."
+  "Final pass to ensure all separation constraints are met.
+Argument AUX-GRAPH ."
   (let ((rank-groups (dag-draw--group-nodes-by-rank aux-graph)))
 
     (ht-each (lambda (rank nodes-in-rank)
@@ -771,7 +821,8 @@ This minimizes the L1 norm cost function Σ weight×|x - position|."
 
 (defun dag-draw--calculate-preferred-x-position (aux-graph node-id)
   "Calculate preferred X position for NODE-ID based on GKNV cost minimization.
-According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
+According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges.
+Argument AUX-GRAPH ."
   (let ((cost-edges '())
         (total-weight 0))
 
@@ -802,7 +853,8 @@ According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
       0)))
 
 (defun dag-draw--calculate-node-spacing (graph node-id)
-  "Calculate spacing needed after NODE-ID for next node."
+  "Calculate spacing needed after NODE-ID for next node.
+Argument GRAPH ."
   (let* ((node (dag-draw-get-node graph node-id))
          (node-width (if node (dag-draw-node-x-size node) 60))
          (nodesep (or (dag-draw-graph-node-separation graph) 2)))
@@ -814,7 +866,8 @@ According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
 
 
 (defun dag-draw--get-nodes-in-rank (graph rank)
-  "Get all nodes in specified RANK."
+  "Get all nodes in specified RANK.
+Argument GRAPH ."
   (let ((nodes-in-rank '()))
     (ht-each (lambda (node-id node)
                (when (= (or (dag-draw-node-rank node) 0) rank)
@@ -823,24 +876,26 @@ According to GKNV paper: minimize Σ Ω(e)×ω(e)×|x_w - x_v| for all edges."
     nodes-in-rank))
 
 (defun dag-draw--position-with-auxiliary-graph (graph)
-  "Position nodes using GKNV auxiliary graph method (Section 4.2).
+  "Position nodes using GKNV auxiliary GRAPH method (Section 4.2).
 Creates constraint auxiliary graph and applies network simplex for optimal X-coordinates."
   (let ((aux-graph (dag-draw--build-constraint-auxiliary-graph graph)))
     ;; Apply network simplex to auxiliary graph for X-coordinate optimization
     (dag-draw--network-simplex-x-coordinates aux-graph)
-    
+
     ;; Extract X-coordinates from auxiliary graph back to original graph
     (dag-draw--extract-x-coordinates-from-auxiliary aux-graph graph)))
 
 (defun dag-draw--extract-x-coordinates-from-auxiliary (aux-graph original-graph)
   "Extract X-coordinates from auxiliary graph back to original graph.
-Only copies coordinates for original nodes, ignoring auxiliary edge nodes."
+Only copies coordinates for original nodes, ignoring auxiliary edge nodes.
+Argument AUX-GRAPH .
+Argument ORIGINAL-GRAPH ."
   (ht-each (lambda (node-id node)
              ;; Only copy coordinates for original nodes (not auxiliary edge nodes)
              (unless (string-match "^aux_edge_" (symbol-name node-id))
                (let ((original-node (dag-draw-get-node original-graph node-id)))
                  (when original-node
-                   (setf (dag-draw-node-x-coord original-node) 
+                   (setf (dag-draw-node-x-coord original-node)
                          (dag-draw-node-x-coord node))))))
            (dag-draw-graph-nodes aux-graph)))
 
@@ -848,23 +903,26 @@ Only copies coordinates for original nodes, ignoring auxiliary edge nodes."
 
 (defun dag-draw--assign-y-coordinates-ascii (graph)
   "ASCII-native Y coordinate assignment working directly in grid coordinates.
-Per GKNV Section 4: Y coordinates determined by rank, same for all nodes in rank.
-In ASCII mode, we work directly in integer grid coordinates to prevent collapse."
-  
+Per GKNV Section 4: Y coordinates determined by rank,
+same for all nodes in rank.
+In ASCII mode, we work directly in integer
+grid coordinates to prevent collapse.
+Argument GRAPH ."
+
   ;; Get rank information from nodes
   (let ((rank-to-nodes (ht-create))
         (max-rank -1))
-    
+
     ;; Group nodes by rank
     (ht-each (lambda (node-id node)
                (let ((rank (or (dag-draw-node-rank node) 0)))
                  (setq max-rank (max max-rank rank))
                  (unless (ht-get rank-to-nodes rank)
                    (ht-set! rank-to-nodes rank '()))
-                 (ht-set! rank-to-nodes rank 
+                 (ht-set! rank-to-nodes rank
                          (cons node (ht-get rank-to-nodes rank)))))
              (dag-draw-graph-nodes graph))
-    
+
     ;; Assign ASCII grid Y coordinates directly
     ;; Use the graph's configured rank-separation (D3.6: Y = rank × ranksep)
     (let ((rank-separation (dag-draw-graph-rank-separation graph)))
@@ -876,25 +934,25 @@ In ASCII mode, we work directly in integer grid coordinates to prevent collapse.
 
 (defun dag-draw--position-with-auxiliary-graph-ascii (graph)
   "ASCII-native X coordinate positioning working directly in grid coordinates.
-Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constraints."
-  
+Per GKNV Section 4.2: Use auxiliary GRAPH method but with ASCII integer constraints."
+
   ;; Start with high-resolution positioning to get optimal layout
   (dag-draw--position-with-auxiliary-graph graph)
-  
+
   ;; Convert to ASCII grid coordinates with proper spacing
   ;; Group nodes by rank to ensure consistent horizontal spacing
   (let ((rank-groups (ht-create))
         (ascii-node-separation 25))  ; Reasonable horizontal spacing between node boundaries
-    
-    ;; Group nodes by rank  
+
+    ;; Group nodes by rank
     (ht-each (lambda (node-id node)
                (let ((rank (or (dag-draw-node-rank node) 0)))
                  (unless (ht-get rank-groups rank)
                    (ht-set! rank-groups rank '()))
-                 (ht-set! rank-groups rank 
+                 (ht-set! rank-groups rank
                          (cons node (ht-get rank-groups rank)))))
              (dag-draw-graph-nodes graph))
-    
+
     ;; For each rank, assign ASCII X coordinates with dynamic spacing
     ;; Per GKNV Section 1.2: nodesep(G) - minimum horizontal separation between node boxes
     (ht-each (lambda (rank nodes)
@@ -919,7 +977,8 @@ Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constrai
              rank-groups)))
 
 (defun dag-draw--round-coordinates-for-ascii (graph)
-  "Round all coordinates to ASCII-friendly integer values."
+  "Round all coordinates to ASCII-friendly integer values.
+Argument GRAPH ."
   (ht-each (lambda (node-id node)
              (let ((x (dag-draw-node-x-coord node))
                    (y (dag-draw-node-y-coord node)))
@@ -928,14 +987,15 @@ Per GKNV Section 4.2: Use auxiliary graph method but with ASCII integer constrai
            (dag-draw-graph-nodes graph)))
 
 (defun dag-draw--ensure-ascii-spacing (graph)
-  "Ensure minimum ASCII spacing between nodes to prevent overlap."
+  "Ensure minimum ASCII spacing between nodes to prevent overlap.
+Argument GRAPH ."
   (let ((node-list (ht-values (dag-draw-graph-nodes graph)))
         (min-spacing 5))  ; Minimum spacing for ASCII readability
     ;; Sort by X coordinate
-    (setq node-list (sort node-list (lambda (a b) 
+    (setq node-list (sort node-list (lambda (a b)
                                      (< (or (dag-draw-node-x-coord a) 0)
                                         (or (dag-draw-node-x-coord b) 0)))))
-    
+
     ;; Adjust spacing
     (let ((current-x 5))  ; Start with padding
       (dolist (node node-list)

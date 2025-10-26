@@ -130,7 +130,8 @@ Returns a hash table with the following keys:
 (defun dag-draw--ascii-world-to-grid (world-x world-y context scale)
   "Convert world coordinates to ASCII grid using normalized CONTEXT.
 
-WORLD-X and WORLD-Y are numbers representing world coordinates from GKNV algorithm.
+WORLD-X and WORLD-Y are numbers representing world coordinates
+from GKNV algorithm.
 CONTEXT is a hash table from `dag-draw--create-ascii-coordinate-context'.
 SCALE is a float representing the scaling factor.
 
@@ -149,7 +150,7 @@ Returns a list (grid-x grid-y) where both are integers."
 CONTEXT is a hash table from `dag-draw--create-ascii-coordinate-context'.
 
 Returns a list (min-x min-y max-x max-y) where min-x and min-y are always 0
-(reflecting the normalized ASCII-safe coordinate space)."
+\(reflecting the normalized ASCII-safe coordinate space)."
   (ht-get context 'ascii-bounds))
 
 (provide 'dag-draw-coord-transform)

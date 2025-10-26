@@ -50,7 +50,7 @@
 
 (defun dag-draw--create-virtual-nodes (graph)
   "Create virtual nodes for edges spanning multiple ranks.
-Returns a new graph with virtual nodes inserted."
+Returns a new GRAPH with virtual nodes inserted."
   (let ((new-graph (dag-draw-copy-graph graph))
         (virtual-counter 0))
 
@@ -107,7 +107,7 @@ Returns a new graph with virtual nodes inserted."
 (defun dag-draw--organize-by-ranks (graph)
   "Organize nodes by rank into a list of lists.
 Returns a vector where index i contains list of nodes at rank i.
-Calculates actual max rank from nodes if graph max-rank is not set correctly."
+Calculates actual max rank from nodes if GRAPH max-rank is not set correctly."
   ;; Calculate actual max rank from all nodes (GKNV algorithm compliance)
   (let ((actual-max-rank 0))
     (ht-each (lambda (node-id node)
@@ -115,7 +115,7 @@ Calculates actual max rank from nodes if graph max-rank is not set correctly."
                  (when (and rank (> rank actual-max-rank))
                    (setq actual-max-rank rank))))
              (dag-draw-graph-nodes graph))
-    
+
     ;; Use calculated max rank or graph's max rank, whichever is larger
     (let* ((graph-max-rank (or (dag-draw-graph-max-rank graph) 0))
            (max-rank (max actual-max-rank graph-max-rank))
@@ -137,7 +137,10 @@ Calculates actual max rank from nodes if graph max-rank is not set correctly."
 ;;; Edge Crossing Calculation
 
 (defun dag-draw--count-crossings-between-ranks (graph rank1-nodes rank2-nodes)
-  "Count edge crossings between two adjacent ranks."
+  "Count edge crossings between two adjacent ranks.
+Argument GRAPH .
+Argument RANK1-NODES .
+Argument RANK2-NODES ."
   (let ((crossings 0)
         (edges-between '()))
 
@@ -160,7 +163,12 @@ Calculates actual max rank from nodes if graph max-rank is not set correctly."
     crossings))
 
 (defun dag-draw--edges-cross-p (graph edge1 edge2 rank1-nodes rank2-nodes)
-  "Check if two edges cross given the current node ordering."
+  "Check if two edges cross given the current node ordering.
+Argument GRAPH .
+Argument EDGE1 .
+Argument EDGE2 .
+Argument RANK1-NODES .
+Argument RANK2-NODES ."
   (let ((from1 (dag-draw-edge-from-node edge1))
         (to1 (dag-draw-edge-to-node edge1))
         (from2 (dag-draw-edge-from-node edge2))
@@ -180,7 +188,10 @@ Calculates actual max rank from nodes if graph max-rank is not set correctly."
 
 (defun dag-draw--calculate-median-position (graph node-id adjacent-rank-nodes &optional size-aware)
   "Calculate median position for a node based on adjacent rank.
-If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
+If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps.
+Argument GRAPH .
+Argument NODE-ID .
+Argument ADJACENT-RANK-NODES ."
   (let ((adjacent-positions '())
         (adjacent-sizes '()))
 
@@ -214,7 +225,7 @@ If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
         (dag-draw--weighted-median adjacent-positions)))))
 
 (defun dag-draw--weighted-median (positions &optional node-sizes)
-  "Calculate weighted median of positions with optional size-aware spacing.
+  "Calculate weighted median of POSITIONS with optional size-aware spacing.
 This implements the biased median described in the GKNV paper, enhanced with
 size-aware adjustments to prevent overlaps when NODE-SIZES is provided."
   (if (null positions)
@@ -254,7 +265,8 @@ size-aware adjustments to prevent overlaps when NODE-SIZES is provided."
 
 (defun dag-draw--basic-weighted-median (positions)
   "Calculate basic weighted median without size considerations.
-This implements the biased median described in the GKNV paper."
+This implements the biased median described in the GKNV paper.
+Argument POSITIONS ."
   (if (null positions)
       0.0
     (let ((sorted-pos (sort positions #'<))
@@ -327,7 +339,10 @@ POSITIONS is list of position values, NODE-SIZES is list of size plists."
 (defun dag-draw--order-rank-by-median (graph rank-nodes adjacent-rank-nodes direction &optional size-aware)
   "Order nodes in a rank using weighted median heuristic.
 DIRECTION is 'down or 'up indicating sweep direction.
-If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
+If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps.
+Argument GRAPH .
+Argument RANK-NODES .
+Argument ADJACENT-RANK-NODES ."
   (let ((nodes-with-medians '()))
 
     ;; Calculate median for each node
@@ -354,7 +369,10 @@ If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
 ;;; Local Transposition Optimization
 
 (defun dag-draw--transpose-adjacent (graph ranks rank-idx)
-  "Try transposing adjacent nodes within a rank to reduce crossings."
+  "Try transposing adjacent nodes within a rank to reduce crossings.
+Argument GRAPH .
+Argument RANKS .
+Argument RANK-IDX ."
   (let ((rank-nodes (aref ranks rank-idx))
         (improved t)
         (total-improvement 0))
@@ -398,7 +416,10 @@ If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
     total-improvement))
 
 (defun dag-draw--calculate-local-crossings (graph ranks rank-idx pos)
-  "Calculate crossings involving edges from position POS and POS+1 in rank."
+  "Calculate crossings involving edges from position POS and POS+1 in rank.
+Argument GRAPH .
+Argument RANKS .
+Argument RANK-IDX ."
   (let ((crossings 0))
 
     ;; Check crossings with previous rank
@@ -450,14 +471,16 @@ Returns the modified GRAPH with order assignments within each rank."
     ;; GKNV Section 1.1: Evaluate aesthetic principles for ordering decisions
     (let ((ordering-aesthetics (dag-draw--evaluate-ordering-aesthetics graph)))
       (when (> (plist-get ordering-aesthetics :crossing-count) 0)
-        (message "GKNV A2: Edge crossings detected (%d) - visual anomalies present" 
+        (message "GKNV A2: Edge crossings detected (%d) - visual anomalies present"
                  (plist-get ordering-aesthetics :crossing-count))))
 
     graph))
 
 (defun dag-draw--crossing-reduction-with-convergence (graph ranks)
   "Enhanced crossing reduction with sophisticated convergence detection.
-Returns hash table with convergence information."
+Returns hash table with convergence information.
+Argument GRAPH .
+Argument RANKS ."
   (cl-block dag-draw--crossing-reduction-with-convergence
     (let* ((max-iterations 20)
            (convergence-threshold 5)
@@ -553,7 +576,12 @@ Returns hash table with convergence information."
                                    iterations-without-improvement
                                    convergence-threshold oscillation-window)
   "Advanced convergence detection for crossing reduction algorithm.
-Returns t if algorithm has converged."
+Returns t if algorithm has converged.
+Argument CROSSINGS-HISTORY .
+Argument RANKS-HISTORY .
+Argument ITERATIONS-WITHOUT-IMPROVEMENT .
+Argument CONVERGENCE-THRESHOLD .
+Argument OSCILLATION-WINDOW ."
   (cond
    ;; 1. No improvement for several iterations
    ((>= iterations-without-improvement convergence-threshold)
@@ -577,7 +605,9 @@ Returns t if algorithm has converged."
    (t nil)))
 
 (defun dag-draw--detect-oscillation (crossings-history window-size)
-  "Detect if crossing counts are oscillating between the same values."
+  "Detect if crossing counts are oscillating between the same values.
+Argument CROSSINGS-HISTORY .
+Argument WINDOW-SIZE ."
   (when (>= (length crossings-history) window-size)
     (let* ((recent-values (seq-take crossings-history window-size))
            (unique-values (seq-uniq recent-values)))
@@ -586,7 +616,8 @@ Returns t if algorithm has converged."
            (> (length recent-values) (length unique-values))))))
 
 (defun dag-draw--detect-diminishing-returns (crossings-history)
-  "Detect if the rate of improvement has slowed significantly."
+  "Detect if the rate of improvement has slowed significantly.
+Argument CROSSINGS-HISTORY ."
   (when (>= (length crossings-history) 6)
     (let* ((recent-6 (seq-take crossings-history 6))
            (recent-3 (seq-take recent-6 3))
@@ -598,7 +629,8 @@ Returns t if algorithm has converged."
            (< recent-improvement (* 0.1 previous-improvement))))))
 
 (defun dag-draw--initialize-ordering (graph ranks)
-  "Initialize node ordering within ranks."
+  "Initialize node ordering within RANKS.
+Argument GRAPH ."
   ;; Simple initialization - keep existing order or randomize
   (dotimes (r (length ranks))
     (let ((rank-nodes (aref ranks r)))
@@ -607,7 +639,9 @@ Returns t if algorithm has converged."
       (setf (aref ranks r) rank-nodes))))
 
 (defun dag-draw--count-total-crossings (graph ranks)
-  "Count total edge crossings in current ordering."
+  "Count total edge crossings in current ordering.
+Argument GRAPH .
+Argument RANKS ."
   (let ((total 0))
     (dotimes (r (1- (length ranks)))
       (setq total (+ total
@@ -618,7 +652,8 @@ Returns t if algorithm has converged."
     total))
 
 (defun dag-draw--apply-ordering-to-graph (graph ranks)
-  "Apply the computed ordering back to the original graph nodes."
+  "Apply the computed ordering back to the original GRAPH nodes.
+Argument RANKS ."
   (dotimes (r (length ranks))
     (let ((rank-nodes (aref ranks r))
           (order 0))

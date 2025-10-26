@@ -149,7 +149,7 @@ copied.  Modifications to the copy will not affect the original."
                     :node-separation (dag-draw-graph-node-separation graph)
                     :rank-separation (dag-draw-graph-rank-separation graph)
                     :attributes (ht-copy (dag-draw-graph-attributes graph)))))
-    
+
     ;; Copy nodes
     (ht-each (lambda (node-id node)
                (let ((new-node (dag-draw-node-create
@@ -161,12 +161,12 @@ copied.  Modifications to the copy will not affect the original."
                                :y-coord (dag-draw-node-y-coord node)
                                :rank (dag-draw-node-rank node)
                                :order (dag-draw-node-order node)
-                               :attributes (if (dag-draw-node-attributes node) 
+                               :attributes (if (dag-draw-node-attributes node)
                                              (ht-copy (dag-draw-node-attributes node))
                                              (ht-create)))))
                  (ht-set! (dag-draw-graph-nodes new-graph) node-id new-node)))
              (dag-draw-graph-nodes graph))
-    
+
     ;; Copy edges
     (dolist (edge (dag-draw-graph-edges graph))
       (let ((new-edge (dag-draw-edge-create
@@ -180,11 +180,11 @@ copied.  Modifications to the copy will not affect the original."
                                     (ht-copy (dag-draw-edge-attributes edge))
                                     (ht-create)))))
         (push new-edge (dag-draw-graph-edges new-graph))))
-    
+
     ;; Copy other graph properties
     (setf (dag-draw-graph-max-rank new-graph) (dag-draw-graph-max-rank graph))
     (setf (dag-draw-graph-rank-sets new-graph) (copy-tree (dag-draw-graph-rank-sets graph)))
-    
+
     new-graph))
 
 ;;; Debugging and Inspection

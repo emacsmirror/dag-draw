@@ -246,15 +246,16 @@ Returns one of: 'up, 'down, 'left, 'right based on dominant coordinate change."
    (t direction)))
 
 (defun dag-draw--detect-direction-changes (graph)
-  "Detect points where edges require direction changes.
+  "Detect points where edges require direction change.
 CLAUDE.md: 'When the edge requires a direction change'
-Returns a list of direction change junction specifications."
+Returns a list of direction change junction specifications.
+Argument GRAPH ."
   ;; TODO: Implement spline analysis for direction changes
   ;; For now, return empty list as this requires complex spline path analysis
   '())
 
 (defun dag-draw--detect-direction-changes-in-path (edge-path)
-  "Detect direction changes (corners) in EDGE-PATH.
+  "Detect direction change (corners) in EDGE-PATH.
 EDGE-PATH is a list of cons cells (x . y) representing the path.
 Returns a list of corner specifications with position and directions.
 CLAUDE.md: 'When the edge requires a direction change'"
@@ -310,15 +311,18 @@ Returns one of: 'up, 'down, 'left, 'right."
 
 (defun dag-draw--detect-edge-intersections (graph)
   "Detect points where edges join, separate, or cross.
-CLAUDE.md: 'When two edges join, or two edges separate' and 'When two edges cross'
-Returns a list of intersection junction specifications."
+CLAUDE.md: 'When two edges join, or two edges separate'
+and 'When two edges cross'
+Returns a list of intersection junction specifications.
+Argument GRAPH ."
   ;; TODO: Implement grid-based intersection analysis
   ;; For now, return empty list as this requires ASCII grid coordinate analysis
   '())
 
 (defun dag-draw--detect-crossings-in-paths (edge-paths)
   "Detect crossing points between multiple EDGE-PATHS.
-EDGE-PATHS is a list of edge paths, where each path is a list of cons cells (x . y).
+EDGE-PATHS is a list of edge paths, where each path is
+a list of cons cells (x . y).
 Returns a list of crossing specifications.
 CLAUDE.md: 'When two edges cross'"
   (let ((crossings '())
@@ -416,7 +420,8 @@ Two edges cross if they have different directions (horizontal vs vertical)."
 
 (defun dag-draw--detect-joins-in-paths (edge-paths)
   "Detect join points where edges merge or split.
-EDGE-PATHS is a list of edge paths, where each path is a list of cons cells (x . y).
+EDGE-PATHS is a list of edge paths, where each path is
+a list of cons cells (x . y).
 Returns a list of join/split junction specifications.
 CLAUDE.md: 'When two edges join, or two edges separate'"
   (let ((joins '())

@@ -41,7 +41,7 @@ Returns nil."
   (ht-set! visited node-id 'gray)  ; Mark as being processed
   (ht-set! pre-order node-id (aref current-time 0))
   (aset current-time 0 (1+ (aref current-time 0)))
-  
+
   ;; Visit all adjacent nodes
   (dolist (edge (dag-draw-get-edges-from graph node-id))
     (let ((target (dag-draw-edge-to-node edge)))
@@ -51,11 +51,11 @@ Returns nil."
         (push (list edge 'tree) (car edge-classification))
         (dag-draw--dfs-visit graph target visited pre-order post-order
                             current-time edge-classification))
-       
+
        ;; Back edge - target is being processed (creates cycle)
        ((eq (ht-get visited target) 'gray)
         (push (list edge 'back) (car edge-classification)))
-       
+
        ;; Forward or cross edge - target already processed
        ((eq (ht-get visited target) 'black)
         (let ((pre-source (ht-get pre-order node-id))
@@ -63,7 +63,7 @@ Returns nil."
           (if (< pre-source pre-target)
               (push (list edge 'forward) (car edge-classification))
             (push (list edge 'cross) (car edge-classification))))))))
-  
+
   ;; Mark as completely processed
   (ht-set! visited node-id 'black)
   (ht-set! post-order node-id (aref current-time 0))
@@ -76,36 +76,38 @@ GRAPH is a `dag-draw-graph' structure to traverse.
 START-NODES is an optional list of node IDs (symbols) to start from.
 If START-NODES is nil, starts from all source nodes.
 
-Performs complete DFS traversal with visit time tracking and edge classification.
+Performs complete DFS traversal with visit time tracking and
+edge classification.
 
 Returns a plist with:
   :visited - hash table mapping node-id to color (white/gray/black)
   :pre-order - hash table mapping node-id to pre-order visit time
   :post-order - hash table mapping node-id to post-order visit time
-  :edge-classification - list of (edge type) pairs where type is tree/back/forward/cross"
+  :edge-classification - list of (edge type) pairs where type is
+                         tree/back/forward/cross"
   (let ((visited (ht-create))
         (pre-order (ht-create))
         (post-order (ht-create))
         (edge-classification (list '()))
         (current-time (vector 0))
         (start-list (or start-nodes (dag-draw-get-source-nodes graph))))
-    
+
     ;; Initialize all nodes as unvisited
     (dolist (node-id (dag-draw-get-node-ids graph))
       (ht-set! visited node-id 'white))
-    
+
     ;; Start DFS from each unvisited start node
     (dolist (start-node start-list)
       (when (eq (ht-get visited start-node) 'white)
         (dag-draw--dfs-visit graph start-node visited pre-order post-order
                             current-time edge-classification)))
-    
+
     ;; Handle any remaining unvisited nodes (disconnected components)
     (dolist (node-id (dag-draw-get-node-ids graph))
       (when (eq (ht-get visited node-id) 'white)
         (dag-draw--dfs-visit graph node-id visited pre-order post-order
                             current-time edge-classification)))
-    
+
     (list :visited visited
           :pre-order pre-order
           :post-order post-order

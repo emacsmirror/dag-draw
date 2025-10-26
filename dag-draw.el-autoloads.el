@@ -3,6 +3,10 @@
 
 ;; This file is part of GNU Emacs.
 
+
+;;; Commentary:
+;;
+
 ;;; Code:
 
 (add-to-list 'load-path (or (and load-file-name (directory-file-name (file-name-directory load-file-name))) (car load-path)))

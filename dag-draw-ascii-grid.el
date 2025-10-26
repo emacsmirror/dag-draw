@@ -55,10 +55,12 @@
   "Calculate optimal scale factor for converting world coordinates to ASCII grid.
 
 GRAPH is a `dag-draw-graph' structure.
-TARGET-WIDTH and TARGET-HEIGHT are integers representing desired grid dimensions.
+TARGET-WIDTH and TARGET-HEIGHT are integers
+representing desired grid dimensions.
 
 Analyzes graph complexity (node count, edge density, hierarchy depth) and
-calculates a scale factor that balances resolution with fitting in the ASCII area.
+calculates a scale factor that balances resolution
+with fitting in the ASCII area.
 More complex graphs need smaller scale to fit in available space.
 
 Following GKNV paper Section 1.2: coordinates should use '72 units per inch'
@@ -68,33 +70,33 @@ scaling based on graph complexity.
 Returns a float representing the optimal scale factor."
   (let* ((node-count (dag-draw-node-count graph))
          (edge-count (dag-draw-edge-count graph))
-         
+
          ;; Enhanced complexity analysis
          (node-size-factor (dag-draw--calculate-node-size-complexity graph))
          (edge-density-factor (dag-draw--calculate-edge-density-factor graph))
          (hierarchy-depth-factor (dag-draw--estimate-hierarchy-depth graph))
-         
+
          ;; Combined complexity factor with weighted components
          (complexity-factor (+ (* node-count 0.15)
                               (* edge-count 0.08)
                               (* node-size-factor 0.1)
                               (* edge-density-factor 0.05)
                               (* hierarchy-depth-factor 0.02)))
-         
+
          ;; Base scale calculation: balance between resolution and fitting
          ;; More complex graphs need smaller scale to fit in ASCII area
          (base-scale (/ 1.0 (max 1.0 (+ 1.5 complexity-factor))))
-         
+
          ;; Adjust for target dimensions - larger ASCII area allows larger scale
          (dimension-factor (/ (+ target-width target-height) 200.0))
          (adjusted-scale (* base-scale dimension-factor))
-         
+
          ;; Minimum scale to prevent coordinate collapse (GKNV aesthetic A2)
          (min-scale 0.02)
-         
+
          ;; Maximum scale to maintain readability
          (max-scale 0.4))
-    
+
     ;; Validate against coordinate collapse (GKNV aesthetic A2)
     (let ((validated-scale (max min-scale (min max-scale adjusted-scale))))
       (dag-draw--validate-scale-prevents-collapse graph validated-scale target-width target-height))))
@@ -121,7 +123,7 @@ to the same grid position."
     (let* ((nodes (ht-values (dag-draw-graph-nodes graph)))
            (positions (ht-create))
            (collapse-detected nil))
-      
+
       ;; Simulate grid positioning with current scale
       (dolist (node nodes)
         (let* ((world-x (dag-draw-node-x-coord node))
@@ -130,11 +132,11 @@ to the same grid position."
             (let* ((grid-x (round (* world-x scale)))
                    (grid-y (round (* world-y scale)))
                    (grid-pos (format "%d,%d" grid-x grid-y)))
-              
+
               (if (ht-get positions grid-pos)
                   (setq collapse-detected t)
                 (ht-set! positions grid-pos t))))))
-      
+
       (if collapse-detected
           ;; Increase scale slightly to prevent collapse
           (let ((anti-collapse-scale (* scale 1.15))) ; Smaller increment
@@ -174,21 +176,21 @@ Returns a float representing the normalized complexity factor."
     (let* ((total-size 0)
            (size-variance 0)
            (nodes (ht-values (dag-draw-graph-nodes graph))))
-      
+
       ;; Calculate average node size
       (dolist (node nodes)
-        (setq total-size (+ total-size 
+        (setq total-size (+ total-size
                            (dag-draw-node-x-size node)
                            (dag-draw-node-y-size node))))
-      
+
       (let ((avg-size (/ total-size (* 2.0 (length nodes)))))
         ;; Calculate size variance for complexity
         (dolist (node nodes)
           (let ((node-size (/ (+ (dag-draw-node-x-size node)
                                  (dag-draw-node-y-size node)) 2.0)))
-            (setq size-variance (+ size-variance 
+            (setq size-variance (+ size-variance
                                   (expt (- node-size avg-size) 2)))))
-        
+
         ;; Return normalized complexity factor
         (/ (sqrt (/ size-variance (length nodes))) 50.0)))))
 
@@ -246,8 +248,8 @@ starting from START-NODE.
 Returns an integer representing the maximum depth."
   (let ((visited (ht-create))
         (max-depth 0))
-    (dag-draw--depth-first-search graph start-node visited 0 
-                                 (lambda (depth) 
+    (dag-draw--depth-first-search graph start-node visited 0
+                                 (lambda (depth)
                                    (setq max-depth (max max-depth depth))))
     max-depth))
 
@@ -270,7 +272,7 @@ CALLBACK is a function accepting one argument (depth) called for each visited no
 
 ;; DELETED: Coordinate transformation functions - obsolete in ASCII-first architecture
 ;; - dag-draw--world-to-grid-coord
-;; - dag-draw--grid-to-world-coord  
+;; - dag-draw--grid-to-world-coord
 ;; - dag-draw--world-to-grid-size
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
@@ -282,11 +284,12 @@ SCALE is a float representing the coordinate scale factor.
 GRAPH is an optional `dag-draw-graph' structure for adjusted position lookup.
 
 Converts GKNV world coordinates to grid coordinates. If GRAPH is provided and
-contains adjusted positions for this node, uses those instead of raw coordinates.
+contains adjusted positions for this node, uses those instead of
+raw coordinates.
 
 Returns a `dag-draw-point' structure with grid coordinates."
   (let* ((node-id (dag-draw-node-id node))
-         ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates  
+         ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates
          ;; Section 4: "The third pass finds optimal coordinates for nodes"
          (gknv-x (dag-draw-node-x-coord node))
          (gknv-y (dag-draw-node-y-coord node))

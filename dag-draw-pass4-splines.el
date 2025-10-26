@@ -69,7 +69,8 @@
 ;;; Edge classification and routing
 
 (defun dag-draw--classify-edge (graph edge)
-  "Classify edge by type: inter-rank, flat, or self-edge."
+  "Classify EDGE by type: inter-rank, flat, or self-edge.
+Argument GRAPH ."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (from-rank (dag-draw-node-rank from-node))
@@ -83,8 +84,11 @@
      (t 'inter-rank-edge))))
 
 (defun dag-draw--get-node-port (node side &optional graph edge)
-  "Get port coordinates for a node on given side (top, bottom, left, right).
-  Uses adjusted coordinates from Pass 3 if available (GKNV Section 5.2 compliance)."
+  "Get port coordinates for a NODE on given SIDE (top, bottom, left, right).
+Uses adjusted coordinates from Pass 3 if available
+\(GKNV Section 5.2 compliance).
+Optional argument GRAPH .
+Optional argument EDGE ."
   (let* ((node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
          ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
@@ -97,12 +101,12 @@
          (port-offset (if (and graph edge)
                           ;; Distribute ports based on edge position among multiple connections
                           (dag-draw--calculate-distributed-port-offset node side graph edge)
-                        (if graph 
+                        (if graph
                             ;; Fallback: Choose port position based on relative node positions
                             (dag-draw--calculate-optimal-port-offset node side graph)
                           ;; Simple fallback when no graph context available
                           (mod (abs (round x)) 3)))))
-    ;; (message "NODE-PORT: node=%s side=%s port-offset=%s x=%.1f width=%.1f" 
+    ;; (message "NODE-PORT: node=%s side=%s port-offset=%s x=%.1f width=%.1f"
     ;;          (dag-draw-node-id node) side port-offset x width)
 
     (cond
@@ -126,8 +130,11 @@
       (dag-draw-point-create :x x :y y)))))
 
 (defun dag-draw--calculate-distributed-port-offset (node side graph edge)
-  "Calculate port offset based on edge distribution to avoid overlap.
-Distributes multiple incoming/outgoing edges across different port positions."
+  "Calculate port offset based on EDGE distribution to avoid overlap.
+Distributes multiple incoming/outgoing edges across different port positions.
+Argument NODE .
+Argument SIDE .
+Argument GRAPH ."
   (let* ((node-id (dag-draw-node-id node))
          (relevant-edges (if (eq side 'top)
                              ;; For top ports, find incoming edges
@@ -135,17 +142,17 @@ Distributes multiple incoming/outgoing edges across different port positions."
                            ;; For bottom ports, find outgoing edges
                            (dag-draw-get-edges-from graph node-id)))
          (edge-count (length relevant-edges))
-         (edge-index (cl-position edge relevant-edges 
+         (edge-index (cl-position edge relevant-edges
                                   :test (lambda (e1 e2)
-                                          (and (eq (dag-draw-edge-from-node e1) 
+                                          (and (eq (dag-draw-edge-from-node e1)
                                                    (dag-draw-edge-from-node e2))
-                                               (eq (dag-draw-edge-to-node e1) 
+                                               (eq (dag-draw-edge-to-node e1)
                                                    (dag-draw-edge-to-node e2)))))))
-    
+
     ;; Debug output for port distribution (can be removed)
-    ;; (message "PORT-DIST: node=%s side=%s edge-count=%d edge-index=%s" 
+    ;; (message "PORT-DIST: node=%s side=%s edge-count=%d edge-index=%s"
     ;;          node-id side edge-count edge-index)
-    
+
     (let ((result (cond
                    ;; Single edge - use center port
                    ((= edge-count 1) 1)
@@ -163,25 +170,27 @@ Distributes multiple incoming/outgoing edges across different port positions."
 
 (defun dag-draw--calculate-optimal-port-offset (node side graph)
   "Calculate optimal port offset to avoid shared boundary lines.
-Considers relative position to other nodes in same rank."
+Considers relative position to other NODEs in same rank.
+Argument SIDE .
+Argument GRAPH ."
   (let* ((node-x (dag-draw-node-x-coord node))
          (node-rank (dag-draw-node-rank node))
          (same-rank-nodes '()))
-    
+
     ;; Find other nodes in the same rank
     (ht-each (lambda (node-id other-node)
                (when (and (not (eq (dag-draw-node-id node) node-id))
                           (= (dag-draw-node-rank other-node) node-rank))
                  (push other-node same-rank-nodes)))
              (dag-draw-graph-nodes graph))
-    
+
     ;; Determine port offset based on relative position
     (cond
      ;; If leftmost node in rank, use right-side port
      ((or (not same-rank-nodes)
           (<= node-x (apply #'min (mapcar #'dag-draw-node-x-coord same-rank-nodes))))
       2)  ; Right side port
-     ;; If rightmost node in rank, use left-side port  
+     ;; If rightmost node in rank, use left-side port
      ((>= node-x (apply #'max (mapcar #'dag-draw-node-x-coord same-rank-nodes)))
       0)  ; Left side port
      ;; Middle nodes use center port
@@ -192,7 +201,8 @@ Considers relative position to other nodes in same rank."
 ;;; Inter-rank edge splines
 
 (defun dag-draw--create-inter-rank-spline (graph edge)
-  "Create spline for edge between different ranks."
+  "Create spline for EDGE between different ranks.
+Argument GRAPH ."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (from-rank (dag-draw-node-rank from-node))
@@ -217,7 +227,11 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--create-downward-spline (graph edge from-node to-node)
   "Create downward spline from higher rank to lower rank.
-  Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic."
+Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic.
+Argument GRAPH .
+Argument EDGE .
+Argument FROM-NODE .
+Argument TO-NODE ."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
   (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
          (end-port (dag-draw--get-node-port to-node 'top graph edge))
@@ -230,7 +244,7 @@ Considers relative position to other nodes in same rank."
                     (dag-draw--compute-L-array region obstacles from-node to-node graph edge)))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
-         (splines (dag-draw--compute-s-array L-array start-port end-port 
+         (splines (dag-draw--compute-s-array L-array start-port end-port
                                             (not (null obstacles)) ; enhanced-mode when obstacles present
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -241,8 +255,9 @@ Considers relative position to other nodes in same rank."
     splines))
 
 (defun dag-draw--create-upward-spline (graph edge from-node to-node)
-  "Create upward spline for reversed edges.
-  Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic."
+  "Create upward spline for reversed EDGEs.
+Uses enhanced GKNV Section 5.2 three-stage process with box intersection logic.
+Argument GRAPH ."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
   (let* ((start-port (dag-draw--get-node-port from-node 'top graph edge))
          (end-port (dag-draw--get-node-port to-node 'bottom graph edge))
@@ -255,7 +270,7 @@ Considers relative position to other nodes in same rank."
                     (dag-draw--compute-L-array region obstacles from-node to-node graph edge)))
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
-         (splines (dag-draw--compute-s-array L-array start-port end-port 
+         (splines (dag-draw--compute-s-array L-array start-port end-port
                                             (not (null obstacles)) ; enhanced-mode when obstacles present
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
@@ -268,7 +283,8 @@ Considers relative position to other nodes in same rank."
 ;;; Flat edge splines
 
 (defun dag-draw--create-flat-spline (graph edge)
-  "Create spline for edge between nodes on same rank."
+  "Create spline for EDGE between nodes on same rank.
+Argument GRAPH ."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (from-x (dag-draw-node-x-coord from-node))
@@ -282,7 +298,13 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--create-horizontal-spline (graph edge from-node to-node from-side to-side)
   "Create horizontal spline between two nodes.
-  Uses distributed ports and adjusted coordinates from Pass 3 (GKNV Section 5.2)."
+Uses distributed ports and adjusted coordinates from Pass 3 (GKNV Section 5.2).
+Argument GRAPH .
+Argument EDGE .
+Argument FROM-NODE .
+Argument TO-NODE .
+Argument FROM-SIDE .
+Argument TO-SIDE ."
   ;; GKNV Section 5.1.1: "route the spline to the appropriate side of the node"
   (let* ((start-port (dag-draw--get-node-port from-node from-side graph))
          (end-port (dag-draw--get-node-port to-node to-side graph))
@@ -309,7 +331,9 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--create-self-spline (graph edge)
   "Create spline for self-edges (loops).
-  Uses adjusted coordinates from Pass 3 (GKNV Section 5.2)."
+Uses adjusted coordinates from Pass 3 (GKNV Section 5.2).
+Argument GRAPH .
+Argument EDGE ."
   (let* ((node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (node-id (dag-draw-node-id node))
          ;; Use adjusted coordinates if available
@@ -364,7 +388,11 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--find-spline-region (graph from-node to-node)
   "Find polygonal region where spline can be drawn without overlapping nodes.
-  Implementation of GKNV algorithm Section 5.1: creates proper collision-aware regions."
+Implementation of GKNV algorithm Section 5.1: creates proper
+collision-aware regions.
+Argument GRAPH .
+Argument FROM-NODE .
+Argument TO-NODE ."
   (let* ((from-x (or (dag-draw-node-x-coord from-node) 0))
          (from-y (or (dag-draw-node-y-coord from-node) 0))
          (to-x (or (dag-draw-node-x-coord to-node) 0))
@@ -402,7 +430,8 @@ Considers relative position to other nodes in same rank."
 
 (defun dag-draw--find-intervening-obstacles (graph from-node to-node)
   "Find nodes that might interfere with spline from FROM-NODE to TO-NODE.
-  Returns list of nodes that lie in the general path area per GKNV algorithm."
+Returns list of nodes that lie in the general path area per GKNV algorithm.
+Argument GRAPH ."
   (let ((obstacles '())
         (from-x (or (dag-draw-node-x-coord from-node) 0))
         (from-y (or (dag-draw-node-y-coord from-node) 0))
@@ -436,7 +465,7 @@ Considers relative position to other nodes in same rank."
     obstacles))
 
 (defun dag-draw--optimize-spline-in-region (splines region)
-  "Optimize splines to fit within collision-free region per GKNV algorithm.
+  "Optimize SPLINES to fit within collision-free REGION per GKNV algorithm.
 Implements proper spline routing that avoids node boundaries and other obstacles."
   (if (not region)
       splines  ; No region constraints - return original splines
@@ -448,7 +477,7 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 ;;; Spline coordinate calculation
 
 (defun dag-draw--bezier-point-at (curve param)
-  "Calculate point on Bézier curve at parameter PARAM (0 <= param <= 1)."
+  "Calculate point on Bézier CURVE at parameter PARAM (0 <= param <= 1)."
   (let* ((p0 (dag-draw-bezier-curve-p0 curve))
          (p1 (dag-draw-bezier-curve-p1 curve))
          (p2 (dag-draw-bezier-curve-p2 curve))
@@ -470,7 +499,8 @@ Implements proper spline routing that avoids node boundaries and other obstacles
            (* ttt (dag-draw-point-y p3))))))
 
 (defun dag-draw--sample-spline (curve num-samples)
-  "Sample points along Bézier curve for rendering."
+  "Sample points along Bézier CURVE for rendering.
+Argument NUM-SAMPLES ."
   (let ((points '()))
     (dotimes (i (1+ num-samples))
       (let ((param (/ (float i) num-samples)))
@@ -492,15 +522,15 @@ Returns the modified GRAPH with spline-points set on all edges."
     (let* ((edge-type (dag-draw--classify-edge graph edge))
            (splines (cond
                      ((eq edge-type 'inter-rank-edge)
-                      (message "SPLINE-GEN: Creating inter-rank spline for %s->%s" 
+                      (message "SPLINE-GEN: Creating inter-rank spline for %s->%s"
                                (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-inter-rank-spline graph edge))
                      ((eq edge-type 'flat-edge)
-                      (message "SPLINE-GEN: Creating flat spline for %s->%s" 
+                      (message "SPLINE-GEN: Creating flat spline for %s->%s"
                                (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-flat-spline graph edge))
                      ((eq edge-type 'self-edge)
-                      (message "SPLINE-GEN: Creating self spline for %s->%s" 
+                      (message "SPLINE-GEN: Creating self spline for %s->%s"
                                (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-self-spline graph edge))
                      ;; PHASE 3 FIX: All edges must have splines per GKNV algorithm
@@ -510,10 +540,10 @@ Returns the modified GRAPH with spline-points set on all edges."
                           (dag-draw--create-inter-rank-spline graph edge)))))
            (spline-points (dag-draw--convert-splines-to-points splines)))
 
-      (message "SPLINE-GEN: Edge %s->%s generated %d spline points" 
-               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge) 
+      (message "SPLINE-GEN: Edge %s->%s generated %d spline points"
+               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
                (if spline-points (length spline-points) 0))
-      
+
       ;; DEBUG: Show actual spline coordinates for connectivity analysis
       (when spline-points
         (message "  SPLINE-COORDS: Start: (%.1f,%.1f) End: (%.1f,%.1f)"
@@ -521,17 +551,17 @@ Returns the modified GRAPH with spline-points set on all edges."
                  (dag-draw-point-y (car spline-points))
                  (dag-draw-point-x (car (last spline-points)))
                  (dag-draw-point-y (car (last spline-points)))))
-      
+
       ;; Store splines in edge
       (setf (dag-draw-edge-spline-points edge) spline-points)))
 
   ;; GKNV Section 5.2: "clips the spline to the boundaries of the endpoint node shapes"
   (dag-draw--clip-splines-to-node-boundaries graph)
-  
+
   graph)
 
 (defun dag-draw--convert-splines-to-points (splines)
-  "Convert Bézier splines to point sequences for storage."
+  "Convert Bézier SPLINES to point sequences for storage."
   (let ((all-points '()))
     (dolist (spline splines)
       (let ((points (dag-draw--sample-spline spline 8)))  ; Sufficient samples for smooth ASCII curves
@@ -543,7 +573,8 @@ Returns the modified GRAPH with spline-points set on all edges."
 
 
 (defun dag-draw--spline-bounds (splines)
-  "Calculate bounding box of spline curves."
+  "Calculate bounding box of spline curves.
+Argument SPLINES ."
   (let ((min-x most-positive-fixnum)
         (min-y most-positive-fixnum)
         (max-x most-negative-fixnum)
@@ -570,13 +601,18 @@ Returns the modified GRAPH with spline-points set on all edges."
 ;;; GKNV Section 5.2: Three-Stage Spline Computation Implementation
 
 (defun dag-draw--compute-L-array (region &optional obstacles from-node to-node graph edge)
-  "GKNV Stage 1: Compute piecewise linear path inside region.
-This implements the compute_L_array function from GKNV Figure 5-2."
+  "GKNV Stage 1: Compute piecewise linear path inside REGION.
+This implements the compute_L_array function from GKNV Figure 5-2.
+Optional argument OBSTACLES .
+Optional argument FROM-NODE .
+Optional argument TO-NODE .
+Optional argument GRAPH .
+Optional argument EDGE ."
   (let* ((x-min (dag-draw-box-x-min region))
          (y-min (dag-draw-box-y-min region))
          (x-max (dag-draw-box-x-max region))
          (y-max (dag-draw-box-y-max region)))
-    
+
     ;; GKNV spline routing: standard piecewise linear path
     (if (and from-node to-node)
         ;; Simple L-shaped routing per GKNV algorithm
@@ -600,7 +636,10 @@ This implements the compute_L_array function from GKNV Figure 5-2."
 (defun dag-draw--compute-s-array (L-array start-point end-point &optional enhanced-mode theta-start theta-end)
   "GKNV Stage 2: Compute Bézier spline using path as hints.
 This implements the compute_s_array function from GKNV Figure 5-2.
-When ENHANCED-MODE is non-nil, uses GKNV C¹ continuity with tangent control."
+When ENHANCED-MODE is non-nil, uses GKNV C¹ continuity with tangent control.
+Argument L-ARRAY .
+Argument START-POINT .
+Argument END-POINT ."
   (if enhanced-mode
       ;; Use GKNV enhanced approach with C¹ continuity
       (dag-draw--compute-s-array-gknv L-array (or theta-start 0) (or theta-end 0))
@@ -609,8 +648,8 @@ When ENHANCED-MODE is non-nil, uses GKNV C¹ continuity with tangent control."
         ;; Single segment - create simple curve
         (list (dag-draw-bezier-curve-create
                :p0 start-point
-               :p1 (dag-draw-point-create 
-                    :x (+ (dag-draw-point-x start-point) 
+               :p1 (dag-draw-point-create
+                    :x (+ (dag-draw-point-x start-point)
                           (* 0.3 (- (dag-draw-point-x end-point) (dag-draw-point-x start-point))))
                     :y (+ (dag-draw-point-y start-point)
                           (* 0.3 (- (dag-draw-point-y end-point) (dag-draw-point-y start-point)))))
@@ -637,7 +676,8 @@ When ENHANCED-MODE is non-nil, uses GKNV C¹ continuity with tangent control."
 (defun dag-draw--compute-bboxes (splines &optional enhanced-mode)
   "GKNV Stage 3: Compute actual bounding boxes used by curve.
 This implements the compute_bboxes function from GKNV Figure 5-2.
-When ENHANCED-MODE is non-nil, uses GKNV tight bounding box calculation."
+When ENHANCED-MODE is non-nil, uses GKNV tight bounding box calculation.
+Argument SPLINES ."
   (if enhanced-mode
       ;; Use GKNV enhanced tight bounding box calculation
       (dag-draw--compute-bboxes-gknv splines)
@@ -650,8 +690,9 @@ When ENHANCED-MODE is non-nil, uses GKNV tight bounding box calculation."
 ;;; TDD Region-based Spline Routing Implementation
 
 (defun dag-draw--detect-obstacles-for-edge (graph from-node to-node)
-  "Detect node obstacles that might interfere with direct edge FROM-NODE to TO-NODE.
-Returns list of node IDs that are potential obstacles."
+  "Detect node obstacles that may collide with direct edge FROM-NODE to TO-NODE.
+Returns list of node IDs that are potential obstacles.
+Argument GRAPH ."
   (let ((obstacles '())
         (from-pos (dag-draw-get-node graph from-node))
         (to-pos (dag-draw-get-node graph to-node)))
@@ -696,7 +737,8 @@ Returns list of node IDs that are potential obstacles."
 
 (defun dag-draw--plan-obstacle-avoiding-path (graph from-node to-node)
   "Plan a path from FROM-NODE to TO-NODE that avoids obstacles.
-Returns list of points defining the avoidance path."
+Returns list of points defining the avoidance path.
+Argument GRAPH ."
   (let* ((from-pos (dag-draw-get-node graph from-node))
          (to-pos (dag-draw-get-node graph to-node))
          (obstacles (dag-draw--detect-obstacles-for-edge graph from-node to-node))
@@ -727,41 +769,46 @@ Returns list of points defining the avoidance path."
 
 (defun dag-draw--clip-splines-to-node-boundaries (graph)
   "GKNV Section 5.2: Clips splines to the boundaries of endpoint node shapes.
-This is the critical missing step that ensures splines terminate exactly at node boundaries."
+This is the critical missing step that ensures splines
+terminate exactly at node boundaries.
+Argument GRAPH ."
   (dolist (edge (dag-draw-graph-edges graph))
     (let ((spline-points (dag-draw-edge-spline-points edge)))
       (when spline-points
         (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-               (clipped-points (dag-draw--clip-spline-endpoints-to-boundaries 
+               (clipped-points (dag-draw--clip-spline-endpoints-to-boundaries
                                spline-points from-node to-node)))
           ;; Store clipped splines back in edge
           (setf (dag-draw-edge-spline-points edge) clipped-points))))))
 
 (defun dag-draw--clip-spline-endpoints-to-boundaries (spline-points from-node to-node)
-  "Clip spline endpoints to node boundary intersections while preserving continuity."
+  "Clip spline endpoints to node boundary intersections, keeping continuity.
+Argument SPLINE-POINTS .
+Argument FROM-NODE .
+Argument TO-NODE ."
   (when (and spline-points (>= (length spline-points) 2))
     (let* ((first-point (car spline-points))
            (second-point (cadr spline-points))
            (last-point (car (last spline-points)))
            (second-last-point (car (last spline-points 2)))
-           
+
            ;; Calculate node boundaries
            (from-boundary (dag-draw--get-node-boundary-rect-world from-node))
            (to-boundary (dag-draw--get-node-boundary-rect-world to-node))
-           
+
            ;; Clip start point to from-node boundary
            (clipped-start (dag-draw--line-rectangle-intersection
                           (dag-draw-point-x first-point) (dag-draw-point-y first-point)
                           (dag-draw-point-x second-point) (dag-draw-point-y second-point)
                           from-boundary))
-           
-           ;; Clip end point to to-node boundary  
+
+           ;; Clip end point to to-node boundary
            (clipped-end (dag-draw--line-rectangle-intersection
                         (dag-draw-point-x second-last-point) (dag-draw-point-y second-last-point)
                         (dag-draw-point-x last-point) (dag-draw-point-y last-point)
                         to-boundary)))
-      
+
       ;; Rebuild spline with clipped endpoints
       (let ((result-points (copy-sequence spline-points)))
         (when clipped-start
@@ -771,7 +818,7 @@ This is the critical missing step that ensures splines terminate exactly at node
         result-points))))
 
 (defun dag-draw--get-node-boundary-rect-world (node)
-  "Get node boundary rectangle in world coordinates for clipping.
+  "Get NODE boundary rectangle in world coordinates for clipping.
 Returns (left top right bottom) in world coordinate system."
   (let* ((x (dag-draw-node-x-coord node))
          (y (dag-draw-node-y-coord node))
@@ -784,7 +831,7 @@ Returns (left top right bottom) in world coordinate system."
     (list left top right bottom)))
 
 (defun dag-draw--line-rectangle-intersection (x1 y1 x2 y2 rect)
-  "Find intersection point of line segment (x1,y1)→(x2,y2) with rectangle boundary.
+  "Find intersection point of line segment (X1,Y1)→(X2,Y2) with rectangle boundary.
 RECT is (left top right bottom). Returns (x y) of intersection point or nil."
   (let* ((left (nth 0 rect))
          (top (nth 1 rect))
@@ -792,45 +839,46 @@ RECT is (left top right bottom). Returns (x y) of intersection point or nil."
          (bottom (nth 3 rect))
          (dx (- x2 x1))
          (dy (- y2 y1)))
-    
+
     (catch 'intersection-found
       ;; Check intersection with each rectangle edge
-      
+
       ;; Left edge (x = left)
       (when (not (= dx 0))
         (let* ((t-val (/ (- left x1) dx))
                (y-intersect (+ y1 (* t-val dy))))
           (when (and (>= t-val 0) (<= t-val 1) (>= y-intersect top) (<= y-intersect bottom))
             (throw 'intersection-found (list left y-intersect)))))
-      
-      ;; Right edge (x = right)  
+
+      ;; Right edge (x = right)
       (when (not (= dx 0))
         (let* ((t-val (/ (- right x1) dx))
                (y-intersect (+ y1 (* t-val dy))))
           (when (and (>= t-val 0) (<= t-val 1) (>= y-intersect top) (<= y-intersect bottom))
             (throw 'intersection-found (list right y-intersect)))))
-      
+
       ;; Top edge (y = top)
       (when (not (= dy 0))
         (let* ((t-val (/ (- top y1) dy))
                (x-intersect (+ x1 (* t-val dx))))
           (when (and (>= t-val 0) (<= t-val 1) (>= x-intersect left) (<= x-intersect right))
             (throw 'intersection-found (list x-intersect top)))))
-      
+
       ;; Bottom edge (y = bottom)
       (when (not (= dy 0))
         (let* ((t-val (/ (- bottom y1) dy))
                (x-intersect (+ x1 (* t-val dx))))
           (when (and (>= t-val 0) (<= t-val 1) (>= x-intersect left) (<= x-intersect right))
             (throw 'intersection-found (list x-intersect bottom)))))
-      
+
       ;; No intersection found
       nil)))
 
 ;;; Spline Utility Functions
 
 (defun dag-draw--spline-length (splines)
-  "Calculate approximate length of spline curves."
+  "Calculate approximate length of spline curves.
+Argument SPLINES ."
   (let ((total-length 0.0))
     (dolist (spline splines)
       (let ((points (dag-draw--sample-spline spline 10)))
@@ -845,22 +893,29 @@ RECT is (left top right bottom). Returns (x y) of intersection point or nil."
 ;;; Enhanced GKNV Integration Functions
 
 (defun dag-draw--compute-L-array-gknv-enhanced (region obstacles from-node to-node graph edge)
-  "Enhanced GKNV Stage 1: Uses box intersection approach for complex obstacle avoidance.
-This bridges the current system with proper GKNV Section 5.2 box intersection logic."
+  "GKNV Stage 1: Use box intersection approach for complex obstacle avoidance.
+This bridges the current system with proper
+GKNV Section 5.2 box intersection logic.
+Argument REGION .
+Argument OBSTACLES .
+Argument FROM-NODE .
+Argument TO-NODE .
+Argument GRAPH .
+Argument EDGE ."
   ;; Convert obstacles to box array for GKNV processing
   (let* ((start-port (dag-draw--get-node-port from-node 'bottom graph edge))
          (end-port (dag-draw--get-node-port to-node 'top graph edge))
          (boxes '()))
-    
+
     ;; Create boxes for start region, obstacles, and end region
     (push (dag-draw--create-node-box from-node) boxes)
-    
+
     ;; Add obstacle boxes
     (dolist (obstacle obstacles)
       (push (dag-draw--create-node-box obstacle) boxes))
-    
+
     (push (dag-draw--create-node-box to-node) boxes)
-    
+
     ;; Use GKNV box intersection approach
     (let ((intersection-lines (dag-draw--compute-L-array-gknv boxes)))
       (if intersection-lines
@@ -870,7 +925,7 @@ This bridges the current system with proper GKNV Section 5.2 box intersection lo
         (dag-draw--compute-L-array region nil from-node to-node graph edge)))))
 
 (defun dag-draw--create-node-box (node)
-  "Create bounding box for a node for GKNV box intersection processing."
+  "Create bounding box for a NODE for GKNV box intersection processing."
   (let ((x (or (dag-draw-node-x-coord node) 0))
         (y (or (dag-draw-node-y-coord node) 0))
         (width (dag-draw-node-x-size node))
@@ -882,9 +937,12 @@ This bridges the current system with proper GKNV Section 5.2 box intersection lo
      :y-max (+ y (/ height 2)))))
 
 (defun dag-draw--convert-intersection-lines-to-path (intersection-lines start-port end-port)
-  "Convert GKNV intersection line segments to path points for spline generation."
+  "Convert GKNV intersection line segments to path points for spline generation.
+Argument INTERSECTION-LINES .
+Argument START-PORT .
+Argument END-PORT ."
   (let ((path-points (list start-port)))
-    
+
     ;; Add points from intersection lines
     (dolist (line intersection-lines)
       (when (and (listp line) (= (length line) 2))
@@ -894,16 +952,16 @@ This bridges the current system with proper GKNV Section 5.2 box intersection lo
                (mid-x (/ (+ (dag-draw-point-x p1) (dag-draw-point-x p2)) 2.0))
                (mid-y (/ (+ (dag-draw-point-y p1) (dag-draw-point-y p2)) 2.0)))
           (push (dag-draw-point-create :x mid-x :y mid-y) path-points))))
-    
+
     ;; Add end point
     (push end-port path-points)
-    
+
     (nreverse path-points)))
 
 ;;; GKNV Three-Stage Spline Computation (Section 5.2)
 
 (defun dag-draw--compute-L-array-gknv (boxes)
-  "Stage 1: Compute intersection line segments between adjacent boxes.
+  "Stage 1: Compute intersection line segments between adjacent BOXES.
 GKNV Section 5.2: L_i is the line segment intersection of box B_{i-1} with box B_i."
   (let ((L-array '()))
     (when (>= (length boxes) 2)
@@ -918,7 +976,9 @@ GKNV Section 5.2: L_i is the line segment intersection of box B_{i-1} with box B
 
 (defun dag-draw--compute-box-intersection-gknv (box1 box2)
   "Compute intersection line segment between two boxes.
-Returns a line segment (two points) or nil if no intersection."
+Returns a line segment (two points) or nil if no intersection.
+Argument BOX1 .
+Argument BOX2 ."
   (let ((x1-min (dag-draw-box-x-min box1))
         (y1-min (dag-draw-box-y-min box1))
         (x1-max (dag-draw-box-x-max box1))
@@ -927,13 +987,13 @@ Returns a line segment (two points) or nil if no intersection."
         (y2-min (dag-draw-box-y-min box2))
         (x2-max (dag-draw-box-x-max box2))
         (y2-max (dag-draw-box-y-max box2)))
-    
+
     ;; Find intersection rectangle
     (let ((int-x-min (max x1-min x2-min))
           (int-y-min (max y1-min y2-min))
           (int-x-max (min x1-max x2-max))
           (int-y-max (min y1-max y2-max)))
-      
+
       ;; If there's a valid intersection
       (when (and (< int-x-min int-x-max) (< int-y-min int-y-max))
         ;; Return line segment through middle of intersection
@@ -945,13 +1005,20 @@ Returns a line segment (two points) or nil if no intersection."
 
 (defun dag-draw--compute-p-array (start-point end-point region)
   "Stage 2: Compute piecewise linear path using divide-and-conquer.
-GKNV Section 5.2: Returns array of points p_0, ..., p_k defining feasible path."
+GKNV Section 5.2: Returns array of points p_0, ..., p_k defining feasible path.
+Argument START-POINT .
+Argument END-POINT .
+Argument REGION ."
   (let ((points (list start-point)))
     (dag-draw--compute-path-recursive start-point end-point region points)
     (nreverse (cons end-point points))))
 
 (defun dag-draw--compute-path-recursive (start end region points)
-  "Recursive divide-and-conquer path computation per GKNV Section 5.2."
+  "Recursive divide-and-conquer path computation per GKNV Section 5.2.
+Argument START .
+Argument END .
+Argument REGION .
+Argument POINTS ."
   ;; Check if direct line fits
   (if (dag-draw--line-fits start end region)
       nil  ; Direct line works, no intermediate points needed
@@ -966,8 +1033,10 @@ GKNV Section 5.2: Returns array of points p_0, ..., p_k defining feasible path."
         (dag-draw--compute-path-recursive split-point end region points)))))
 
 (defun dag-draw--line-fits (start-point end-point region)
-  "Check if direct line from start to end fits within region.
-GKNV Section 5.2: line_fits() feasibility checking."
+  "Check if direct line from start to end fits within REGION.
+GKNV Section 5.2: line_fits() feasibility checking.
+Argument START-POINT .
+Argument END-POINT ."
   (let ((x1 (dag-draw-point-x start-point))
         (y1 (dag-draw-point-y start-point))
         (x2 (dag-draw-point-x end-point))
@@ -976,7 +1045,7 @@ GKNV Section 5.2: line_fits() feasibility checking."
         (r-y-min (dag-draw-box-y-min region))
         (r-x-max (dag-draw-box-x-max region))
         (r-y-max (dag-draw-box-y-max region)))
-    
+
     ;; Simple check: both endpoints and midpoint must be within region
     (and (>= x1 r-x-min) (<= x1 r-x-max) (>= y1 r-y-min) (<= y1 r-y-max)
          (>= x2 r-x-min) (<= x2 r-x-max) (>= y2 r-y-min) (<= y2 r-y-max)
@@ -987,7 +1056,10 @@ GKNV Section 5.2: line_fits() feasibility checking."
 
 (defun dag-draw--compute-linesplit (start-point end-point region)
   "Compute split point for line subdivision.
-GKNV Section 5.2: compute_linesplit() finds furthest constraint point."
+GKNV Section 5.2: compute_linesplit() finds furthest constraint point.
+Argument START-POINT .
+Argument END-POINT .
+Argument REGION ."
   ;; Simple implementation: return midpoint adjusted to stay within region
   (let ((mid-x (/ (+ (dag-draw-point-x start-point) (dag-draw-point-x end-point)) 2.0))
         (mid-y (/ (+ (dag-draw-point-y start-point) (dag-draw-point-y end-point)) 2.0))
@@ -995,19 +1067,22 @@ GKNV Section 5.2: compute_linesplit() finds furthest constraint point."
         (r-y-min (dag-draw-box-y-min region))
         (r-x-max (dag-draw-box-x-max region))
         (r-y-max (dag-draw-box-y-max region)))
-    
+
     ;; Clamp to region bounds
     (setq mid-x (max r-x-min (min r-x-max mid-x)))
     (setq mid-y (max r-y-min (min r-y-max mid-y)))
-    
+
     (dag-draw-point-create :x mid-x :y mid-y)))
 
 (defun dag-draw--compute-s-array-gknv (linear-path theta-start theta-end)
   "Stage 3: Compute piecewise Bezier spline from linear path.
-GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity."
+GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity.
+Argument LINEAR-PATH .
+Argument THETA-START .
+Argument THETA-END ."
   (when (< (length linear-path) 2)
     (error "Linear path must have at least 2 points"))
-  
+
   (if (= (length linear-path) 2)
       ;; Single segment case - no junction points
       (let* ((p0 (nth 0 linear-path))
@@ -1016,14 +1091,14 @@ GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity."
              (control2 (dag-draw--compute-control-point p0 p1 0.67 theta-end)))
         (list (dag-draw-bezier-curve-create
                :p0 p0 :p1 control1 :p2 control2 :p3 p1)))
-    
+
     ;; Multiple segments - ensure C¹ continuity at junctions
     ;; GKNV Section 5.2: "force the two splines to have the same unit tangent vector at that point"
     (let* ((spline-curves '())
            (segment-count (1- (length linear-path)))
            ;; Pre-compute tangents at ALL junction points for consistency
            (junction-tangents (make-vector (1+ segment-count) 0)))
-      
+
       ;; Initialize tangent values at each point
       (dotimes (i (1+ segment-count))
         (aset junction-tangents i
@@ -1034,7 +1109,7 @@ GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity."
                ((= i segment-count) theta-end)
                ;; Interior points: compute smooth junction tangent
                (t (dag-draw--compute-junction-tangent linear-path i)))))
-      
+
       ;; Create curves ensuring end tangent of curve[i] = start tangent of curve[i+1]
       (dotimes (i segment-count)
         (let* ((p0 (nth i linear-path))
@@ -1043,16 +1118,18 @@ GKNV Section 5.2: Returns array of Bezier control points with C¹ continuity."
                (start-tangent (aref junction-tangents i))
                (end-tangent (aref junction-tangents (1+ i)))
                ;; Create curve with explicit tangent control
-               (curve (dag-draw--create-c1-continuous-bezier-curve 
+               (curve (dag-draw--create-c1-continuous-bezier-curve
                       p0 p1 start-tangent end-tangent)))
-          
+
           (push curve spline-curves)))
-      
+
       (nreverse spline-curves))))
 
 (defun dag-draw--compute-junction-tangent (linear-path index)
   "Compute tangent direction at junction point for C¹ continuity.
-GKNV Section 5.2: Junction tangent ensures smooth spline segment joining."
+GKNV Section 5.2: Junction tangent ensures smooth spline segment joining.
+Argument LINEAR-PATH .
+Argument INDEX ."
   (let* ((p-prev (nth (1- index) linear-path))
          (p-curr (nth index linear-path))
          (p-next (nth (1+ index) linear-path)))
@@ -1084,7 +1161,11 @@ GKNV Section 5.2: Junction tangent ensures smooth spline segment joining."
 
 (defun dag-draw--create-c1-continuous-bezier-curve (start-point end-point start-tangent end-tangent)
   "Create Bezier curve ensuring C¹ continuity at endpoints.
-GKNV Section 5.2: Explicitly constructs control points to match tangent vectors."
+GKNV Section 5.2: Explicitly constructs control points to match tangent vectors.
+Argument START-POINT .
+Argument END-POINT .
+Argument START-TANGENT .
+Argument END-TANGENT ."
   (let* ((p0 start-point)
          (p3 end-point)
          ;; Distance for tangent influence
@@ -1092,7 +1173,7 @@ GKNV Section 5.2: Explicitly constructs control points to match tangent vectors.
          (dy (- (dag-draw-point-y p3) (dag-draw-point-y p0)))
          (segment-length (sqrt (+ (* dx dx) (* dy dy))))
          (tangent-strength (* 0.3 segment-length))  ; Scale with segment length
-         
+
          ;; P1 controls start tangent direction
          (p1 (if start-tangent
                  (dag-draw-point-create
@@ -1102,7 +1183,7 @@ GKNV Section 5.2: Explicitly constructs control points to match tangent vectors.
                (dag-draw-point-create
                 :x (+ (dag-draw-point-x p0) (* 0.33 dx))
                 :y (+ (dag-draw-point-y p0) (* 0.33 dy)))))
-         
+
          ;; P2 controls end tangent direction (note: tangent direction is INTO the point)
          (p2 (if end-tangent
                  (dag-draw-point-create
@@ -1112,12 +1193,17 @@ GKNV Section 5.2: Explicitly constructs control points to match tangent vectors.
                (dag-draw-point-create
                 :x (+ (dag-draw-point-x p0) (* 0.67 dx))
                 :y (+ (dag-draw-point-y p0) (* 0.67 dy))))))
-    
+
     (dag-draw-bezier-curve-create :p0 p0 :p1 p1 :p2 p2 :p3 p3)))
 
 (defun dag-draw--compute-control-point-with-tangent (start end fraction theta)
-  "Compute Bezier control point with explicit tangent direction for C¹ continuity.
-GKNV Section 5.2: Uses consistent tangent angles to ensure smooth segment joining."
+  "Compute Bezier control point with tangent direction for C¹ continuity.
+GKNV Section 5.2: Uses consistent tangent angles
+to ensure smooth segment joining.
+Argument START .
+Argument END .
+Argument FRACTION .
+Argument THETA ."
   (let* ((x1 (dag-draw-point-x start))
          (y1 (dag-draw-point-y start))
          (x2 (dag-draw-point-x end))
@@ -1128,13 +1214,15 @@ GKNV Section 5.2: Uses consistent tangent angles to ensure smooth segment joinin
          (tangent-factor 0.5)  ; Increased from 0.3 for better tangent control
          (tx (* tangent-factor (cos theta)))
          (ty (* tangent-factor (sin theta))))
-    
+
     (dag-draw-point-create
      :x (+ x1 dx tx)
      :y (+ y1 dy ty))))
 
 (defun dag-draw--compute-control-point (start end fraction theta)
-  "Compute Bezier control point between start and end points."
+  "Compute Bezier control point between START and END points.
+Argument FRACTION .
+Argument THETA ."
   (let* ((x1 (dag-draw-point-x start))
          (y1 (dag-draw-point-y start))
          (x2 (dag-draw-point-x end))
@@ -1145,14 +1233,15 @@ GKNV Section 5.2: Uses consistent tangent angles to ensure smooth segment joinin
          (tangent-factor 0.3)
          (tx (* tangent-factor (cos theta)))
          (ty (* tangent-factor (sin theta))))
-    
+
     (dag-draw-point-create
      :x (+ x1 dx tx)
      :y (+ y1 dy ty))))
 
 (defun dag-draw--spline-fits (spline-points region)
-  "Check if Bezier spline fits within region.
-GKNV Section 5.2: spline_fits() feasibility checking."
+  "Check if Bezier spline fits within REGION.
+GKNV Section 5.2: spline_fits() feasibility checking.
+Argument SPLINE-POINTS ."
   ;; Simple check: all control points must be within region
   (cl-every (lambda (point)
               (let ((x (dag-draw-point-x point))
@@ -1165,13 +1254,14 @@ GKNV Section 5.2: spline_fits() feasibility checking."
 
 (defun dag-draw--compute-bboxes-gknv (spline-curves)
   "Stage 4: Compute bounding boxes for final spline.
-GKNV Section 5.2: Returns array BB_0, ..., BB_m of narrowest sub-boxes."
+GKNV Section 5.2: Returns array BB_0, ..., BB_m of narrowest sub-boxes.
+Argument SPLINE-CURVES ."
   (mapcar (lambda (curve)
             (dag-draw--compute-curve-bbox curve))
           spline-curves))
 
 (defun dag-draw--compute-curve-bbox (curve)
-  "Compute tight bounding box for a single Bezier curve."
+  "Compute tight bounding box for a single Bezier CURVE."
   (let* ((p0 (dag-draw-bezier-curve-p0 curve))
          (p1 (dag-draw-bezier-curve-p1 curve))
          (p2 (dag-draw-bezier-curve-p2 curve))
@@ -1180,7 +1270,7 @@ GKNV Section 5.2: Returns array BB_0, ..., BB_m of narrowest sub-boxes."
                         (dag-draw-point-x p2) (dag-draw-point-x p3)))
          (y-coords (list (dag-draw-point-y p0) (dag-draw-point-y p1)
                         (dag-draw-point-y p2) (dag-draw-point-y p3))))
-    
+
     (dag-draw-box-create
      :x-min (apply #'min x-coords)
      :y-min (apply #'min y-coords)
@@ -1189,7 +1279,8 @@ GKNV Section 5.2: Returns array BB_0, ..., BB_m of narrowest sub-boxes."
 
 (defun dag-draw--straighten-spline (spline-curves)
   "Spline straightening optimization per GKNV Section 5.2.
-GKNV straighten_spline() refinement process."
+GKNV straighten_spline() refinement process.
+Argument SPLINE-CURVES ."
   ;; Simple straightening: reduce control point deviations
   (mapcar (lambda (curve)
             (let* ((p0 (dag-draw-bezier-curve-p0 curve))
@@ -1198,7 +1289,7 @@ GKNV straighten_spline() refinement process."
                    (straight-factor 0.8)
                    (p1-new (dag-draw--interpolate-points p0 p3 (/ 1.0 3.0) straight-factor))
                    (p2-new (dag-draw--interpolate-points p0 p3 (/ 2.0 3.0) straight-factor)))
-              
+
               (dag-draw-bezier-curve-create
                :p0 p0
                :p1 p1-new
@@ -1208,7 +1299,8 @@ GKNV straighten_spline() refinement process."
 
 (defun dag-draw--refine-spline (spline-curves)
   "General spline refinement per GKNV Section 5.2.
-GKNV refine_spline() optimization process."
+GKNV refine_spline() optimization process.
+Argument SPLINE-CURVES ."
   ;; Simple refinement: smooth out sharp angles
   (mapcar (lambda (curve)
             (let* ((p0 (dag-draw-bezier-curve-p0 curve))
@@ -1217,7 +1309,7 @@ GKNV refine_spline() optimization process."
                    (p3 (dag-draw-bezier-curve-p3 curve))
                    ;; Apply smoothing to control points
                    (smooth-factor 0.9))
-              
+
               (dag-draw-bezier-curve-create
                :p0 p0
                :p1 (dag-draw--smooth-point p1 smooth-factor)
@@ -1226,20 +1318,25 @@ GKNV refine_spline() optimization process."
           spline-curves))
 
 (defun dag-draw--interpolate-points (p1 p2 fraction straight-factor)
-  "Interpolate between two points with straightening factor."
+  "Interpolate between two points with straightening factor.
+Argument P1 .
+Argument P2 .
+Argument FRACTION .
+Argument STRAIGHT-FACTOR ."
   (let* ((x1 (dag-draw-point-x p1))
          (y1 (dag-draw-point-y p1))
          (x2 (dag-draw-point-x p2))
          (y2 (dag-draw-point-y p2))
          (int-x (+ x1 (* fraction (- x2 x1))))
          (int-y (+ y1 (* fraction (- y2 y1)))))
-    
+
     (dag-draw-point-create
      :x (* int-x straight-factor)
      :y (* int-y straight-factor))))
 
 (defun dag-draw--smooth-point (point smooth-factor)
-  "Apply smoothing to a point coordinate."
+  "Apply smoothing to a POINT coordinate.
+Argument SMOOTH-FACTOR ."
   (dag-draw-point-create
    :x (* (dag-draw-point-x point) smooth-factor)
    :y (* (dag-draw-point-y point) smooth-factor)))
@@ -1248,38 +1345,41 @@ GKNV refine_spline() optimization process."
 
 (defun dag-draw--create-edge-label-virtual-nodes (graph)
   "Create virtual nodes for edge labels per GKNV Section 5.3.
-GKNV: 'edge labels on inter-rank edges are represented as off-center virtual nodes'."
+GKNV: 'edge labels on inter-rank edges are represented
+as off-center virtual nodes'.
+Argument GRAPH ."
   ;; Implementation: Create virtual nodes for edges with labels
   (dolist (edge (dag-draw-graph-edges graph))
     (when (dag-draw-edge-label edge)
       (dag-draw--create-single-label-virtual-node graph edge))))
 
 (defun dag-draw--create-single-label-virtual-node (graph edge)
-  "Create a single virtual node for an edge label."
+  "Create a single virtual node for an EDGE label.
+Argument GRAPH ."
   (let* ((label-text (dag-draw-edge-label edge))
-         (virtual-node-id (intern (format "label-%s-%s" 
+         (virtual-node-id (intern (format "label-%s-%s"
                                           (dag-draw-edge-from-node edge)
                                           (dag-draw-edge-to-node edge))))
-         (virtual-node (dag-draw-node-create 
+         (virtual-node (dag-draw-node-create
                         :id virtual-node-id
                         :label label-text
                         :virtual-p t
                         :attributes (ht-create))))
-    
+
     ;; Add virtual node to graph
     (ht-set! (dag-draw-graph-nodes graph) virtual-node-id virtual-node)
-    
+
     ;; Store reference for retrieval
     (let ((attrs (dag-draw-edge-attributes edge)))
       (unless attrs
         (setq attrs (ht-create))
         (setf (dag-draw-edge-attributes edge) attrs))
       (ht-set! attrs 'label-virtual-node virtual-node-id))
-    
+
     virtual-node))
 
 (defun dag-draw--get-label-virtual-nodes (graph)
-  "Get all label virtual nodes in the graph."
+  "Get all label virtual nodes in the GRAPH."
   (let ((label-nodes '()))
     (ht-each (lambda (_id node)
                (when (dag-draw-node-virtual-p node)
@@ -1289,7 +1389,8 @@ GKNV: 'edge labels on inter-rank edges are represented as off-center virtual nod
 
 (defun dag-draw--apply-label-edge-length-compensation (graph)
   "Apply GKNV Section 5.3 edge length compensation for labeled edges.
-GKNV: 'Setting the minimum edge length to 2 (effectively doubling the ranks)'."
+GKNV: 'Setting the minimum edge length to 2 (effectively doubling the ranks)'.
+Argument GRAPH ."
   (dolist (edge (dag-draw-graph-edges graph))
     (when (dag-draw-edge-label edge)
       ;; GKNV Section 5.3: Set minimum edge length δ(e) = 2 for labeled edges
