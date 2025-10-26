@@ -27,6 +27,8 @@
 (declare-function dag-draw--count-total-crossings "dag-draw-pass2-ordering")
 (declare-function dag-draw--organize-by-ranks "dag-draw-pass2-ordering")
 (declare-function dag-draw-balance-ranks "dag-draw-rank-balancing")
+(declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
+(declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
 
 ;;; A1: Expose hierarchical structure (Section 1.1, line 43)
 
@@ -38,7 +40,7 @@ GRAPH is a `dag-draw-graph' structure with assigned node ranks.
 Returns a score from 0.0 to 1.0 indicating hierarchical clarity,
 where 1.0 means all edges follow hierarchical flow from lower to
 higher ranks."
-  (let* ((nodes (dag-draw-get-node-ids graph))
+  (let* ((_nodes (dag-draw-get-node-ids graph))
          (total-edges (length (dag-draw-graph-edges graph)))
          (forward-edges 0))
 
@@ -70,22 +72,22 @@ means all edges flow in the primary direction (top-down)."
          (total-edges (length edges))
          (consistent-edges 0))
 
-    (when (zerop total-edges)
-      (return 1.0))
+    (if (zerop total-edges)
+        1.0
+      ;; Determine primary direction (top-down in this case)
+      (progn
+        (dolist (edge edges)
+          (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
+                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+            (when (and from-node to-node
+                       (dag-draw-node-rank from-node)
+                       (dag-draw-node-rank to-node))
+              ;; Edge is consistent if it goes from lower to higher rank (top-down)
+              (when (<= (dag-draw-node-rank from-node)
+                        (dag-draw-node-rank to-node))
+                (setq consistent-edges (1+ consistent-edges))))))
 
-    ;; Determine primary direction (top-down in this case)
-    (dolist (edge edges)
-      (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-            (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
-        (when (and from-node to-node
-                   (dag-draw-node-rank from-node)
-                   (dag-draw-node-rank to-node))
-          ;; Edge is consistent if it goes from lower to higher rank (top-down)
-          (when (<= (dag-draw-node-rank from-node)
-                    (dag-draw-node-rank to-node))
-            (setq consistent-edges (1+ consistent-edges))))))
-
-    (/ (float consistent-edges) total-edges)))
+        (/ (float consistent-edges) total-edges)))))
 
 (defun dag-draw--identify-source-sink-prominence (graph)
   "Identify source and sink nodes for A1 hierarchical prominence.
@@ -167,7 +169,7 @@ Returns a hash table with bend metrics:
     (ht-set! result 'total-bends total-bends)
     result))
 
-(defun dag-draw--calculate-edge-bend (graph from-node to-node)
+(defun dag-draw--calculate-edge-bend (_graph from-node to-node)
   "Calculate bend angle for an edge between two nodes.
 
 GRAPH is the `dag-draw-graph' structure (currently unused).
@@ -183,7 +185,7 @@ or nil if nodes lack coordinate information."
     (let* ((dx (- (dag-draw-node-x-coord to-node) (dag-draw-node-x-coord from-node)))
            (dy (- (dag-draw-node-y-coord to-node) (dag-draw-node-y-coord from-node)))
            (angle (atan dy dx))
-           (degrees (* angle (/ 180.0 pi))))
+           (degrees (* angle (/ 180.0 float-pi))))
 
       ;; Return absolute deviation from straight vertical (0 degrees)
       (abs degrees))))
@@ -244,7 +246,7 @@ GRAPH is a `dag-draw-graph' structure with positioned nodes.
 
 Returns a clustering score from 0.0 to 1.0, where 1.0 indicates
 all connected nodes are within the proximity threshold (100 units)."
-  (let* ((nodes (dag-draw-get-node-ids graph))
+  (let* ((_nodes (dag-draw-get-node-ids graph))
          (total-pairs 0)
          (close-pairs 0))
 

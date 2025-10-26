@@ -42,6 +42,12 @@
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
 
+;; Forward declarations for dag-draw-point structure and node port function
+(declare-function dag-draw-point-create "dag-draw-pass4-splines")
+(declare-function dag-draw-point-x "dag-draw-pass4-splines")
+(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+(declare-function dag-draw--get-node-port "dag-draw-pass4-splines")
+
 ;;; Node Port Integration Functions
 
 (defun dag-draw--get-node-port-grid (node side min-x min-y scale &optional graph)
@@ -265,7 +271,7 @@ Returns list (from-port to-port) of `dag-draw-point' structures in grid space."
             (list (dag-draw--get-node-port-grid from-node 'left min-x min-y scale graph)
                   (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))))))
 
-(defun dag-draw--calculate-distributed-edge-ports (graph edge from-node to-node min-x min-y scale)
+(defun dag-draw--calculate-distributed-edge-ports (graph _edge from-node to-node min-x min-y scale)
   "Calculate edge ports using GKNV-compliant direction-based approach.
 
 GRAPH is a `dag-draw-graph' structure.

@@ -144,7 +144,7 @@ coordinates and draws the edge with proper ports."
           (dag-draw--draw-edge-with-proper-ports graph edge grid start-grid-x start-grid-y
                                                  end-grid-x end-grid-y min-x min-y scale))))))
 
-(defun dag-draw--draw-edge-with-proper-ports (graph edge grid start-x start-y end-x end-y min-x min-y scale)
+(defun dag-draw--draw-edge-with-proper-ports (graph edge grid _start-x _start-y _end-x _end-y min-x min-y scale)
   "Draw EDGE with ports calculated from GKNV node boundaries.
 
 GRAPH is a `dag-draw-graph' structure.

@@ -29,6 +29,11 @@
 (require 'dag-draw-ports)
 (require 'dag-draw-ascii-splines)
 
+;; Forward declarations for dag-draw-point structure
+(declare-function dag-draw-point-create "dag-draw-pass4-splines")
+(declare-function dag-draw-point-x "dag-draw-pass4-splines")
+(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+
 ;; Global variables for current rendering context (needed for node interior detection)
 
 (defvar dag-draw--current-graph nil
@@ -60,7 +65,7 @@ Argument SCALE ."
   "Check if coordinate (X,Y) is inside any node's interior (including boundary).
 Returns the node if point is inside node area, nil otherwise."
   (catch 'found-node
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (let* ((rect (dag-draw--get-node-boundary-rect node min-x min-y scale))
                       (left (nth 0 rect))
                       (top (nth 1 rect))
@@ -87,7 +92,7 @@ Returns the node if point is inside node area, nil otherwise."
      ((= dy 0)
       (let ((start-x (min x1 x2))
             (end-x (max x1 x2))
-            (direction (if (< x1 x2) 'right 'left)))
+            (_direction (if (< x1 x2) 'right 'left)))
         ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors
         (dotimes (i (1+ (- end-x start-x)))
           (let ((x (+ start-x i)))
@@ -98,7 +103,7 @@ Returns the node if point is inside node area, nil otherwise."
      ((= dx 0)
       (let ((start-y (min y1 y2))
             (end-y (max y1 y2))
-            (direction (if (< y1 y2) 'down 'up)))
+            (_direction (if (< y1 y2) 'down 'up)))
         ;; GKNV Section 5.2 COMPLIANCE: Avoid drawing through node interiors
         (dotimes (i (1+ (- end-y start-y)))
           (let ((y (+ start-y i)))
@@ -189,7 +194,7 @@ Argument CHAR ."
             (aset (aref grid int-y) int-x char))))))))
 
 
-(defun dag-draw--is-node-interior-position (grid x y)
+(defun dag-draw--is-node-interior-position (_grid x y)
   "Check if position (X,Y) is inside a node's interior area.
 Returns t if position is in node interior, nil if boundary or empty space.
 GKNV Section 5.2: Edges should not route through node text areas.
@@ -247,10 +252,10 @@ Argument Y ."
 
 (defun dag-draw--find-node-boundary-intersection (graph node-id x1 y1 x2 y2 min-x min-y scale)
   "Find where line from (X1,Y1) to (X2,Y2) intersects NODE boundary.
-Returns intersection point (x,y) on the node boundary,
-or nil if no intersection.
-Implements GKNV Section 5.2: 'clips the spline to the boundaries of the
-endpoint node shapes'.
+Returns intersection point (x,y) on the node boundary, or nil if no
+intersection.
+Implements GKNV Section 5.2: `clips the spline to the boundaries of
+the endpoint node shapes'.
 Argument GRAPH .
 Argument NODE-ID ."
   (let* ((node (dag-draw-get-node graph node-id))
@@ -438,7 +443,7 @@ Argument MIN-X .
 Argument MIN-Y .
 Argument SCALE ."
   (let* ((grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
      ;; Pure vertical line
      ((eq direction 'vertical-only)
       (dag-draw--draw-boundary-clipped-vertical-line graph grid x1 y1 x2 y2 min-x min-y scale))     ;; Pure horizontal line
@@ -451,7 +456,7 @@ Argument SCALE ."
       (dag-draw--draw-boundary-clipped-vertical-line graph grid x2 y1 x2 y2 min-x min-y scale)))))
 
 
-(defun dag-draw--draw-boundary-clipped-horizontal-line (graph grid x1 y1 x2 y2 min-x min-y scale)
+(defun dag-draw--draw-boundary-clipped-horizontal-line (_graph grid x1 y1 x2 _y2 _min-x _min-y _scale)
   "Draw horizontal line segment that stops at node boundaries.
 GKNV Section 5.2 FIX: Prevents drawing through node interiors
 by smart boundary exit.
@@ -464,8 +469,8 @@ Argument Y2 .
 Argument MIN-X .
 Argument MIN-Y .
 Argument SCALE ."
-  (let* ((start-x (min x1 x2))
-         (end-x (max x1 x2))
+  (let* ((_start-x (min x1 x2))
+         (_end-x (max x1 x2))
          (y y1) ; Horizontal line uses y1
          (direction (if (< x1 x2) 1 -1))) ; Drawing direction: 1=right, -1=left    ;; GKNV Section 5.2 FIX: Smart boundary-aware drawing with obstacle avoidance
     ;; Route around nodes rather than through them
@@ -477,7 +482,7 @@ Argument SCALE ."
           (dag-draw--draw-char grid current-x y ?─))
         (setq current-x (+ current-x direction))))))
 
-(defun dag-draw--draw-boundary-clipped-vertical-line (graph grid x1 y1 x2 y2 min-x min-y scale)
+(defun dag-draw--draw-boundary-clipped-vertical-line (_graph grid x1 y1 _x2 y2 _min-x _min-y _scale)
   "Draw vertical line segment that stops at node boundaries.
 Argument GRAPH .
 Argument GRID .
@@ -576,7 +581,7 @@ Argument PORT-SIDE ."
       (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))(defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 direction)
   "Draw L-shaped path with ultra-conservative safety checks."
   (let* ((grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
                                                                            ;; Pure vertical line
          ((eq direction 'vertical-only)
           (let ((start-y (min y1 y2))
@@ -633,8 +638,9 @@ Argument PORT-SIDE ."
                               ((and (> y1 y2) (> x1 x2)) ?┘) ; Up then left
                               (t ?┼)))) ; Fallback intersection
             (dag-draw--draw-char grid x1 y2 corner-char))))))(defun dag-draw--find-actual-boundary-position (grid target-x target-y arrow-char)
-  "Find actual node boundary character near TARGET position for GKNV Section 5.2 compliance.
-Returns (x y) of boundary position where arrow should be placed, or nil if none found."
+  "Find actual boundary near TARGET for GKNV Section 5.2 compliance.
+Returns (x y) of boundary position where arrow should be placed,
+or nil if none found."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (search-radius 20) ; EXPANDED: Increased from 12 to 20 for complex graphs
@@ -661,8 +667,9 @@ Returns (x y) of boundary position where arrow should be placed, or nil if none 
                   (setq best-pos (list check-x check-y))
                   (setq best-distance manhattan-dist))))))))
     best-pos))(defun dag-draw--find-nearest-boundary-for-adjacent-placement (grid target-x target-y arrow-char)
-  "Find nearest boundary to place arrow adjacent to when main boundary search fails.
-This ensures arrows don't float in space per GKNV Section 5.2."
+  "Find nearest boundary to place arrow adjacent to.
+Used when main boundary search fails.  This ensures arrows don't
+float in space per GKNV Section 5.2."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (search-radius 25) ; Wider search for fallback
@@ -696,11 +703,12 @@ This ensures arrows don't float in space per GKNV Section 5.2."
           (when (and (>= adj-x 0) (< adj-x grid-width)
                      (>= adj-y 0) (< adj-y grid-height))
             adjacent-pos))))))(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 port-side)
-  "Add directional arrow based on actual coordinate direction, with port-side as secondary."
+  "Add directional arrow based on actual coordinate direction.
+PORT-SIDE is used as secondary hint."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1))
          (grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    ;; DEBUG: Show coordinates and direction calculation for arrow placement
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    ;; DEBUG: Show coordinates and direction calculation for arrow placement
     (message " GRID-ARROW: (%d,%d)->(%d,%d) dx=%d dy=%d port-side=%s"
              x1 y1 x2 y2 dx dy port-side)    (let* ((arrow-char (cond
                         ;; PRIORITY: Use coordinate-based direction for clear vertical/horizontal cases
@@ -761,7 +769,7 @@ Argument Y1 .
 Argument X2 .
 Argument Y2 ."
   (let* ((grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (dx (- x2 x1))
          (dy (- y2 y1)))    (cond
      ;; Pure horizontal line

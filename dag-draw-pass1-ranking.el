@@ -96,7 +96,7 @@ Argument GRAPH ."
     (ht-set! data 'roots '())
 
     ;; Initialize children map for all nodes
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (node-id _node)
                (ht-set! (ht-get data 'children-map) node-id '()))
              (dag-draw-graph-nodes graph))
 
@@ -112,7 +112,7 @@ Argument TREE-DATA ."
         (children-map (ht-get tree-data 'children-map)))
 
     ;; Process each unvisited node as potential root of new component
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (node-id _node)
                (unless (ht-get visited node-id)
                  ;; Found new connected component - node becomes root
                  (let ((current-roots (ht-get tree-data 'roots)))
@@ -225,11 +225,12 @@ Argument SPANNING-TREE ."
 (defun dag-draw--spanning-tree-to-ranking (graph spanning-tree)
   "Convert spanning tree to node ranking (GKNV lines 486-499).
 
-This implements the core GKNV algorithm: 'A spanning tree induces a ranking'.
+This implements the core GKNV algorithm: `A spanning tree induces
+a ranking'.
 Algorithm:
 1. Pick initial node and assign it rank 0
-2. For each node adjacent in tree to ranked node, assign rank ± minimum
-edge length
+2. For each node adjacent in tree to ranked node, assign rank
+   ± minimum edge length
 3. Continue until all nodes are ranked
 
 Returns hash table: node-id → rank
@@ -345,8 +346,9 @@ This implements GKNV Section 2, line 361 requirements for network simplex."
     filtered-graph))
 
 (defun dag-draw--transfer-ranks-to-original-graph (filtered-graph original-graph)
-  "Transfer rank assignments from FILTERED-GRAPH back to ORIGINAL-GRAPH.
-This preserves the ranking solution while restoring the complete graph structure."
+  "Transfer rank assignments from FILTERED-GRAPH to ORIGINAL-GRAPH.
+This preserves the ranking solution while restoring the complete
+graph structure."
   (ht-each (lambda (node-id _node)
              (let ((filtered-node (dag-draw-get-node filtered-graph node-id))
                    (original-node (dag-draw-get-node original-graph node-id)))
@@ -440,8 +442,8 @@ Argument GRAPH ."
   ;; Use corrected GKNV Figure 2-2 implementation
   (let ((gknv-tree-info (dag-draw--construct-feasible-tree-gknv graph))
         (tree-info (ht-create))
-        (aux-source-id 'dag-draw-s-min)  ; Maintain compatibility
-        (aux-sink-id 'dag-draw-s-max))   ; Maintain compatibility
+        (_aux-source-id 'dag-draw-s-min)  ; Maintain compatibility
+        (_aux-sink-id 'dag-draw-s-max))   ; Maintain compatibility
 
     ;; Extract GKNV results
     (let ((tree-edges (ht-get gknv-tree-info 'tree-edges))
@@ -505,7 +507,7 @@ Argument GRAPH ."
 
     leaving-edge))
 
-(defun dag-draw--enter-edge (leaving-edge tree-info graph)
+(defun dag-draw--enter-edge (_leaving-edge tree-info graph)
   "Find non-tree edge to enter spanning tree.
 Returns edge to add per GKNV Figure 2-1 step 4.
 Argument LEAVING-EDGE .
@@ -524,7 +526,7 @@ Argument GRAPH ."
 
     best-edge))
 
-(defun dag-draw--exchange-edges (leaving-edge entering-edge tree-info graph)
+(defun dag-draw--exchange-edges (leaving-edge entering-edge tree-info _graph)
   "Exchange leaving and entering edges in spanning tree.
 Implements GKNV Figure 2-1 step 5: exchange(e,f).
 Argument LEAVING-EDGE .
@@ -592,8 +594,9 @@ Argument VISITED ."
 
 (defun dag-draw--identify-cut-components (edge tree-edges)
   "Identify head and tail components when tree EDGE is removed.
-GKNV Section 2.3: Removing tree edge creates cut dividing nodes into components.
-Returns hash table with 'head-component and 'tail-component lists.
+GKNV Section 2.3: Removing tree edge creates cut dividing nodes
+into components.
+Returns hash table with `head-component' and `tail-component' lists.
 Argument TREE-EDGES ."
   (let* ((edge-nodes (dag-draw--get-edge-nodes edge))
          (from-node (car edge-nodes))
@@ -698,8 +701,9 @@ Argument GRAPH ."
   "Find maximal tree of tight edges containing FIXED-NODE.
 Returns number of nodes in the tree per GKNV Figure 2-2.
 
-GKNV Section 2.3: 'The function tight_tree finds a maximal tree of tight edges
-containing some fixed node and returns the number of nodes in the tree.'
+GKNV Section 2.3: `The function tight_tree finds a maximal tree of
+tight edges containing some fixed node and returns the number of
+nodes in the tree.'
 Argument GRAPH ."
   (let ((visited (ht-create))
         (tree-edges '())
@@ -1046,7 +1050,7 @@ Argument GRAPH ."
 
 
 
-(defun dag-draw--get-edge-cut-value (edge tree-info)
+(defun dag-draw--get-edge-cut-value (edge _tree-info)
   "Get cut value for a tree EDGE using simplified GKNV approach.
 Argument TREE-INFO ."
   ;; Simplified cut value calculation based on edge weight and tree structure
@@ -1119,13 +1123,6 @@ Argument GRAPH ."
       ;; Low weight edges get positive values (candidates for removal)
       ;; This creates optimization opportunities for weighted graphs
       (setf (dag-draw-tree-edge-cut-value tree-edge) (- 3 weight)))))
-
-(defun dag-draw--find-graph-edge (graph from-node to-node)
-  "Find the edge in GRAPH connecting FROM-NODE to TO-NODE."
-  (cl-find-if (lambda (edge)
-                (and (eq (dag-draw-edge-from-node edge) from-node)
-                     (eq (dag-draw-edge-to-node edge) to-node)))
-              (dag-draw-graph-edges graph)))
 
 
 (defun dag-draw--balance-ranks (graph)
@@ -1237,7 +1234,7 @@ Argument GRAPH ."
         (rec-stack (ht-create)))
 
     ;; DFS from each unvisited node to find back edges (which indicate cycles)
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (node-id _node)
                (unless (ht-get visited node-id)
                  (dag-draw--dfs-find-cycle-edges graph node-id visited rec-stack cycle-edges-ref)))
              (dag-draw-graph-nodes graph))
@@ -1248,7 +1245,7 @@ Argument GRAPH ."
   "DFS to find edges that are part of cycles (back edges).
 CYCLE-EDGES-REF is a list reference for accumulating edges.
 Argument GRAPH .
-Argument NODE-ID .
+Argument _node .
 Argument VISITED .
 Argument REC-STACK ."
   (ht-set! visited node-id t)
@@ -1282,7 +1279,7 @@ Argument REC-STACK ."
 
 ;;; Network Simplex Core Algorithm Functions
 
-(defun dag-draw--compute-cut-values (graph tree-info)
+(defun dag-draw--compute-cut-values (_graph tree-info)
   "Compute cut values for all tree edges.
 Returns hash table mapping tree edges to their cut values.
 Argument GRAPH .
@@ -1293,8 +1290,8 @@ Argument TREE-INFO ."
     ;; For each tree edge, compute its cut value
     ;; (This is a simplified implementation - the full algorithm is more complex)
     (dolist (edge tree-edges)
-      (let ((from-node (dag-draw-edge-from-node edge))
-            (to-node (dag-draw-edge-to-node edge)))
+      (let ((_from-node (dag-draw-edge-from-node edge))
+            (_to-node (dag-draw-edge-to-node edge)))
         ;; Simple cut value calculation (weight of edge)
         (ht-set! cut-values edge (dag-draw-edge-weight edge))))
 

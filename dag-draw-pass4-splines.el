@@ -93,7 +93,7 @@ Uses adjusted coordinates from Pass 3 if available
 \(GKNV Section 5.2 compliance).
 Optional argument GRAPH .
 Optional argument EDGE ."
-  (let* ((node-id (dag-draw-node-id node))
+  (let* ((_node-id (dag-draw-node-id node))
          ;; CRITICAL FIX: Use adjusted coordinates from Pass 3 if available
          ;; COORDINATE SYSTEM FIX: Always use current node coordinates during spline generation
          ;; During regeneration, coordinates are temporarily updated to corrected world values
@@ -172,7 +172,7 @@ Argument GRAPH ."
       ;; (message "PORT-DIST-RESULT: %s" result)
       result)))  ; Middle edges: center
 
-(defun dag-draw--calculate-optimal-port-offset (node side graph)
+(defun dag-draw--calculate-optimal-port-offset (node _side graph)
   "Calculate optimal port offset to avoid shared boundary lines.
 Considers relative position to other NODEs in same rank.
 Argument SIDE .
@@ -253,7 +253,7 @@ Argument TO-NODE ."
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
          ;; Use enhanced tight bbox calculation when obstacles require precise computation
-         (bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
+         (_bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
 
     ;; Return splines with proper GKNV compliance
     splines))
@@ -279,7 +279,7 @@ Argument GRAPH ."
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
          ;; Use enhanced tight bbox calculation when obstacles require precise computation
-         (bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
+         (_bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
 
     ;; Return splines with proper GKNV compliance
     splines))
@@ -300,7 +300,7 @@ Argument GRAPH ."
       ;; Right to left
       (dag-draw--create-horizontal-spline graph edge from-node to-node 'left 'right))))
 
-(defun dag-draw--create-horizontal-spline (graph edge from-node to-node from-side to-side)
+(defun dag-draw--create-horizontal-spline (graph _edge from-node to-node from-side to-side)
   "Create horizontal spline between two nodes.
 Uses distributed ports and adjusted coordinates from Pass 3 (GKNV Section 5.2).
 Argument GRAPH .
@@ -469,8 +469,9 @@ Argument GRAPH ."
     obstacles))
 
 (defun dag-draw--optimize-spline-in-region (splines region)
-  "Optimize SPLINES to fit within collision-free REGION per GKNV algorithm.
-Implements proper spline routing that avoids node boundaries and other obstacles."
+  "Optimize SPLINES to fit within collision-free REGION per GKNV.
+Implements proper spline routing that avoids node boundaries and
+other obstacles."
   (if (not region)
       splines  ; No region constraints - return original splines
     ;; For now, use the region-aware routing but trust the original spline generation
@@ -604,7 +605,7 @@ Argument SPLINES ."
 
 ;;; GKNV Section 5.2: Three-Stage Spline Computation Implementation
 
-(defun dag-draw--compute-L-array (region &optional obstacles from-node to-node graph edge)
+(defun dag-draw--compute-L-array (region &optional _obstacles from-node to-node graph edge)
   "GKNV Stage 1: Compute piecewise linear path inside REGION.
 This implements the compute_L_array function from GKNV Figure 5-2.
 Optional argument OBSTACLES .
@@ -687,7 +688,7 @@ Argument SPLINES ."
       (dag-draw--compute-bboxes-gknv splines)
     ;; Use basic sampling-based approach for backward compatibility
     (mapcar (lambda (spline)
-              (let ((points (dag-draw--sample-spline spline 10)))
+              (let ((_points (dag-draw--sample-spline spline 10)))
                 (dag-draw--spline-bounds (list spline))))
             splines)))
 
@@ -966,7 +967,8 @@ Argument END-PORT ."
 
 (defun dag-draw--compute-L-array-gknv (boxes)
   "Stage 1: Compute intersection line segments between adjacent BOXES.
-GKNV Section 5.2: L_i is the line segment intersection of box B_{i-1} with box B_i."
+GKNV Section 5.2: L_i is the line segment intersection of box
+B_{i-1} with box B_i."
   (let ((L-array '()))
     (when (>= (length boxes) 2)
       (dotimes (i (1- (length boxes)))
@@ -1002,7 +1004,7 @@ Argument BOX2 ."
       (when (and (< int-x-min int-x-max) (< int-y-min int-y-max))
         ;; Return line segment through middle of intersection
         (let ((mid-x (/ (+ int-x-min int-x-max) 2.0))
-              (mid-y (/ (+ int-y-min int-y-max) 2.0)))
+              (_mid-y (/ (+ int-y-min int-y-max) 2.0)))
           (list
            (dag-draw-point-create :x mid-x :y int-y-min)
            (dag-draw-point-create :x mid-x :y int-y-max)))))))
@@ -1349,8 +1351,8 @@ Argument SMOOTH-FACTOR ."
 
 (defun dag-draw--create-edge-label-virtual-nodes (graph)
   "Create virtual nodes for edge labels per GKNV Section 5.3.
-GKNV: 'edge labels on inter-rank edges are represented
-as off-center virtual nodes'.
+GKNV: `edge labels on inter-rank edges are represented as
+off-center virtual nodes'.
 Argument GRAPH ."
   ;; Implementation: Create virtual nodes for edges with labels
   (dolist (edge (dag-draw-graph-edges graph))
@@ -1393,7 +1395,8 @@ Argument GRAPH ."
 
 (defun dag-draw--apply-label-edge-length-compensation (graph)
   "Apply GKNV Section 5.3 edge length compensation for labeled edges.
-GKNV: 'Setting the minimum edge length to 2 (effectively doubling the ranks)'.
+GKNV: `Setting the minimum edge length to 2 (effectively doubling
+the ranks)'.
 Argument GRAPH ."
   (dolist (edge (dag-draw-graph-edges graph))
     (when (dag-draw-edge-label edge)

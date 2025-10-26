@@ -51,6 +51,11 @@
 (require 'dag-draw-coord-transform)
 (require 'dag-draw-ascii-junctions)
 
+;; Forward declarations for dag-draw-point structure
+(declare-function dag-draw-point-create "dag-draw-pass4-splines")
+(declare-function dag-draw-point-x "dag-draw-pass4-splines")
+(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+
 ;;; Customization
 
 ;;; Dynamic Scale Calculation
@@ -159,7 +164,7 @@ GRAPH is a `dag-draw-graph' structure.
 
 Returns t if at least one node has both x-coord and y-coord set, nil otherwise."
   (let ((has-positioned nil))
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (when (and (dag-draw-node-x-coord node)
                          (dag-draw-node-y-coord node))
                  (setq has-positioned t)))
@@ -258,13 +263,14 @@ Returns an integer representing the maximum depth."
     max-depth))
 
 (defun dag-draw--depth-first-search (graph node visited current-depth callback)
-  "Perform depth-first search from NODE, calling CALLBACK with depth at each node.
+  "Perform depth-first search from NODE, calling CALLBACK with depth.
 
 GRAPH is a `dag-draw-graph' structure.
 NODE is a symbol representing the current node ID.
 VISITED is a hash table tracking visited nodes (modified in place).
 CURRENT-DEPTH is an integer representing the current depth level.
-CALLBACK is a function accepting one argument (depth) called for each visited node."
+CALLBACK is a function accepting one argument (depth) called for
+each visited node."
   (unless (ht-get visited node)
     (ht-set! visited node t)
     (funcall callback current-depth)

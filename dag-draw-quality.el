@@ -79,7 +79,7 @@ Returns the highest convergence count as an integer (max edges to one node)."
 
     ;; Find maximum convergence
     (let ((max-convergence 0))
-      (ht-each (lambda (dest-id count)
+      (ht-each (lambda (_dest-id count)
                  (setq max-convergence (max max-convergence count)))
                destination-counts)
       max-convergence)))
@@ -119,7 +119,7 @@ GRAPH is a `dag-draw-graph' structure with assigned ranks.
 
 Returns sorted list of rank numbers (integers) in ascending order."
   (let ((ranks '()))
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (let ((rank (dag-draw-node-rank node)))
                  (when (and rank (not (member rank ranks)))
                    (push rank ranks))))
@@ -134,7 +134,7 @@ RANK is an integer representing the rank to query.
 
 Returns list of `dag-draw-node' structures in RANK."
   (let ((nodes-in-rank '()))
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (when (and (dag-draw-node-rank node)
                           (= (dag-draw-node-rank node) rank))
                  (push node nodes-in-rank)))
@@ -204,10 +204,11 @@ Returns maximum spacing in ASCII rows as an integer."
 ASCII-GRID is a list of strings representing the rendered graph.
 NODES is a list of (node-id x y width height) specifications.
 
-Checks that arrow characters appear only on boundaries, not inside node
-text areas.
+Checks that arrow characters appear only on boundaries, not inside
+node text areas.
 
-Returns hash table with 'valid (boolean) and 'violations (list) keys."
+Returns hash table with `valid' (boolean) and `violations'
+(list) keys."
   (let ((result (ht-create))
         (violations '())
         (arrow-chars '(?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
@@ -250,12 +251,13 @@ Returns hash table with 'valid (boolean) and 'violations (list) keys."
   "Verify edges are rendered continuously without gaps.
 
 ASCII-GRID is a list of strings representing the rendered graph.
-EDGES is a list of (edge-id from-node to-node start-x start-y end-x end-y).
+EDGES is a list of (edge-id from-node to-node start-x start-y
+end-x end-y).
 
-Checks that edge paths contain proper edge characters at all positions
-without missing segments.
+Checks that edge paths contain proper edge characters at all
+positions without missing segments.
 
-Returns hash table with 'valid (boolean) and 'gaps (list) keys."
+Returns hash table with `valid' (boolean) and `gaps' (list) keys."
   (let ((result (ht-create))
         (gaps '())
         (edge-chars '(?│ ?─ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤ ?┼ ?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
@@ -324,12 +326,13 @@ Returns hash table with 'valid (boolean) and 'gaps (list) keys."
   "Check box-drawing characters have correct directional meaning.
 
 ASCII-GRID is a list of strings representing the rendered graph.
-ARROWS is a list of (arrow-id x y direction) where direction is a symbol:
-  up, down, left, or right.
+ARROWS is a list of (arrow-id x y direction) where direction is
+a symbol: up, down, left, or right.
 
 Verifies arrow characters match their intended direction.
 
-Returns hash table with 'valid (boolean) and 'semantic-errors (list) keys."
+Returns hash table with `valid' (boolean) and `semantic-errors'
+(list) keys."
   (let ((result (ht-create))
         (semantic-errors '())
         (direction-chars '((up    . (?▲ ?↑))

@@ -158,7 +158,8 @@ or nil to keep the current character."
 
 GRAPH is a `dag-draw-graph' structure.
 
-CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
+CLAUDE.md: `walks the edge in order to determine the locally-relevant
+algorithm'
 
 Performs three-phase analysis:
 1. Port boundary junctions (edge start/end points)
@@ -181,7 +182,7 @@ Returns a list of junction point specifications (plists)."
 
 (defun dag-draw--detect-port-junctions (graph)
   "Detect junction points at node port boundaries in GRAPH.
-CLAUDE.md: 'At the start of the edge, at the port boundary'
+CLAUDE.md: `At the start of the edge, at the port boundary'
 Returns a list of port junction specifications."
   (when graph
     (let ((port-junctions '()))
@@ -222,7 +223,8 @@ Returns a list of port junction specifications."
 
 (defun dag-draw--determine-edge-direction (from-x from-y to-x to-y)
   "Determine primary direction of edge from (FROM-X,FROM-Y) to (TO-X,TO-Y).
-Returns one of: 'up, 'down, 'left, 'right based on dominant coordinate change."
+Returns one of: `up', `down', `left', `right' based on dominant
+coordinate change."
   (let ((dx (- to-x from-x))
         (dy (- to-y from-y)))
     (cond
@@ -249,9 +251,9 @@ Returns one of: 'up, 'down, 'left, 'right based on dominant coordinate change."
    ((eq direction 'right) 'left)
    (t direction)))
 
-(defun dag-draw--detect-direction-changes (graph)
+(defun dag-draw--detect-direction-changes (_graph)
   "Detect points where edges require direction change.
-CLAUDE.md: 'When the edge requires a direction change'
+CLAUDE.md: `When the edge requires a direction change'
 Returns a list of direction change junction specifications.
 Argument GRAPH ."
   ;; TODO: Implement spline analysis for direction changes
@@ -262,7 +264,7 @@ Argument GRAPH ."
   "Detect direction change (corners) in EDGE-PATH.
 EDGE-PATH is a list of cons cells (x . y) representing the path.
 Returns a list of corner specifications with position and directions.
-CLAUDE.md: 'When the edge requires a direction change'"
+CLAUDE.md: `When the edge requires a direction change'"
   (let ((corners '()))
     (when (>= (length edge-path) 3)
       ;; Walk through path, checking each point with its neighbors
@@ -304,7 +306,7 @@ Returns t if direction changes from horizontal to vertical or vice versa."
 
 (defun dag-draw--get-direction (dx dy)
   "Get direction symbol from direction vector (DX, DY).
-Returns one of: 'up, 'down, 'left, 'right."
+Returns one of: `up', `down', `left', `right'."
   (cond
    ((and (> dx 0) (zerop dy)) 'right)
    ((and (< dx 0) (zerop dy)) 'left)
@@ -313,10 +315,10 @@ Returns one of: 'up, 'down, 'left, 'right."
    ;; Diagonal or zero - should not happen in orthogonal paths
    (t 'unknown)))
 
-(defun dag-draw--detect-edge-intersections (graph)
+(defun dag-draw--detect-edge-intersections (_graph)
   "Detect points where edges join, separate, or cross.
-CLAUDE.md: 'When two edges join, or two edges separate'
-and 'When two edges cross'
+CLAUDE.md: `When two edges join, or two edges separate'
+and `When two edges cross'
 Returns a list of intersection junction specifications.
 Argument GRAPH ."
   ;; TODO: Implement grid-based intersection analysis
@@ -325,10 +327,10 @@ Argument GRAPH ."
 
 (defun dag-draw--detect-crossings-in-paths (edge-paths)
   "Detect crossing points between multiple EDGE-PATHS.
-EDGE-PATHS is a list of edge paths, where each path is
-a list of cons cells (x . y).
+EDGE-PATHS is a list of edge paths, where each path is a list of
+cons cells (x . y).
 Returns a list of crossing specifications.
-CLAUDE.md: 'When two edges cross'"
+CLAUDE.md: `When two edges cross'"
   (let ((crossings '())
         (position-map (make-hash-table :test 'equal)))
 
@@ -424,10 +426,10 @@ Two edges cross if they have different directions (horizontal vs vertical)."
 
 (defun dag-draw--detect-joins-in-paths (edge-paths)
   "Detect join points where edges merge or split.
-EDGE-PATHS is a list of edge paths, where each path is
-a list of cons cells (x . y).
+EDGE-PATHS is a list of edge paths, where each path is a list of
+cons cells (x . y).
 Returns a list of join/split junction specifications.
-CLAUDE.md: 'When two edges join, or two edges separate'"
+CLAUDE.md: `When two edges join, or two edges separate'"
   (let ((joins '())
         (position-map (make-hash-table :test 'equal)))
 
@@ -462,7 +464,7 @@ CLAUDE.md: 'When two edges join, or two edges separate'"
 
 ;;; Local Grid Context Analysis
 
-(defun dag-draw--analyze-local-grid-junction-context (grid x y current-char new-char)
+(defun dag-draw--analyze-local-grid-junction-context (grid x y _current-char new-char)
   "Analyze grid context at position (X,Y) to determine junction type.
 
 GRID is a 2D vector representing the ASCII character grid.
@@ -477,7 +479,7 @@ This implements the D5.6-D5.8 context analysis requirements:
 
 Returns a context plist suitable for `dag-draw--get-enhanced-junction-char'."
   (let* ((grid-height (length grid))
-         (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          ;; Check all 4 directions for edge characters
          (has-up (dag-draw--has-edge-in-direction grid x y 'up))
          (has-down (dag-draw--has-edge-in-direction grid x y 'down))
@@ -487,8 +489,8 @@ Returns a context plist suitable for `dag-draw--get-enhanced-junction-char'."
          (connection-count (+ (if has-up 1 0) (if has-down 1 0)
                              (if has-left 1 0) (if has-right 1 0)))
          ;; Determine if new character indicates direction
-         (new-is-horizontal (memq new-char '(?─)))
-         (new-is-vertical (memq new-char '(?│))))
+         (_new-is-horizontal (memq new-char '(?─)))
+         (_new-is-vertical (memq new-char '(?│))))
 
     ;; Build context plist based on connectivity pattern
     (cond
@@ -625,14 +627,17 @@ nil otherwise."
   "Apply junction characters throughout GRID, excluding NODE-BOUNDARIES.
 
 GRID is a 2D vector representing the ASCII character grid (modified in place).
-NODE-BOUNDARIES is a list of (x . y) cons cells marking node border positions.
+NODE-BOUNDARIES is a list of (x . y) cons cells marking node border
+positions.
 
-Walks through all grid positions, analyzes connectivity, and updates characters.
-This is the integration point for D5.1-D5.8 junction character enhancement.
-CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
+Walks through all grid positions, analyzes connectivity, and updates
+characters.  This is the integration point for D5.1-D5.8 junction character
+enhancement.  CLAUDE.md: `walks the edge in order to determine the
+locally-relevant algorithm'
 
-NODE-BOUNDARIES positions are excluded from junction enhancement to prevent
-corruption of node box borders. Arrow characters (▼ ▲ ► ◀) are never replaced."
+NODE-BOUNDARIES positions are excluded from junction enhancement to
+prevent corruption of node box borders.  Arrow characters
+(▼ ▲ ► ◀) are never replaced."
   (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries))
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))

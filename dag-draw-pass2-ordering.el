@@ -114,7 +114,7 @@ Returns a vector where index i contains list of nodes at rank i.
 Calculates actual max rank from nodes if GRAPH max-rank is not set correctly."
   ;; Calculate actual max rank from all nodes (GKNV algorithm compliance)
   (let ((actual-max-rank 0))
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (let ((rank (dag-draw-node-rank node)))
                  (when (and rank (> rank actual-max-rank))
                    (setq actual-max-rank rank))))
@@ -166,7 +166,7 @@ Argument RANK2-NODES ."
 
     crossings))
 
-(defun dag-draw--edges-cross-p (graph edge1 edge2 rank1-nodes rank2-nodes)
+(defun dag-draw--edges-cross-p (_graph edge1 edge2 rank1-nodes rank2-nodes)
   "Check if two edges cross given the current node ordering.
 Argument GRAPH .
 Argument EDGE1 .
@@ -340,9 +340,9 @@ POSITIONS is list of position values, NODE-SIZES is list of size plists."
 
 ;;; Node Ordering Within Ranks
 
-(defun dag-draw--order-rank-by-median (graph rank-nodes adjacent-rank-nodes direction &optional size-aware)
+(defun dag-draw--order-rank-by-median (graph rank-nodes adjacent-rank-nodes _direction &optional size-aware)
   "Order nodes in a rank using weighted median heuristic.
-DIRECTION is 'down or 'up indicating sweep direction.
+DIRECTION is `down' or `up' indicating sweep direction.
 If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps.
 Argument GRAPH .
 Argument RANK-NODES .
@@ -510,7 +510,7 @@ Argument RANKS ."
                   (not converged))
 
         (let ((forward (= (mod iteration 2) 0))
-              (prev-crossings best-crossings))
+              (_prev-crossings best-crossings))
 
           ;; Sweep through ranks
           (if forward
@@ -576,7 +576,7 @@ Argument RANKS ."
 
     result))))
 
-(defun dag-draw--check-convergence (crossings-history ranks-history
+(defun dag-draw--check-convergence (crossings-history _ranks-history
                                    iterations-without-improvement
                                    convergence-threshold oscillation-window)
   "Advanced convergence detection for crossing reduction algorithm.
@@ -632,7 +632,7 @@ Argument CROSSINGS-HISTORY ."
       (and (> previous-improvement 0)
            (< recent-improvement (* 0.1 previous-improvement))))))
 
-(defun dag-draw--initialize-ordering (graph ranks)
+(defun dag-draw--initialize-ordering (_graph ranks)
   "Initialize node ordering within RANKS.
 Argument GRAPH ."
   ;; Simple initialization - keep existing order or randomize

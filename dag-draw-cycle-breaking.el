@@ -42,6 +42,8 @@
 (require 'ht)
 (require 'dag-draw-core)
 
+(declare-function dag-draw--count-cycles-through-edge "dag-draw-cycle-breaking")
+
 ;;; GKNV DFS Edge Classification (Section 2.1)
 
 (defun dag-draw--classify-edges-gknv (graph)
@@ -278,8 +280,8 @@ GRAPH is a `dag-draw-graph' structure to analyze.
 Source nodes: nodes with no incoming edges.
 Sink nodes: nodes with no outgoing edges.
 
-Returns hash table with keys 'sources and 'sinks, each mapping to a list
-of node IDs (symbols)."
+Returns hash table with keys `sources' and `sinks', each mapping to
+a list of node IDs (symbols)."
   (let ((sources '())
         (sinks '())
         (has-incoming (ht-create))

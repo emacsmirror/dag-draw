@@ -70,11 +70,13 @@ Returns a string containing the complete SVG XML representation of the graph."
 (defun dag-draw--svg-header (svg-width svg-height view-x view-y view-width view-height)
   "Generate SVG header with dimensions and viewBox.
 
-SVG-WIDTH and SVG-HEIGHT are numbers representing the SVG canvas size.
-VIEW-X and VIEW-Y are numbers representing the viewBox origin.
-VIEW-WIDTH and VIEW-HEIGHT are numbers representing the viewBox dimensions.
+SVG-WIDTH and SVG-HEIGHT are numbers representing the SVG canvas
+size.  VIEW-X and VIEW-Y are numbers representing the viewBox
+origin.  VIEW-WIDTH and VIEW-HEIGHT are numbers representing the
+viewBox dimensions.
 
-Returns a string containing the opening SVG tag with xmlns and viewBox attributes."
+Returns a string containing the opening SVG tag with xmlns and
+viewBox attributes."
   (format "<svg width=\"%.1f\" height=\"%.1f\" viewBox=\"%.1f %.1f %.1f %.1f\" xmlns=\"http://www.w3.org/2000/svg\">\n"
           svg-width svg-height view-x view-y view-width view-height))
 

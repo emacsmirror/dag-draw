@@ -71,8 +71,12 @@
 (require 'dash)
 (require 'ht)
 
-;; Declare function to avoid circular dependency
+;; Declare functions to avoid circular dependencies
 (declare-function dag-draw--world-to-grid-size "dag-draw-ascii-grid")
+(declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
+(declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
+(declare-function dag-draw-edge-count "dag-draw-core")
+(declare-function dag-draw-node-count "dag-draw-core")
 
 ;;; Customization
 
@@ -95,15 +99,17 @@ Optimized for compact, readable layouts following GKNV algorithm principles."
 
 (defcustom dag-draw-ascii-node-separation 6
   "Horizontal spacing between nodes in ASCII mode (characters).
-Used when coordinate-mode is 'ascii for compact terminal output.
-This provides readable spacing for 80-column terminals while allowing edge routing."
+Used when coordinate-mode is `ascii' for compact terminal output.
+This provides readable spacing for 80-column terminals while
+allowing edge routing."
   :type 'integer
   :group 'dag-draw)
 
 (defcustom dag-draw-ascii-rank-separation 5
   "Vertical spacing between ranks in ASCII mode (rows).
-Used when coordinate-mode is 'ascii for compact terminal output.
-This provides clean vertical separation with enough space for edge routing."
+Used when coordinate-mode is `ascii' for compact terminal output.
+This provides clean vertical separation with enough space for
+edge routing."
   :type 'integer
   :group 'dag-draw)
 
@@ -226,7 +232,7 @@ LABEL is an optional string label for the edge.
 ATTRIBUTES is an optional hash table of edge-specific attributes.
 
 The min-length constraint can be specified via ATTRIBUTES with key
-'min-length (defaults to 1).
+`min-length' (defaults to 1).
 
 Returns the created `dag-draw-edge' structure."
   (let* ((attrs (or attributes (ht-create)))
@@ -280,8 +286,8 @@ This performs the four GKNV passes:
 
 Optional keyword arguments (passed as ARGS):
   :coordinate-mode MODE - Sets coordinate system mode
-                         'ascii: ASCII-native coordinates (default)
-                         'high-res: Legacy high-resolution mode
+                         `ascii': ASCII-native coordinates (default)
+                         `high-res': Legacy high-resolution mode
 
 Returns the GRAPH with layout information assigned to nodes and edges."
   ;; Parse keyword arguments
@@ -310,7 +316,7 @@ Returns the GRAPH with layout information assigned to nodes and edges."
       ;; Node sizes are calculated in "world" coordinates (60-170), but ASCII mode
       ;; needs them in character-grid scale (roughly 10-30 characters)
       (let ((scale dag-draw-ascii-coordinate-scale))
-        (ht-each (lambda (node-id node)
+        (ht-each (lambda (_node-id node)
                    (let ((world-xsize (dag-draw-node-x-size node))
                          (world-ysize (dag-draw-node-y-size node)))
                      ;; Scale down to ASCII units
@@ -352,7 +358,7 @@ adjusted based on graph complexity."
       ;; Complex graphs need larger scale for visual clarity
       ;; Base scale * complexity factor, capped at reasonable limits
       (let* ((node-count (dag-draw-node-count graph))
-             (edge-count (dag-draw-edge-count graph))
+             (_edge-count (dag-draw-edge-count graph))
              (complexity-factor (min 4.0 (+ 1.0 (* 0.5 (- node-count 2)))))
              (dynamic-scale (* dag-draw-ascii-coordinate-scale complexity-factor)))
         (min 0.4 (max 0.15 dynamic-scale)))
@@ -390,7 +396,7 @@ Returns a property list with:
                                    (max-ascii-width 0))
                                ;; Ensure ascii-grid module is loaded
                                (require 'dag-draw-ascii-grid)
-                               (ht-each (lambda (node-id node)
+                               (ht-each (lambda (_node-id node)
                                           (let ((ascii-width (dag-draw--world-to-grid-size
                                                              (dag-draw-node-x-size node) scale)))
                                             (setq max-ascii-width (max max-ascii-width ascii-width))))
@@ -444,9 +450,9 @@ parameters to ensure clean ASCII rendering."
 
 GRAPH is a `dag-draw-graph' structure that has been laid out.
 FORMAT is an optional symbol specifying output format:
-  'svg - Scalable Vector Graphics
-  'ascii - ASCII art text representation
-  'dot - Graphviz DOT language
+  `svg' - Scalable Vector Graphics
+  `ascii' - ASCII art text representation
+  `dot' - Graphviz DOT language
   Defaults to `dag-draw-default-output-format'.
 
 Returns a string representation of the rendered graph."
@@ -616,7 +622,7 @@ bounding rectangle that contains all nodes."
           (max-x most-negative-fixnum)
           (max-y most-negative-fixnum))
 
-      (ht-each (lambda (node-id node)
+      (ht-each (lambda (_node-id node)
                  (let* ((x (or (dag-draw-node-x-coord node) 0))
                         (y (or (dag-draw-node-y-coord node) 0))
                         (width (dag-draw-node-x-size node))
@@ -665,15 +671,15 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 
 (declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
 (defalias 'dag-draw-ordering 'dag-draw-order-vertices
-  "GKNV ordering(G) - main entry point for Pass 2 vertex ordering (Figure 1-1).")
+  "GKNV ordering(G) - main entry point for Pass 2 ordering (Figure 1-1).")
 
 (declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
 (defalias 'dag-draw-position 'dag-draw-position-nodes
-  "GKNV position(G) - main entry point for Pass 3 coordinate assignment (Figure 1-1).")
+  "GKNV position(G) - Pass 3 coordinate assignment (Figure 1-1).")
 
 (declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
 (defalias 'dag-draw-make-splines 'dag-draw-generate-splines
-  "GKNV make_splines(G) - main entry point for Pass 4 spline generation (Figure 1-1).")
+  "GKNV make_splines(G) - Pass 4 spline generation (Figure 1-1).")
 
 ;; Additional canonical functions from Figure 2-2
 (declare-function dag-draw-assign-ranks "dag-draw-pass1-ranking")

@@ -43,14 +43,14 @@ Returns the modified GRAPH."
   (let ((min-rank most-positive-fixnum))
 
     ;; Find minimum rank
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (when (dag-draw-node-rank node)
                  (setq min-rank (min min-rank (dag-draw-node-rank node)))))
              (dag-draw-graph-nodes graph))
 
     ;; Adjust all ranks
     (when (< min-rank most-positive-fixnum)
-      (ht-each (lambda (node-id node)
+      (ht-each (lambda (_node-id node)
                  (when (dag-draw-node-rank node)
                    (setf (dag-draw-node-rank node)
                          (- (dag-draw-node-rank node) min-rank))))
@@ -81,7 +81,7 @@ Returns the modified GRAPH."
     (let ((rank-counts (make-vector (1+ (dag-draw-graph-max-rank graph)) 0)))
 
       ;; Count nodes per rank
-      (ht-each (lambda (node-id node)
+      (ht-each (lambda (_node-id node)
                  (when (dag-draw-node-rank node)
                    (let ((rank (dag-draw-node-rank node)))
                      (aset rank-counts rank (1+ (aref rank-counts rank))))))

@@ -22,6 +22,10 @@
 (require 'ht)
 (require 'dag-draw)
 
+;; Forward declarations
+(declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
+(declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
+
 ;;; Graph Traversal and Analysis
 
 (defun dag-draw-get-node (graph node-id)

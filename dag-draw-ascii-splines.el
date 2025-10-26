@@ -24,6 +24,11 @@
 (require 'dag-draw-ascii-grid)
 (require 'dag-draw-ports)
 
+;; Forward declarations for dag-draw-point structure
+(declare-function dag-draw-point-create "dag-draw-pass4-splines")
+(declare-function dag-draw-point-x "dag-draw-pass4-splines")
+(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+
 ;;; ASCII Spline Data Structure
 
 ;; Reuse the point structure from main splines module
@@ -129,8 +134,8 @@ FROM-NODE is a `dag-draw-node' structure for the source.
 TO-NODE is a `dag-draw-node' structure for the destination.
 
 Returns a `dag-draw-ascii-path' structure with horizontal path points."
-  (let* ((from-x (dag-draw-node-x-coord from-node))
-         (to-x (dag-draw-node-x-coord to-node))
+  (let* ((_from-x (dag-draw-node-x-coord from-node))
+         (_to-x (dag-draw-node-x-coord to-node))
          (ports (dag-draw--get-edge-connection-points graph edge))
          (from-port (car ports))
          (to-port (cadr ports)))
@@ -152,7 +157,7 @@ Returns a `dag-draw-ascii-path' structure with two points."
 
 ;;; Self-edge ASCII Paths
 
-(defun dag-draw-ascii--create-self-path (graph edge from-node)
+(defun dag-draw-ascii--create-self-path (_graph _edge from-node)
   "Create ASCII path for self-edges (loops).
 
 GRAPH is a `dag-draw-graph' structure.
@@ -165,7 +170,7 @@ Returns a `dag-draw-ascii-path' structure with loop points."
   (let* ((center-x (dag-draw-node-x-coord from-node))
          (center-y (dag-draw-node-y-coord from-node))
          (width (dag-draw-node-x-size from-node))
-         (height (dag-draw-node-y-size from-node))
+         (_height (dag-draw-node-y-size from-node))
          ;; Create loop around node
          (loop-size 3))
     
