@@ -1,4 +1,4 @@
-;;; dag-draw.el --- Draw directed graphs using the Gansner-Koutsofios-North-Vo algorithm -*- lexical-binding: t -*-
+;;; dag-draw.el --- Draw directed graphs using the GKNV algorithm -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024
 
