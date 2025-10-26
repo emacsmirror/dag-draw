@@ -41,10 +41,19 @@
 ;;; Node Port Integration Functions
 
 (defun dag-draw--get-node-port-grid (node side min-x min-y scale &optional graph)
-  "Get port coordinates for a node on given side, accounting for grid rounding.
-This function calculates ports based on actual grid positions after coordinate
-conversion and rounding, ensuring precise alignment with rendered boxes.
-If GRAPH is provided and contains adjusted positions, uses those coordinates."
+  "Calculate grid coordinates for NODE port on SIDE with grid rounding.
+
+NODE is a `dag-draw-node' structure with position and size data.
+SIDE is a symbol: top, bottom, left, or right.
+MIN-X is a number representing the minimum X coordinate in world space.
+MIN-Y is a number representing the minimum Y coordinate in world space.
+SCALE is a number for converting world coordinates to grid coordinates.
+GRAPH is an optional `dag-draw-graph' containing adjusted positions.
+
+Calculates ports based on actual grid positions after coordinate conversion
+and rounding, ensuring precise alignment with rendered boxes.
+
+Returns a `dag-draw-point' structure with grid coordinates (x, y)."
   (let* ((node-id (dag-draw-node-id node))
          ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates
          ;; Section 4: "The third pass finds optimal coordinates for nodes"
@@ -105,8 +114,18 @@ If GRAPH is provided and contains adjusted positions, uses those coordinates."
       result-port)))
 
 (defun dag-draw--determine-port-side (node port min-x min-y scale &optional graph)
-  "Determine which side of NODE the PORT is on (top/bottom/left/right).
-This function helps identify port orientation for proper connection logic."
+  "Determine which side of NODE the PORT is located on.
+
+NODE is a `dag-draw-node' structure.
+PORT is a `dag-draw-point' representing the port position.
+MIN-X is a number representing the minimum X coordinate in world space.
+MIN-Y is a number representing the minimum Y coordinate in world space.
+SCALE is a number for converting world coordinates to grid coordinates.
+GRAPH is an optional `dag-draw-graph' containing adjusted positions.
+
+Helps identify port orientation for proper connection logic.
+
+Returns a symbol: top, bottom, left, right, or center."
   (let* ((node-center (dag-draw--get-node-center-grid node min-x min-y scale graph))
          (center-x (dag-draw-point-x node-center))
          (center-y (dag-draw-point-y node-center))
@@ -125,9 +144,17 @@ This function helps identify port orientation for proper connection logic."
 
 (defun dag-draw--calculate-edge-ports (from-node to-node &optional graph edge)
   "Calculate appropriate ports for edge between FROM-NODE and TO-NODE.
-Returns list of (from-port to-port) based on edge direction.
-Returns nil if either node lacks coordinates.
-If GRAPH and EDGE are provided, uses distributed port calculation."
+
+FROM-NODE is a `dag-draw-node' representing the edge source.
+TO-NODE is a `dag-draw-node' representing the edge destination.
+GRAPH is an optional `dag-draw-graph' for distributed port calculation.
+EDGE is an optional `dag-draw-edge' for port distribution.
+
+Selects ports based on edge direction (vertical, horizontal, or diagonal).
+Uses adaptive thresholds based on node sizes.
+
+Returns list (from-port to-port) of `dag-draw-point' structures, or nil
+if either node lacks coordinates."
   (let* ((from-x (dag-draw-node-x-coord from-node))
          (from-y (dag-draw-node-y-coord from-node))
          (to-x (dag-draw-node-x-coord to-node))
@@ -175,8 +202,18 @@ If GRAPH and EDGE are provided, uses distributed port calculation."
                   (dag-draw--get-node-port to-node 'right graph edge)))))))))
 
 (defun dag-draw--calculate-edge-ports-grid (from-node to-node min-x min-y scale &optional graph)
-  "Calculate appropriate ports for edge between FROM-NODE and TO-NODE using grid coordinates.
-Returns list of (from-port to-port) based on edge direction with grid-aware positioning."
+  "Calculate edge ports using grid coordinates.
+
+FROM-NODE is a `dag-draw-node' representing the edge source.
+TO-NODE is a `dag-draw-node' representing the edge destination.
+MIN-X is a number representing the minimum X coordinate in world space.
+MIN-Y is a number representing the minimum Y coordinate in world space.
+SCALE is a number for converting world coordinates to grid coordinates.
+GRAPH is an optional `dag-draw-graph' containing adjusted positions.
+
+Uses grid-aware positioning for precise ASCII rendering alignment.
+
+Returns list (from-port to-port) of `dag-draw-point' structures in grid space."
   (let* ((from-x (dag-draw-node-x-coord from-node))
          (from-y (dag-draw-node-y-coord from-node))
          (to-x (dag-draw-node-x-coord to-node))
@@ -225,8 +262,20 @@ Returns list of (from-port to-port) based on edge direction with grid-aware posi
                   (dag-draw--get-node-port-grid to-node 'right min-x min-y scale graph)))))))))
 
 (defun dag-draw--calculate-distributed-edge-ports (graph edge from-node to-node min-x min-y scale)
-  "Calculate edge ports using simplified GKNV-compliant approach.
-Removes complex multi-edge distribution in favor of basic direction-based ports."
+  "Calculate edge ports using GKNV-compliant direction-based approach.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' being routed.
+FROM-NODE is a `dag-draw-node' representing the edge source.
+TO-NODE is a `dag-draw-node' representing the edge destination.
+MIN-X is a number representing the minimum X coordinate in world space.
+MIN-Y is a number representing the minimum Y coordinate in world space.
+SCALE is a number for converting world coordinates to grid coordinates.
+
+Aligns with GKNV Section 5.1.1: route to appropriate side.
+Simplified approach without complex multi-edge distribution.
+
+Returns list (from-port to-port) of `dag-draw-point' structures."
   ;; Simplified: always use standard grid-based port calculation
   ;; This aligns with GKNV Section 5.1.1: \"route to appropriate side\"
   (dag-draw--calculate-edge-ports-grid from-node to-node min-x min-y scale graph))
@@ -234,8 +283,18 @@ Removes complex multi-edge distribution in favor of basic direction-based ports.
 
 
 (defun dag-draw--get-edge-connection-points (graph edge &optional min-x min-y scale)
-  "Get connection points for edge in ASCII rendering context.
-If grid parameters are provided, uses grid-aware port calculation for precise alignment."
+  "Get connection points for EDGE in ASCII rendering context.
+
+GRAPH is a `dag-draw-graph' structure containing nodes and edges.
+EDGE is a `dag-draw-edge' for which to calculate connection points.
+MIN-X is an optional number for minimum X coordinate in world space.
+MIN-Y is an optional number for minimum Y coordinate in world space.
+SCALE is an optional number for world-to-grid coordinate conversion.
+
+If grid parameters (MIN-X, MIN-Y, SCALE) are provided, uses grid-aware
+port calculation for precise ASCII alignment.
+
+Returns list (from-port to-port) of `dag-draw-point' structures."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (result (if (and min-x min-y scale)

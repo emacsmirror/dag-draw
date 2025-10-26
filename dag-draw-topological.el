@@ -43,9 +43,17 @@
 ;;; Topological Rank Assignment
 
 (defun dag-draw--assign-ranks-topological (graph)
-  "Assign ranks using a simple topological approach.
+  "Assign ranks to nodes using topological sorting.
+
+GRAPH is a `dag-draw-graph' structure to process.
+
 This is a fallback algorithm when network simplex optimization fails.
-Uses Kahn's algorithm for topological sorting with level-by-level processing."
+Implements Kahn's algorithm with level-by-level processing (GKNV init_rank).
+Processes nodes in topological order, respecting minimum edge lengths δ(e).
+Assigns the least rank that satisfies all incoming edges.
+
+Modifies GRAPH in place by setting node ranks and max-rank.
+Returns the modified GRAPH."
   (let ((in-degree (ht-create))
         (queue '())
         (current-rank 0))

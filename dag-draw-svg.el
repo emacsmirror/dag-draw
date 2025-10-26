@@ -37,7 +37,14 @@
 ;;; SVG Rendering
 
 (defun dag-draw-render-svg (graph)
-  "Render GRAPH as SVG string with positioned nodes and smooth spline edges."
+  "Render GRAPH as SVG string with positioned nodes and smooth spline edges.
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes and spline points.
+
+Calculates graph bounds, creates an SVG header with appropriate viewBox,
+renders edges as SVG paths, and renders nodes as SVG rectangles with labels.
+
+Returns a string containing the complete SVG XML representation of the graph."
   (let* ((bounds (dag-draw-get-graph-bounds graph))
          (min-x (nth 0 bounds))
          (min-y (nth 1 bounds))
@@ -57,12 +64,21 @@
      (dag-draw--svg-footer))))
 
 (defun dag-draw--svg-header (svg-width svg-height view-x view-y view-width view-height)
-  "Generate SVG header with dimensions and viewBox."
+  "Generate SVG header with dimensions and viewBox.
+
+SVG-WIDTH and SVG-HEIGHT are numbers representing the SVG canvas size.
+VIEW-X and VIEW-Y are numbers representing the viewBox origin.
+VIEW-WIDTH and VIEW-HEIGHT are numbers representing the viewBox dimensions.
+
+Returns a string containing the opening SVG tag with xmlns and viewBox attributes."
   (format "<svg width=\"%.1f\" height=\"%.1f\" viewBox=\"%.1f %.1f %.1f %.1f\" xmlns=\"http://www.w3.org/2000/svg\">\n"
           svg-width svg-height view-x view-y view-width view-height))
 
 (defun dag-draw--svg-defs ()
-  "Generate SVG definitions for arrow markers and styles."
+  "Generate SVG definitions for arrow markers and styles.
+
+Returns a string containing SVG <defs> section with arrowhead marker
+definition and CSS styles for nodes, node labels, edges, and edge labels."
   (concat
    "  <defs>\n"
    "    <marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"9\" refY=\"3.5\" orient=\"auto\">\n"
@@ -77,7 +93,14 @@
    "  </defs>\n"))
 
 (defun dag-draw--svg-render-nodes (graph)
-  "Render all nodes as SVG rectangles with labels."
+  "Render all nodes in GRAPH as SVG rectangles with labels.
+
+GRAPH is a `dag-draw-graph' structure containing positioned nodes.
+
+For each node, creates an SVG <rect> element centered at the node's
+coordinates and a <text> element for the label.
+
+Returns a string containing SVG <g> group with all node elements."
   (let ((node-svg "  <g class=\"nodes\">\n"))
     (ht-each (lambda (node-id node)
                (let* ((x (or (dag-draw-node-x-coord node) 0))
@@ -99,7 +122,14 @@
     (concat node-svg "  </g>\n")))
 
 (defun dag-draw--svg-render-edges (graph)
-  "Render all edges as SVG paths with smooth splines."
+  "Render all edges in GRAPH as SVG paths with smooth splines.
+
+GRAPH is a `dag-draw-graph' structure containing edges with spline points.
+
+For each edge, creates an SVG <path> element from the spline points.
+If the edge has a label, also creates a <text> element at the label position.
+
+Returns a string containing SVG <g> group with all edge elements."
   (let ((edge-svg "  <g class=\"edges\">\n"))
     (dolist (edge (dag-draw-graph-edges graph))
       ;; Render edge path if spline points exist
@@ -123,7 +153,14 @@
     (concat edge-svg "  </g>\n")))
 
 (defun dag-draw--svg-path-from-spline (edge)
-  "Convert edge spline points to SVG path data."
+  "Convert EDGE spline points to SVG path data.
+
+EDGE is a `dag-draw-edge' structure with spline-points attribute.
+
+Converts the list of `dag-draw-point' structures into SVG path data
+string using M (moveto) and L (lineto) commands.
+
+Returns a string containing the SVG path data, or nil if no spline points."
   (let ((points (dag-draw-edge-spline-points edge)))
     (when points
       (let ((path-data (format "M %.1f,%.1f"
@@ -141,11 +178,20 @@
         path-data))))
 
 (defun dag-draw--svg-footer ()
-  "Generate SVG footer."
+  "Generate SVG footer.
+
+Returns a string containing the closing SVG tag."
   "</svg>\n")
 
 (defun dag-draw--escape-xml (text)
-  "Escape XML special characters in TEXT."
+  "Escape XML special characters in TEXT.
+
+TEXT is a string that may contain XML special characters.
+
+Replaces & < > \" ' with their XML entity equivalents to ensure
+valid XML output. Escapes & first to avoid double-escaping.
+
+Returns the escaped string safe for use in XML attributes and content."
   ;; Escape & first, then other characters (avoiding double-escaping)
   (let ((escaped-ampersand (replace-regexp-in-string "&" "&amp;" text)))
     (replace-regexp-in-string

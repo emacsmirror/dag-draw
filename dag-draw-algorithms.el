@@ -21,12 +21,23 @@
 
 ;;; DFS and Cycle Detection
 
-(defun dag-draw--dfs-visit (graph node-id visited pre-order post-order 
+(defun dag-draw--dfs-visit (graph node-id visited pre-order post-order
                                  current-time edge-classification)
-  "Internal DFS visit function.
-Updates VISITED, PRE-ORDER, POST-ORDER hash tables with visit times.
-CURRENT-TIME is passed by reference (vector).
-EDGE-CLASSIFICATION is a list container passed by reference."
+  "Perform internal DFS visit for NODE-ID.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the current node.
+VISITED is a hash table mapping node IDs to colors (white/gray/black).
+PRE-ORDER is a hash table mapping node IDs to discovery times.
+POST-ORDER is a hash table mapping node IDs to finish times.
+CURRENT-TIME is a vector containing one integer (passed by reference).
+EDGE-CLASSIFICATION is a list container for edge classifications (by reference).
+
+Updates VISITED, PRE-ORDER, POST-ORDER with visit times.
+Classifies edges as tree, back, forward, or cross.
+
+Modifies all hash tables and CURRENT-TIME in place.
+Returns nil."
   (ht-set! visited node-id 'gray)  ; Mark as being processed
   (ht-set! pre-order node-id (aref current-time 0))
   (aset current-time 0 (1+ (aref current-time 0)))
@@ -59,8 +70,14 @@ EDGE-CLASSIFICATION is a list container passed by reference."
   (aset current-time 0 (1+ (aref current-time 0))))
 
 (defun dag-draw-dfs (graph &optional start-nodes)
-  "Perform depth-first search on GRAPH starting from START-NODES.
+  "Perform depth-first search on GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to traverse.
+START-NODES is an optional list of node IDs (symbols) to start from.
 If START-NODES is nil, starts from all source nodes.
+
+Performs complete DFS traversal with visit time tracking and edge classification.
+
 Returns a plist with:
   :visited - hash table mapping node-id to color (white/gray/black)
   :pre-order - hash table mapping node-id to pre-order visit time
@@ -96,7 +113,13 @@ Returns a plist with:
 
 (defun dag-draw-detect-cycles (graph)
   "Detect cycles in GRAPH using DFS.
-Returns list of back edges that create cycles."
+
+GRAPH is a `dag-draw-graph' structure to check.
+
+Uses depth-first search to classify edges. Back edges indicate cycles.
+
+Returns list of `dag-draw-edge' structures representing back edges
+that create cycles."
   (let* ((dfs-result (dag-draw-dfs graph))
          (edge-classification (plist-get dfs-result :edge-classification)))
     (mapcar #'car

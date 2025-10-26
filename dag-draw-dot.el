@@ -19,7 +19,15 @@
 ;;; DOT Format Rendering
 
 (defun dag-draw-render-dot (graph)
-  "Render GRAPH in Graphviz DOT format."
+  "Render GRAPH in Graphviz DOT format.
+
+GRAPH is a `dag-draw-graph' structure containing nodes and edges.
+
+Creates a DOT language representation suitable for processing with
+Graphviz tools. Includes node declarations with labels and edge
+declarations with optional edge labels.
+
+Returns a string containing the complete DOT format graph specification."
   (let ((dot-output "digraph G {\n")
         (node-attrs "  node [shape=box, style=filled, fillcolor=lightgray];\n")
         (edge-attrs "  edge [color=black];\n"))
@@ -54,7 +62,14 @@
     (concat dot-output "}\n")))
 
 (defun dag-draw--escape-dot-string (text)
-  "Escape special characters for DOT format."
+  "Escape special characters in TEXT for DOT format.
+
+TEXT is a string that may contain DOT special characters.
+
+Escapes backslashes and double quotes to ensure valid DOT syntax.
+Backslashes are escaped first to avoid double-escaping.
+
+Returns the escaped string safe for use in DOT labels and attributes."
   ;; Escape backslashes first (each \ becomes \\\\), then quotes (each " becomes \\")
   (replace-regexp-in-string
    "\"" "\\\\\\\\\""

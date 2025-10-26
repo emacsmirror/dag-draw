@@ -1014,9 +1014,15 @@ Implements GKNV Figure 2-1 steps 3-6."
 ;;; Public Interface
 
 (defun dag-draw-rank-graph (graph)
-  "Complete rank assignment process for GRAPH.
-This includes cycle breaking, rank assignment, normalization, and balancing.
-Enhanced with GKNV aesthetic principles A1-A4 evaluation per Section 1.1."
+  "Complete rank assignment process using network simplex optimization.
+
+GRAPH is a `dag-draw-graph' structure to rank.
+
+Implements GKNV Pass 1 (Section 2) including cycle breaking, network
+simplex rank assignment, normalization, and balancing.  Enhanced with
+aesthetic principles A1-A4 evaluation per Section 1.1.
+
+Returns the modified GRAPH with rank assignments on all nodes."
   (dag-draw-assign-ranks graph)
   (dag-draw-normalize-ranks graph)
   ;; Re-enabled balancing with fixed constraint validation

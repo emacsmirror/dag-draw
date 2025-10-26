@@ -425,8 +425,14 @@ If SIZE-AWARE is non-nil, consider node sizes to prevent overlaps."
 
 (defun dag-draw-order-vertices (graph)
   "Order vertices within ranks to minimize edge crossings.
-This is the second pass of the GKNV algorithm with enhanced convergence detection.
-Enhanced with GKNV aesthetic principles A1-A4 evaluation per Section 1.1."
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks.
+
+Implements GKNV Pass 2 (Section 3) using weighted median heuristic
+and transposition with enhanced convergence detection.  Enhanced
+with aesthetic principles A1-A4 evaluation per Section 1.1.
+
+Returns the modified GRAPH with order assignments within each rank."
   (let* ((graph-with-virtuals (dag-draw--create-virtual-nodes graph))
          (ranks (dag-draw--organize-by-ranks graph-with-virtuals))
          (convergence-result (dag-draw--crossing-reduction-with-convergence

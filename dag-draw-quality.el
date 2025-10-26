@@ -30,7 +30,12 @@
 
 (defun dag-draw--count-edges-between-ranks (graph rank1 rank2)
   "Count edges between RANK1 and RANK2 in GRAPH.
-Returns the number of edges that cross from nodes in RANK1 to nodes in RANK2."
+
+GRAPH is a `dag-draw-graph' structure.
+RANK1 is an integer representing the source rank.
+RANK2 is an integer representing the destination rank.
+
+Returns the number of edges crossing from nodes in RANK1 to nodes in RANK2."
   (let ((edge-count 0))
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
@@ -44,8 +49,15 @@ Returns the number of edges that cross from nodes in RANK1 to nodes in RANK2."
     edge-count))
 
 (defun dag-draw--max-edges-to-same-destination (graph from-rank to-rank)
-  "Find maximum number of edges converging on any single destination node.
-Analyzes edges from FROM-RANK to TO-RANK and returns the highest convergence count."
+  "Find maximum edge convergence on any single destination node.
+
+GRAPH is a `dag-draw-graph' structure.
+FROM-RANK is an integer representing the source rank.
+TO-RANK is an integer representing the destination rank.
+
+Analyzes edges from FROM-RANK to TO-RANK.
+
+Returns the highest convergence count as an integer (max edges to one node)."
   (let ((destination-counts (ht-create)))
 
     ;; Count edges to each destination node
@@ -69,9 +81,16 @@ Analyzes edges from FROM-RANK to TO-RANK and returns the highest convergence cou
       max-convergence)))
 
 (defun dag-draw--max-horizontal-edge-distance (graph from-rank to-rank)
-  "Calculate maximum horizontal distance for edges between FROM-RANK and TO-RANK.
-Returns the maximum horizontal distance any edge needs to travel, which affects
-routing complexity and space requirements."
+  "Calculate maximum horizontal distance for edges between ranks.
+
+GRAPH is a `dag-draw-graph' structure.
+FROM-RANK is an integer representing the source rank.
+TO-RANK is an integer representing the destination rank.
+
+Measures horizontal displacement (X-coordinate difference) for all edges
+between the ranks. Affects routing complexity and space requirements.
+
+Returns maximum horizontal distance as a number."
   (let ((max-distance 0))
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
@@ -91,7 +110,10 @@ routing complexity and space requirements."
 
 (defun dag-draw--get-graph-ranks (graph)
   "Get list of all ranks present in GRAPH.
-Returns sorted list of rank numbers."
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks.
+
+Returns sorted list of rank numbers (integers) in ascending order."
   (let ((ranks '()))
     (ht-each (lambda (node-id node)
                (let ((rank (dag-draw-node-rank node)))
@@ -102,7 +124,11 @@ Returns sorted list of rank numbers."
 
 (defun dag-draw--get-nodes-in-rank (graph rank)
   "Get list of all nodes in RANK of GRAPH.
-Returns list of node objects."
+
+GRAPH is a `dag-draw-graph' structure.
+RANK is an integer representing the rank to query.
+
+Returns list of `dag-draw-node' structures in RANK."
   (let ((nodes-in-rank '()))
     (ht-each (lambda (node-id node)
                (when (and (dag-draw-node-rank node)
@@ -114,9 +140,17 @@ Returns list of node objects."
 ;;; Dynamic Spacing Calculation
 
 (defun dag-draw--calculate-dynamic-rank-separation (graph from-rank to-rank)
-  "Calculate required ASCII rows between FROM-RANK and TO-RANK based on edge analysis.
-Implements dynamic spacing following GKNV paper recommendation to increase separation
-for better edge readability."
+  "Calculate required ASCII rows between FROM-RANK and TO-RANK.
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+FROM-RANK is an integer representing the source rank.
+TO-RANK is an integer representing the destination rank.
+
+Implements dynamic spacing following GKNV recommendation to increase
+separation for better edge readability. Considers edge convergence,
+density, and horizontal routing distances.
+
+Returns number of ASCII rows needed as an integer."
   (let* ((edges-between (dag-draw--count-edges-between-ranks graph from-rank to-rank))
          (max-convergence (dag-draw--max-edges-to-same-destination graph from-rank to-rank))
          (max-horizontal-distance (dag-draw--max-horizontal-edge-distance graph from-rank to-rank))
@@ -136,8 +170,14 @@ for better edge readability."
     (+ base-spacing convergence-spacing density-spacing distance-spacing)))
 
 (defun dag-draw--calculate-max-required-rank-separation (graph)
-  "Calculate maximum rank separation needed for any pair of adjacent ranks in GRAPH.
-This ensures sufficient space for the most complex rank transition."
+  "Calculate maximum rank separation needed across all rank pairs.
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+
+Analyzes all adjacent rank pairs and returns the largest separation
+requirement. Ensures sufficient space for the most complex rank transition.
+
+Returns maximum spacing in ASCII rows as an integer."
   (let ((ranks (dag-draw--get-graph-ranks graph)))
     (if (< (length ranks) 2)
         ;; Default spacing for graphs with 0 or 1 ranks
@@ -155,10 +195,15 @@ This ensures sufficient space for the most complex rank transition."
 ;;; ASCII Quality Assurance Functions
 
 (defun dag-draw--validate-node-boundaries (ascii-grid nodes)
-  "Validate that edges terminate properly at node boundaries, not inside text areas.
+  "Validate edges terminate at node boundaries, not inside text areas.
+
 ASCII-GRID is a list of strings representing the rendered graph.
-NODES is a list of (node-id x y width height) lists.
-Returns hash table with 'valid and 'violations keys."
+NODES is a list of (node-id x y width height) specifications.
+
+Checks that arrow characters appear only on boundaries, not inside node
+text areas.
+
+Returns hash table with 'valid (boolean) and 'violations (list) keys."
   (let ((result (ht-create))
         (violations '())
         (arrow-chars '(?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
@@ -198,10 +243,15 @@ Returns hash table with 'valid and 'violations keys."
     result))
 
 (defun dag-draw--verify-edge-continuity (ascii-grid edges)
-  "Verify that edges are rendered continuously without gaps.
+  "Verify edges are rendered continuously without gaps.
+
 ASCII-GRID is a list of strings representing the rendered graph.
-EDGES is a list of (edge-id from-node to-node start-x start-y end-x end-y) lists.
-Returns hash table with 'valid and 'gaps keys."
+EDGES is a list of (edge-id from-node to-node start-x start-y end-x end-y).
+
+Checks that edge paths contain proper edge characters at all positions
+without missing segments.
+
+Returns hash table with 'valid (boolean) and 'gaps (list) keys."
   (let ((result (ht-create))
         (gaps '())
         (edge-chars '(?│ ?─ ?┌ ?┐ ?└ ?┘ ?┬ ?┴ ?├ ?┤ ?┼ ?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
@@ -267,10 +317,15 @@ Returns hash table with 'valid and 'gaps keys."
     result))
 
 (defun dag-draw--check-character-semantics (ascii-grid arrows)
-  "Check that box-drawing characters have correct directional meaning.
+  "Check box-drawing characters have correct directional meaning.
+
 ASCII-GRID is a list of strings representing the rendered graph.
-ARROWS is a list of (arrow-id x y direction) lists where direction is 'up, 'down, 'left, or 'right.
-Returns hash table with 'valid and 'semantic-errors keys."
+ARROWS is a list of (arrow-id x y direction) where direction is a symbol:
+  up, down, left, or right.
+
+Verifies arrow characters match their intended direction.
+
+Returns hash table with 'valid (boolean) and 'semantic-errors (list) keys."
   (let ((result (ht-create))
         (semantic-errors '())
         (direction-chars '((up    . (?▲ ?↑))
@@ -316,7 +371,13 @@ Returns hash table with 'valid and 'semantic-errors keys."
 
 (defun dag-draw--analyze-graph-complexity (graph)
   "Analyze graph complexity and return summary statistics.
-Returns a plist with complexity metrics for debugging and optimization."
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+
+Calculates metrics including node/edge counts, rank count, max convergence,
+and average edges per rank transition.
+
+Returns plist with complexity metrics for debugging and optimization."
   (let* ((ranks (dag-draw--get-graph-ranks graph))
          (total-nodes (dag-draw-node-count graph))
          (total-edges (dag-draw-edge-count graph))
@@ -344,7 +405,13 @@ Returns a plist with complexity metrics for debugging and optimization."
 
 (defun dag-draw--debug-spacing-calculation (graph)
   "Debug helper to show spacing calculation details.
-Prints analysis of graph structure and spacing requirements."
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+
+Prints analysis of graph structure and spacing requirements for each
+rank transition. Useful for understanding dynamic spacing decisions.
+
+Returns maximum spacing in ASCII rows as an integer."
   (let* ((complexity (dag-draw--analyze-graph-complexity graph))
          (max-spacing (dag-draw--calculate-max-required-rank-separation graph))
          (ranks (dag-draw--get-graph-ranks graph)))

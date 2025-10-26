@@ -11,7 +11,7 @@
 ;; Implementation of GKNV aesthetic principles A1-A4 per Section 1.1.
 ;; Provides validation and measurement functions for:
 ;; - A1: Expose hierarchical structure
-;; - A2: Avoid visual anomalies 
+;; - A2: Avoid visual anomalies
 ;; - A3: Keep edges short
 ;; - A4: Favor symmetry and balance
 ;;
@@ -32,11 +32,16 @@
 
 (defun dag-draw--validate-hierarchical-structure (graph)
   "Validate A1 compliance: hierarchical structure exposure.
-Returns score from 0-1 indicating hierarchical clarity."
+
+GRAPH is a `dag-draw-graph' structure with assigned node ranks.
+
+Returns a score from 0.0 to 1.0 indicating hierarchical clarity,
+where 1.0 means all edges follow hierarchical flow from lower to
+higher ranks."
   (let* ((nodes (dag-draw-get-node-ids graph))
          (total-edges (length (dag-draw-graph-edges graph)))
          (forward-edges 0))
-    
+
     (if (zerop total-edges)
         1.0  ; Perfect hierarchy with no edges
       ;; Count edges that follow hierarchical flow (rank increase)
@@ -50,20 +55,24 @@ Returns score from 0-1 indicating hierarchical clarity."
                        (< (dag-draw-node-rank from-node)
                           (dag-draw-node-rank to-node)))
               (setq forward-edges (1+ forward-edges)))))
-        
+
         ;; A1 score: proportion of edges following hierarchical flow
         (/ (float forward-edges) total-edges)))))
 
 (defun dag-draw--measure-directional-consistency (graph)
   "Measure A1 directional consistency: edges in same general direction.
-Returns score from 0-1 indicating consistency."
+
+GRAPH is a `dag-draw-graph' structure with assigned node ranks.
+
+Returns a score from 0.0 to 1.0 indicating consistency, where 1.0
+means all edges flow in the primary direction (top-down)."
   (let* ((edges (dag-draw-graph-edges graph))
          (total-edges (length edges))
          (consistent-edges 0))
-    
+
     (when (zerop total-edges)
       (return 1.0))
-    
+
     ;; Determine primary direction (top-down in this case)
     (dolist (edge edges)
       (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
@@ -75,30 +84,37 @@ Returns score from 0-1 indicating consistency."
           (when (<= (dag-draw-node-rank from-node)
                     (dag-draw-node-rank to-node))
             (setq consistent-edges (1+ consistent-edges))))))
-    
+
     (/ (float consistent-edges) total-edges)))
 
 (defun dag-draw--identify-source-sink-prominence (graph)
   "Identify source and sink nodes for A1 hierarchical prominence.
-Returns hash table with source-count and sink-count."
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Returns a hash table with keys:
+  - source-count: number of nodes with no incoming edges
+  - sink-count: number of nodes with no outgoing edges
+  - sources: list of source node IDs
+  - sinks: list of sink node IDs"
   (let ((result (ht-create))
         (sources '())
         (sinks '())
         (has-incoming (ht-create))
         (has-outgoing (ht-create)))
-    
+
     ;; Mark nodes with incoming/outgoing edges
     (dolist (edge (dag-draw-graph-edges graph))
       (ht-set! has-incoming (dag-draw-edge-to-node edge) t)
       (ht-set! has-outgoing (dag-draw-edge-from-node edge) t))
-    
+
     ;; Identify sources (no incoming) and sinks (no outgoing)
     (dolist (node-id (dag-draw-get-node-ids graph))
       (unless (ht-get has-incoming node-id)
         (push node-id sources))
       (unless (ht-get has-outgoing node-id)
         (push node-id sinks)))
-    
+
     (ht-set! result 'source-count (length sources))
     (ht-set! result 'sink-count (length sinks))
     (ht-set! result 'sources sources)
@@ -109,9 +125,13 @@ Returns hash table with source-count and sink-count."
 
 (defun dag-draw--count-edge-crossings (graph)
   "Count edge crossings for A2 visual anomaly minimization.
-Reuses existing crossing detection from Pass 2 ordering."
+
+GRAPH is a `dag-draw-graph' structure with ranks and ordering assigned.
+
+Reuses existing crossing detection from Pass 2 ordering.
+Returns the total number of edge crossings in the graph."
   (require 'dag-draw-pass2-ordering)
-  
+
   ;; Use existing crossing count function if nodes have ranks/orders
   (let ((ranks (dag-draw--organize-by-ranks graph)))
     (if ranks
@@ -122,37 +142,49 @@ Reuses existing crossing detection from Pass 2 ordering."
 
 (defun dag-draw--analyze-edge-bends (graph)
   "Analyze edge bends for A2 sharp bend avoidance.
-Returns hash table with bend metrics."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a hash table with bend metrics:
+  - max-bend-angle: maximum bend angle found (in degrees)
+  - total-bends: count of edges with bends exceeding 30 degrees"
   (let ((result (ht-create))
         (max-bend-angle 0)
         (total-bends 0))
-    
+
     ;; For each edge, analyze bending characteristics
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
              (bend-angle (dag-draw--calculate-edge-bend graph from-node to-node)))
-        
+
         (when bend-angle
           (setq max-bend-angle (max max-bend-angle bend-angle))
           (when (> bend-angle 30)  ; Consider angles > 30 degrees as bends
             (setq total-bends (1+ total-bends))))))
-    
+
     (ht-set! result 'max-bend-angle max-bend-angle)
     (ht-set! result 'total-bends total-bends)
     result))
 
 (defun dag-draw--calculate-edge-bend (graph from-node to-node)
-  "Calculate bend angle for an edge between two nodes."
+  "Calculate bend angle for an edge between two nodes.
+
+GRAPH is the `dag-draw-graph' structure (currently unused).
+FROM-NODE is a `dag-draw-node' structure representing the source.
+TO-NODE is a `dag-draw-node' structure representing the destination.
+
+Returns the absolute deviation from straight vertical in degrees,
+or nil if nodes lack coordinate information."
   (when (and from-node to-node
              (dag-draw-node-x-coord from-node) (dag-draw-node-y-coord from-node)
              (dag-draw-node-x-coord to-node) (dag-draw-node-y-coord to-node))
-    
+
     (let* ((dx (- (dag-draw-node-x-coord to-node) (dag-draw-node-x-coord from-node)))
            (dy (- (dag-draw-node-y-coord to-node) (dag-draw-node-y-coord from-node)))
            (angle (atan dy dx))
            (degrees (* angle (/ 180.0 pi))))
-      
+
       ;; Return absolute deviation from straight vertical (0 degrees)
       (abs degrees))))
 
@@ -160,22 +192,29 @@ Returns hash table with bend metrics."
 
 (defun dag-draw--measure-edge-lengths (graph)
   "Measure edge lengths for A3 short edge optimization.
-Returns hash table with length metrics."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a hash table with length metrics:
+  - average-length: mean Euclidean distance of all edges
+  - total-length: sum of all edge lengths
+  - edge-count: number of edges measured
+  - max-length: longest edge in the graph"
   (let ((result (ht-create))
         (total-length 0)
         (edge-count 0)
         (lengths '()))
-    
+
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
              (length (dag-draw--calculate-edge-length from-node to-node)))
-        
+
         (when length
           (push length lengths)
           (setq total-length (+ total-length length))
           (setq edge-count (1+ edge-count)))))
-    
+
     (ht-set! result 'average-length (if (zerop edge-count) 0 (/ total-length edge-count)))
     (ht-set! result 'total-length total-length)
     (ht-set! result 'edge-count edge-count)
@@ -183,34 +222,44 @@ Returns hash table with length metrics."
     result))
 
 (defun dag-draw--calculate-edge-length (from-node to-node)
-  "Calculate Euclidean distance between two nodes."
+  "Calculate Euclidean distance between two nodes.
+
+FROM-NODE is a `dag-draw-node' structure representing the source.
+TO-NODE is a `dag-draw-node' structure representing the destination.
+
+Returns the Euclidean distance between node centers, or nil if
+nodes lack coordinate information."
   (when (and from-node to-node
              (dag-draw-node-x-coord from-node) (dag-draw-node-y-coord from-node)
              (dag-draw-node-x-coord to-node) (dag-draw-node-y-coord to-node))
-    
+
     (let ((dx (- (dag-draw-node-x-coord to-node) (dag-draw-node-x-coord from-node)))
           (dy (- (dag-draw-node-y-coord to-node) (dag-draw-node-y-coord from-node))))
       (sqrt (+ (* dx dx) (* dy dy))))))
 
 (defun dag-draw--measure-node-clustering (graph)
   "Measure node clustering quality for A3 related node proximity.
-Returns clustering score from 0-1."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a clustering score from 0.0 to 1.0, where 1.0 indicates
+all connected nodes are within the proximity threshold (100 units)."
   (let* ((nodes (dag-draw-get-node-ids graph))
          (total-pairs 0)
          (close-pairs 0))
-    
+
     ;; For each pair of connected nodes, check if they're close
     (dolist (edge (dag-draw-graph-edges graph))
       (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
              (distance (dag-draw--calculate-edge-length from-node to-node)))
-        
+
         (when distance
           (setq total-pairs (1+ total-pairs))
           ;; Consider "close" if distance is below threshold
           (when (< distance 100)  ; Arbitrary threshold
             (setq close-pairs (1+ close-pairs))))))
-    
+
     (if (zerop total-pairs) 1.0
       (/ (float close-pairs) total-pairs))))
 
@@ -218,24 +267,28 @@ Returns clustering score from 0-1."
 
 (defun dag-draw--measure-layout-symmetry (graph)
   "Measure layout symmetry for A4 aesthetic balance.
-Returns symmetry score from 0-1."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a symmetry score from 0.0 to 1.0, where 1.0 indicates
+perfect mirror symmetry around the layout center."
   (let* ((nodes (dag-draw-get-node-ids graph))
          (x-positions '())
          (symmetry-score 0))
-    
+
     ;; Collect X positions
     (dolist (node-id nodes)
       (let ((node (dag-draw-get-node graph node-id)))
         (when (and node (dag-draw-node-x-coord node))
           (push (dag-draw-node-x-coord node) x-positions))))
-    
+
     (when x-positions
       (let* ((min-x (apply #'min x-positions))
              (max-x (apply #'max x-positions))
              (center-x (/ (+ min-x max-x) 2.0))
              (balanced-pairs 0)
              (total-checks 0))
-        
+
         ;; Check for symmetric node placement around center
         (dolist (pos x-positions)
           (let ((mirror-pos (+ center-x (- center-x pos))))
@@ -245,19 +298,25 @@ Returns symmetry score from 0-1."
                              (< (abs (- other-pos mirror-pos)) 10))  ; 10 unit tolerance
                            x-positions)
               (setq balanced-pairs (1+ balanced-pairs)))))
-        
+
         (setq symmetry-score (if (zerop total-checks) 1.0
                                (/ (float balanced-pairs) total-checks)))))
-    
+
     symmetry-score))
 
 (defun dag-draw--measure-layout-balance (graph)
   "Measure layout balance for A4 distributed node arrangement.
-Returns hash table with balance metrics."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a hash table with balance metrics:
+  - horizontal-balance: uniformity of x-coordinate distribution (0.0-1.0)
+  - vertical-balance: uniformity of y-coordinate distribution (0.0-1.0)
+  - overall-balance: average of horizontal and vertical balance"
   (let ((result (ht-create))
         (x-positions '())
         (y-positions '()))
-    
+
     ;; Collect node positions
     (dolist (node-id (dag-draw-get-node-ids graph))
       (let ((node (dag-draw-get-node graph node-id)))
@@ -266,30 +325,35 @@ Returns hash table with balance metrics."
             (push (dag-draw-node-x-coord node) x-positions))
           (when (dag-draw-node-y-coord node)
             (push (dag-draw-node-y-coord node) y-positions)))))
-    
+
     ;; Calculate horizontal balance (standard deviation of X positions)
     (let ((h-balance (if (< (length x-positions) 2) 1.0
                        (dag-draw--calculate-position-balance x-positions)))
           (v-balance (if (< (length y-positions) 2) 1.0
                        (dag-draw--calculate-position-balance y-positions))))
-      
+
       (ht-set! result 'horizontal-balance h-balance)
       (ht-set! result 'vertical-balance v-balance)
       (ht-set! result 'overall-balance (/ (+ h-balance v-balance) 2.0)))
-    
+
     result))
 
 (defun dag-draw--calculate-position-balance (positions)
   "Calculate balance score from position distribution.
-Lower standard deviation indicates better balance."
+
+POSITIONS is a list of numbers representing coordinate values.
+
+Lower standard deviation indicates better balance.
+Returns a score from 0.0 to 1.0, where 1.0 indicates perfect
+uniform distribution."
   (when (> (length positions) 1)
     (let* ((mean (/ (apply #'+ positions) (length positions)))
-           (variance (/ (apply #'+ (mapcar (lambda (pos) 
-                                             (expt (- pos mean) 2)) 
+           (variance (/ (apply #'+ (mapcar (lambda (pos)
+                                             (expt (- pos mean) 2))
                                            positions))
                         (length positions)))
            (std-dev (sqrt variance)))
-      
+
       ;; Convert std-dev to 0-1 score (lower std-dev = higher score)
       ;; Using arbitrary scaling factor
       (max 0.0 (min 1.0 (- 1.0 (/ std-dev 100.0)))))))
@@ -298,10 +362,17 @@ Lower standard deviation indicates better balance."
 
 (defun dag-draw--evaluate-ranking-aesthetics (graph)
   "Evaluate aesthetic principles in ranking decisions (Pass 1).
-Focuses on A1 (hierarchy) and A3 (short edges)."
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks.
+
+Focuses on A1 (hierarchy) and A3 (short edges).
+Returns a property list with scores:
+  - :hierarchical-score (0.0-1.0)
+  - :edge-length-score (0.0-1.0)
+  - :overall-score weighted combination (A1: 70%, A3: 30%)"
   (let ((a1-score (dag-draw--validate-hierarchical-structure graph))
         (a3-score (ht-get (dag-draw--measure-edge-lengths graph) 'average-length)))
-    
+
     ;; Return plist with individual scores
     (list :hierarchical-score a1-score
           :edge-length-score (if a3-score (max 0 (min 1 (- 1 (/ a3-score 100)))) 0)
@@ -310,10 +381,17 @@ Focuses on A1 (hierarchy) and A3 (short edges)."
 
 (defun dag-draw--evaluate-ordering-aesthetics (graph)
   "Evaluate aesthetic principles in ordering decisions (Pass 2).
-Focuses on A2 (crossing minimization)."
+
+GRAPH is a `dag-draw-graph' structure with ranks and ordering assigned.
+
+Focuses on A2 (crossing minimization).
+Returns a property list with metrics:
+  - :crossing-count total number of crossings
+  - :total-edges number of edges in graph
+  - :crossing-score quality score (0.0-1.0, higher is better)"
   (let ((crossings (or (dag-draw--count-edge-crossings graph) 0))
         (total-edges (length (dag-draw-graph-edges graph))))
-    
+
     ;; Return plist with individual scores
     (list :crossing-count crossings
           :total-edges total-edges
@@ -322,7 +400,16 @@ Focuses on A2 (crossing minimization)."
 
 (defun dag-draw--evaluate-positioning-aesthetics (graph)
   "Evaluate aesthetic principles in positioning decisions (Pass 3).
-Focuses on A3 (edge length) and A4 (balance)."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Focuses on A3 (edge length) and A4 (balance).
+Returns a property list with metrics:
+  - :average-edge-length mean edge length
+  - :symmetry-score layout symmetry (0.0-1.0)
+  - :edge-length-score A3 quality score (0.0-1.0)
+  - :balance-score A4 quality score (0.0-1.0)
+  - :overall-score weighted combination (A3: 60%, A4: 40%)"
   (let* ((a3-metrics (dag-draw--measure-edge-lengths graph))
          (a4-metrics (dag-draw--measure-layout-balance graph))
          (avg-edge-length (or (ht-get a3-metrics 'average-length) 0))
@@ -331,7 +418,7 @@ Focuses on A3 (edge length) and A4 (balance)."
                        (max 0 (min 1 (- 1 (/ avg-edge-length 100))))
                      1.0))
          (a4-score (or (ht-get a4-metrics 'overall-balance) 1.0)))
-    
+
     ;; Return plist with individual scores
     (list :average-edge-length avg-edge-length
           :symmetry-score symmetry-score

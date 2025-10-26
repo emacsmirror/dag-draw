@@ -54,8 +54,16 @@
 
 (defun dag-draw--get-enhanced-junction-char (context)
   "Determine the appropriate junction character based on CONTEXT.
+
 CONTEXT is a plist containing junction information per CLAUDE.md specifications.
-Returns the Unicode character that should be used for the junction."
+Expected keys include:
+  `:type' - Symbol: junction type (port-start, port-end, direction-change, etc.)
+  `:direction' - Symbol: directional information (up, down, left, right)
+  `:from-direction' and `:to-direction' - Symbols: for direction changes
+  `:main-direction' and `:branch-direction' - Symbols: for T-junctions
+
+Returns the Unicode box-drawing character appropriate for the junction type,
+or nil to keep the current character."
   (let ((junction-type (plist-get context :type)))
     (cond
      ;; Port boundary junctions (CLAUDE.md: \"At the start/end of edge, at port boundary\")
@@ -143,8 +151,17 @@ Returns the Unicode character that should be used for the junction."
 
 (defun dag-draw--analyze-junction-points (graph)
   "Analyze GRAPH to find points where junction characters are needed.
+
+GRAPH is a `dag-draw-graph' structure.
+
 CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
-Returns a list of junction point specifications."
+
+Performs three-phase analysis:
+1. Port boundary junctions (edge start/end points)
+2. Direction change junctions (corners in edge paths)
+3. Edge intersection junctions (joins/splits/crossings)
+
+Returns a list of junction point specifications (plists)."
   (when graph
     (let ((junction-points '()))
       ;; Phase 1: Detect port boundary junctions (CLAUDE.md: "At the start/end of edge")
@@ -438,14 +455,18 @@ CLAUDE.md: 'When two edges join, or two edges separate'"
 
 (defun dag-draw--analyze-local-grid-junction-context (grid x y current-char new-char)
   "Analyze grid context at position (X,Y) to determine junction type.
+
+GRID is a 2D vector representing the ASCII character grid.
+X and Y are integers representing grid coordinates.
 CURRENT-CHAR is the character already at the position (or space).
 NEW-CHAR is the character being drawn.
-Returns a context plist suitable for dag-draw--get-enhanced-junction-char.
 
 This implements the D5.6-D5.8 context analysis requirements:
 - Check for adjacent edges in all 4 directions
 - Determine junction type based on connectivity
-- Build proper context plist for character selection."
+- Build proper context plist for character selection
+
+Returns a context plist suitable for `dag-draw--get-enhanced-junction-char'."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          ;; Check all 4 directions for edge characters
@@ -543,12 +564,17 @@ This implements the D5.6-D5.8 context analysis requirements:
 
 (defun dag-draw--has-edge-in-direction (grid x y direction)
   "Check if there's an edge character in DIRECTION from (X,Y) on GRID.
-DIRECTION is one of: up, down, left, right.
-Returns t if edge character found AND compatible with direction, nil otherwise.
+
+GRID is a 2D vector representing the ASCII character grid.
+X and Y are integers representing grid coordinates.
+DIRECTION is a symbol: one of `up', `down', `left', or `right'.
 
 Key insight: Direction matters! A horizontal line (─) only connects left/right,
 a vertical line (│) only connects up/down. Only junction characters connect
-in multiple directions. Node border corners are decorations, not connections."
+in multiple directions. Node border corners are decorations, not connections.
+
+Returns t if an edge character is found AND compatible with DIRECTION,
+nil otherwise."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          (check-x (cond ((eq direction 'left) (- x 1))
@@ -588,13 +614,16 @@ in multiple directions. Node border corners are decorations, not connections."
 
 (defun dag-draw--apply-junction-chars-to-grid (grid node-boundaries)
   "Apply junction characters throughout GRID, excluding NODE-BOUNDARIES.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+NODE-BOUNDARIES is a list of (x . y) cons cells marking node border positions.
+
 Walks through all grid positions, analyzes connectivity, and updates characters.
 This is the integration point for D5.1-D5.8 junction character enhancement.
 CLAUDE.md: 'walks the edge in order to determine the locally-relevant algorithm'
 
-NODE-BOUNDARIES is a list of (x . y) cons cells marking node border positions.
-These positions are excluded from junction enhancement to prevent corruption
-of node box borders."
+NODE-BOUNDARIES positions are excluded from junction enhancement to prevent
+corruption of node box borders. Arrow characters (▼ ▲ ► ◀) are never replaced."
   (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries))
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))

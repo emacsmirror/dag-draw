@@ -24,7 +24,15 @@
 ;;; Safe Box Character Drawing
 
 (defun dag-draw--safe-draw-box-char (grid x y char)
-  "Draw box character safely, preventing overwrites that create malformed sequences."
+  "Draw box character safely, preventing overwrites that create malformed sequences.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are numbers representing grid coordinates (rounded to integers).
+CHAR is a character to place at the position.
+
+Uses aggressive box protection to ensure node boundaries remain clean.
+Never overwrites arrows (they have priority on node boundaries per GKNV 5.2).
+Coordinates are rounded to integers before array access."
   ;; GKNV FIX: Ensure integer coordinates for array access
   (let* ((int-x (round x))
          (int-y (round y))
@@ -58,7 +66,16 @@
          (t (aset (aref grid int-y) int-x char)))))))
 
 (defun dag-draw--ascii-draw-box (grid x y width height label)
-  "Draw a box with LABEL on ASCII grid at position (X,Y) with given WIDTH and HEIGHT."
+  "Draw a box with LABEL on ASCII grid at position (X,Y).
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are integers representing the top-left corner position.
+WIDTH and HEIGHT are integers representing box dimensions in characters.
+LABEL is a string (may contain newlines for multiline text).
+
+Draws box-drawing characters (┌ ┐ └ ┘ ─ │) to create a bordered box.
+Handles negative coordinates by clipping to visible area. Centers label
+text within the box interior, supporting multiline labels."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
 
@@ -163,8 +180,14 @@
                         (aset (aref grid label-y) char-x (aref text-to-place i))))))))))))))
 
 (defun dag-draw--clean-adjacent-edge-fragments (grid x y)
-  "Clean up any edge line fragments adjacent to box corners.
-Prevents trailing garbage like '┐─' by removing edge lines next to corners."
+  "Clean up any edge line fragments adjacent to box corners at (X,Y).
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are numbers representing grid coordinates (rounded to integers).
+
+Prevents trailing garbage like '┐─' by removing edge lines next to corners.
+Only processes corner characters (┌ ┐ └ ┘), checking horizontally adjacent
+positions for stray edge lines and removing them."
   ;; GKNV FIX: Ensure integer coordinates for array access
   (let* ((int-x (round x))
          (int-y (round y))

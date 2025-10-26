@@ -59,35 +59,45 @@
 
 (defun dag-draw--world-to-grid-coord (world-coord min-coord scale)
   "Convert world coordinate to grid coordinate.
-WORLD-COORD is the world position (float).
-MIN-COORD is the world minimum (float).
-SCALE is the scaling factor (float).
-Returns integer grid coordinate."
+
+WORLD-COORD is a number representing the world position from GKNV algorithm.
+MIN-COORD is a number representing the minimum world coordinate (offset).
+SCALE is a float representing the scaling factor.
+
+Translates by MIN-COORD, divides by SCALE, and rounds to integer.
+
+Returns an integer grid coordinate suitable for array indexing."
   (round (/ (- world-coord min-coord) scale)))
 
 (defun dag-draw--world-to-grid-size (world-size scale)
   "Convert world size to grid size.
-WORLD-SIZE is the world dimension (float).
-SCALE is the scaling factor (float).
-Returns integer grid size (minimum 1)."
+
+WORLD-SIZE is a number representing a dimension in world coordinates.
+SCALE is a float representing the scaling factor.
+
+Divides by SCALE, rounds to integer, and ensures minimum size of 1.
+
+Returns an integer grid size (minimum 1) in character units."
   (max 1 (round (/ world-size scale))))
 
 ;;; ASCII Coordinate Context
 
 (defun dag-draw--create-ascii-coordinate-context (graph)
-  "Create a normalized coordinate context specifically for ASCII rendering.
-This layer isolates ASCII coordinate normalization from other rendering paths.
+  "Create a normalized coordinate context for ASCII rendering.
 
-The coordinate context ensures:
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+This anti-corruption layer isolates ASCII coordinate normalization from
+other rendering paths. The coordinate context ensures:
 - All grid coordinates are non-negative (required for array indices)
 - Original GKNV proportions are preserved
 - Offsets are tracked for accurate transformation
 
-Returns a hash table with:
-  'offset-x - X offset to make coordinates non-negative
-  'offset-y - Y offset to make coordinates non-negative
-  'original-bounds - Original GKNV bounds (min-x min-y max-x max-y)
-  'ascii-bounds - ASCII-safe bounds (0 0 width height)"
+Returns a hash table with the following keys:
+  `offset-x' - Number: X offset to make coordinates non-negative
+  `offset-y' - Number: Y offset to make coordinates non-negative
+  `original-bounds' - List: Original GKNV bounds (min-x min-y max-x max-y)
+  `ascii-bounds' - List: ASCII-safe bounds (0 0 width height)"
   (let* ((raw-bounds (dag-draw-get-graph-bounds graph))
          (min-x (nth 0 raw-bounds))
          (min-y (nth 1 raw-bounds))
@@ -118,24 +128,28 @@ Returns a hash table with:
     context))
 
 (defun dag-draw--ascii-world-to-grid (world-x world-y context scale)
-  "Convert world coordinates to ASCII grid using normalized context.
-This ensures all ASCII grid coordinates are non-negative.
+  "Convert world coordinates to ASCII grid using normalized CONTEXT.
 
-WORLD-X, WORLD-Y - World coordinates from GKNV algorithm
-CONTEXT - Coordinate context from dag-draw--create-ascii-coordinate-context
-SCALE - Scaling factor
+WORLD-X and WORLD-Y are numbers representing world coordinates from GKNV algorithm.
+CONTEXT is a hash table from `dag-draw--create-ascii-coordinate-context'.
+SCALE is a float representing the scaling factor.
 
-Returns (grid-x grid-y) as a list of integers."
+Applies offset from CONTEXT to ensure non-negative coordinates, then
+scales to grid units.
+
+Returns a list (grid-x grid-y) where both are integers."
   (let ((offset-x (ht-get context 'offset-x))
         (offset-y (ht-get context 'offset-y)))
     (list (dag-draw--world-to-grid-coord (+ world-x offset-x) 0 scale)
           (dag-draw--world-to-grid-coord (+ world-y offset-y) 0 scale))))
 
 (defun dag-draw--ascii-get-bounds (context)
-  "Get ASCII bounds from context.
-CONTEXT - Coordinate context from dag-draw--create-ascii-coordinate-context
+  "Get ASCII bounds from CONTEXT.
 
-Returns (min-x min-y max-x max-y) where min-x and min-y are always 0."
+CONTEXT is a hash table from `dag-draw--create-ascii-coordinate-context'.
+
+Returns a list (min-x min-y max-x max-y) where min-x and min-y are always 0
+(reflecting the normalized ASCII-safe coordinate space)."
   (ht-get context 'ascii-bounds))
 
 (provide 'dag-draw-coord-transform)

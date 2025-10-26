@@ -33,7 +33,15 @@
 
 (defun dag-draw-ascii-generate-edge-path (graph edge)
   "Generate ASCII path for EDGE following GKNV principles.
-Returns list of grid points suitable for ASCII rendering."
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+
+Classifies the edge type (inter-rank, flat, self-edge) and generates
+appropriate ASCII path points using simplified spline computation optimized
+for discrete ASCII grid rendering.
+
+Returns a list of `dag-draw-point' structures suitable for ASCII rendering."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (edge-type (dag-draw-ascii--classify-edge graph edge)))
@@ -45,7 +53,12 @@ Returns list of grid points suitable for ASCII rendering."
       (_ (dag-draw-ascii--create-simple-path from-node to-node)))))
 
 (defun dag-draw-ascii--classify-edge (graph edge)
-  "Classify edge type for ASCII rendering."
+  "Classify EDGE type for ASCII rendering.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+
+Returns a symbol: `self-edge', `flat-edge', or `inter-rank'."
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
          (from-rank (dag-draw-node-rank from-node))
@@ -61,8 +74,16 @@ Returns list of grid points suitable for ASCII rendering."
 ;;; Inter-rank ASCII Paths
 
 (defun dag-draw-ascii--create-inter-rank-path (graph edge from-node to-node)
-  "Create ASCII path between different ranks.
-Uses GKNV Section 5.1.1 port routing principles."
+  "Create ASCII path between different ranks using GKNV port routing.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+FROM-NODE is a `dag-draw-node' structure for the source.
+TO-NODE is a `dag-draw-node' structure for the destination.
+
+Uses GKNV Section 5.1.1 port routing principles to create an L-shaped path.
+
+Returns a `dag-draw-ascii-path' structure with path points."
   (let* ((ports (dag-draw--get-edge-connection-points graph edge))
          (from-port (car ports))
          (to-port (cadr ports)))
@@ -75,7 +96,13 @@ Uses GKNV Section 5.1.1 port routing principles."
 
 (defun dag-draw-ascii--create-l-shaped-path (from-port to-port)
   "Create L-shaped ASCII path between two ports.
-This is the standard ASCII routing strategy."
+
+FROM-PORT and TO-PORT are `dag-draw-point' structures.
+
+This is the standard ASCII routing strategy: horizontal first, then vertical,
+with a corner point at the junction.
+
+Returns a `dag-draw-ascii-path' structure with three points."
   (let ((from-x (dag-draw-point-x from-port))
         (from-y (dag-draw-point-y from-port))
         (to-x (dag-draw-point-x to-port))
@@ -90,7 +117,14 @@ This is the standard ASCII routing strategy."
 ;;; Flat Edge ASCII Paths
 
 (defun dag-draw-ascii--create-flat-path (graph edge from-node to-node)
-  "Create ASCII path for flat edges (same rank)."
+  "Create ASCII path for flat edges between nodes at the same rank.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+FROM-NODE is a `dag-draw-node' structure for the source.
+TO-NODE is a `dag-draw-node' structure for the destination.
+
+Returns a `dag-draw-ascii-path' structure with horizontal path points."
   (let* ((from-x (dag-draw-node-x-coord from-node))
          (to-x (dag-draw-node-x-coord to-node))
          (ports (dag-draw--get-edge-connection-points graph edge))
@@ -104,14 +138,26 @@ This is the standard ASCII routing strategy."
       (dag-draw-ascii--create-simple-path from-node to-node))))
 
 (defun dag-draw-ascii--create-horizontal-path (from-port to-port)
-  "Create horizontal ASCII path between ports."
+  "Create horizontal ASCII path between ports.
+
+FROM-PORT and TO-PORT are `dag-draw-point' structures.
+
+Returns a `dag-draw-ascii-path' structure with two points."
   (dag-draw-ascii-path-create
    :points (list from-port to-port)))
 
 ;;; Self-edge ASCII Paths
 
 (defun dag-draw-ascii--create-self-path (graph edge from-node)
-  "Create ASCII path for self-edges."
+  "Create ASCII path for self-edges (loops).
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+FROM-NODE is a `dag-draw-node' structure for the node with self-loop.
+
+Creates a loop path that goes around the node.
+
+Returns a `dag-draw-ascii-path' structure with loop points."
   (let* ((center-x (dag-draw-node-x-coord from-node))
          (center-y (dag-draw-node-y-coord from-node))
          (width (dag-draw-node-x-size from-node))
@@ -130,7 +176,13 @@ This is the standard ASCII routing strategy."
 ;;; Simple ASCII Paths
 
 (defun dag-draw-ascii--create-simple-path (from-node to-node)
-  "Create simple direct ASCII path between nodes."
+  "Create simple direct ASCII path between nodes.
+
+FROM-NODE and TO-NODE are `dag-draw-node' structures.
+
+Fallback for when port-based routing is not available.
+
+Returns a `dag-draw-ascii-path' structure with two points."
   (let ((from-x (or (dag-draw-node-x-coord from-node) 0))
         (from-y (or (dag-draw-node-y-coord from-node) 0))
         (to-x (or (dag-draw-node-x-coord to-node) 0))
@@ -144,7 +196,11 @@ This is the standard ASCII routing strategy."
 ;;; ASCII Path Utilities
 
 (defun dag-draw-ascii-path-to-points (ascii-path)
-  "Convert ASCII path to simple list of points for rendering."
+  "Convert ASCII-PATH to simple list of points for rendering.
+
+ASCII-PATH is a `dag-draw-ascii-path' structure.
+
+Returns a list of `dag-draw-point' structures."
   (dag-draw-ascii-path-points ascii-path))
 
 

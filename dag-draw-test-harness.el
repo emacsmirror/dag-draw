@@ -21,7 +21,15 @@
 
 (defun dag-draw-test--parse-ascii-grid (ascii-string)
   "Parse ASCII-STRING into structured grid data.
-Returns hash table with grid dimensions and character matrix."
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+
+Converts string into a 2D character matrix with coordinate access.
+
+Returns hash table with keys:
+  width - grid width as integer
+  height - grid height as integer
+  grid - 2D vector of characters"
   (let* ((lines (split-string ascii-string "\n"))
          (height (length lines))
          (width (if lines (apply #'max (mapcar #'length lines)) 0))
@@ -42,7 +50,13 @@ Returns hash table with grid dimensions and character matrix."
     result))
 
 (defun dag-draw-test--get-char-at (grid x y)
-  "Get character at position (X,Y) in parsed GRID."
+  "Get character at position (X,Y) in parsed GRID.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+X is an integer column coordinate.
+Y is an integer row coordinate.
+
+Returns character at (X, Y), or space if out of bounds."
   (let ((grid-data (gethash 'grid grid))
         (height (gethash 'height grid))
         (width (gethash 'width grid)))
@@ -53,8 +67,14 @@ Returns hash table with grid dimensions and character matrix."
 ;;; Node Detection and Analysis
 
 (defun dag-draw-test--find-nodes (ascii-string)
-  "Find all node boundaries in ASCII-STRING and extract their content.
-This is a fallback function - prefer using graph-based validation instead."
+  "Find all node boundaries in ASCII-STRING and extract content.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+
+This is a fallback function - prefer using graph-based validation instead.
+Searches for box corner characters and parses node structures.
+
+Returns list of node plists with :x, :y, :width, :height, :text keys."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (nodes '()))
     
@@ -70,7 +90,13 @@ This is a fallback function - prefer using graph-based validation instead."
 
 (defun dag-draw-test--find-nodes-using-graph-data (ascii-string graph)
   "Find nodes in ASCII-STRING using actual GRAPH coordinate data.
-This is more reliable than character-based detection."
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+GRAPH is a `dag-draw-graph' or mock graph structure with node data.
+
+More reliable than character-based detection as it uses expected positions.
+
+Returns list of node plists with :id, :text, :x, :y, :width, :height keys."
   (let ((found-nodes '())
         (grid (dag-draw-test--parse-ascii-grid ascii-string)))
     
@@ -92,8 +118,14 @@ This is more reliable than character-based detection."
     found-nodes))
 
 (defun dag-draw-test--find-text-in-grid (grid text)
-  "Find TEXT in GRID and return its bounding box.
-This searches for the text as it would appear inside ASCII node boxes."
+  "Find TEXT in GRID and return its position.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+TEXT is a string to search for in the grid.
+
+Searches for text as it appears inside ASCII node boxes.
+
+Returns cons cell (x . y) of text position, or nil if not found."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (result nil))
@@ -120,7 +152,14 @@ This searches for the text as it would appear inside ASCII node boxes."
 
 (defun dag-draw-test--parse-node-at (grid start-x start-y)
   "Parse node starting at top-left corner (START-X, START-Y) in GRID.
-Returns node plist or nil if not a valid node."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+START-X is an integer column coordinate of top-left corner.
+START-Y is an integer row coordinate of top-left corner.
+
+Traces node boundaries and extracts text content.
+
+Returns node plist with :x, :y, :width, :height, :text keys, or nil if invalid."
   (let ((x start-x)
         (y start-y)
         (width 0)
@@ -160,7 +199,12 @@ Returns node plist or nil if not a valid node."
 
 (defun dag-draw-test--find-edges (ascii-string)
   "Find all edge connections in ASCII-STRING.
-Returns list of edge plists with :from, :to, :path coordinates."
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+
+Traces edge paths by following edge characters from node boundaries.
+
+Returns list of edge plists with :from, :to, :path keys."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (nodes (dag-draw-test--find-nodes ascii-string))
         (edges '()))
@@ -285,8 +329,14 @@ Returns plist with :destination and :coordinates or nil."
 ;;; Validation Functions
 
 (defun dag-draw-test--validate-node-completeness (ascii-string graph)
-  "Validate that all expected node text appears completely in ASCII-STRING.
-GRAPH should contain expected node data for comparison."
+  "Validate all expected node text appears completely in ASCII-STRING.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+GRAPH is a `dag-draw-graph' or mock structure with expected node data.
+
+Checks that every expected node label appears in the rendered output.
+
+Returns plist with :complete (boolean) and :missing-text (list) keys."
   ;; XP: Use graph-based detection instead of character hunting
   (let ((found-nodes (dag-draw-test--find-nodes-using-graph-data ascii-string graph))
         (missing-text '())
@@ -310,7 +360,13 @@ GRAPH should contain expected node data for comparison."
     (list :complete complete :missing-text missing-text)))
 
 (defun dag-draw-test--extract-expected-nodes (graph)
-  "Extract expected node information from GRAPH data structure."
+  "Extract expected node information from GRAPH data structure.
+
+GRAPH is a `dag-draw-graph' or mock structure with node data.
+
+Handles both real graph structures and mock hash tables for testing.
+
+Returns list of plists with :id and :label keys."
   (cond
    ;; dag-draw-graph structure
    ((dag-draw-graph-p graph)
@@ -328,7 +384,13 @@ GRAPH should contain expected node data for comparison."
    (t '())))
 
 (defun dag-draw-test--validate-node-boundaries (ascii-string)
-  "Validate that node boundaries are properly formed in ASCII-STRING."
+  "Validate node boundaries are properly formed in ASCII-STRING.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+
+Checks that all detected nodes have complete, unbroken boundaries.
+
+Returns plist with :valid (boolean) and :broken-boundaries (list) keys."
   (let ((nodes (dag-draw-test--find-nodes ascii-string))
         (broken-boundaries '())
         (valid t))
@@ -348,7 +410,14 @@ GRAPH should contain expected node data for comparison."
        (not (string-empty-p (string-trim (plist-get node :text))))))
 
 (defun dag-draw-test--validate-edge-connectivity (ascii-string graph)
-  "Validate that edges properly connect nodes in ASCII-STRING according to GRAPH."
+  "Validate edges properly connect nodes in ASCII-STRING per GRAPH.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+GRAPH is a `dag-draw-graph' or mock structure with expected edges.
+
+Checks that expected edges appear as continuous paths in the rendering.
+
+Returns plist with :all-connected, :missing-connections, :broken-paths keys."
   (let ((found-edges (dag-draw-test--find-edges ascii-string))
         (expected-edges (dag-draw-test--extract-expected-edges graph))
         (missing-connections '())
@@ -387,7 +456,13 @@ GRAPH should contain expected node data for comparison."
     (and found expected-from expected-to t)))
 
 (defun dag-draw-test--validate-arrows (ascii-string)
-  "Validate arrow placement and direction in ASCII-STRING."
+  "Validate arrow placement and direction in ASCII-STRING.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+
+Checks that arrows have valid context (connected to edge characters).
+
+Returns plist with :valid-arrows and :invalid-arrows counts."
   (let ((grid (dag-draw-test--parse-ascii-grid ascii-string))
         (valid-arrows 0)
         (invalid-arrows 0))
@@ -415,7 +490,14 @@ GRAPH should contain expected node data for comparison."
       (t nil))))
 
 (defun dag-draw-test--validate-graph-structure (ascii-string graph)
-  "Validate that ASCII-STRING represents the same graph structure as GRAPH."
+  "Validate ASCII-STRING represents same graph structure as GRAPH.
+
+ASCII-STRING is a string containing the ASCII graph rendering.
+GRAPH is a `dag-draw-graph' or mock structure with expected structure.
+
+Checks topology, node count, and edge count matches.
+
+Returns plist with :topology-match, :node-count-match, :edge-count-match keys."
   ;; XP: Use graph-based detection instead of character hunting
   (let ((found-nodes (dag-draw-test--find-nodes-using-graph-data ascii-string graph))
         (found-edges (dag-draw-test--find-edges ascii-string))
@@ -427,8 +509,15 @@ GRAPH should contain expected node data for comparison."
           :edge-count-match (>= (length found-edges) 0))))
 
 (defun dag-draw-test--has-path-between (grid start-pos end-pos)
-  "Check if there's a path of edge characters between START-POS and END-POS in GRID.
-START-POS and END-POS should be position cons cells in (x . y) format."
+  "Check if path of edge characters exists between START-POS and END-POS.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+START-POS is a cons cell (x . y) for starting position.
+END-POS is a cons cell (x . y) for ending position.
+
+Uses breadth-first search to find continuous edge path.
+
+Returns t if path exists, nil otherwise."
   (when (and start-pos end-pos)
     (let ((start-x (car start-pos))
           (start-y (cdr start-pos))
@@ -470,8 +559,17 @@ START-POS and END-POS should be position cons cells in (x . y) format."
 ;;; Junction Validation Functions
 
 (defun dag-draw-test--has-connection-in-direction (grid x y direction)
-  "Check if there's a valid connection in DIRECTION from (X,Y) in GRID.
-Direction-aware: horizontal chars only connect left/right, vertical chars only connect up/down."
+  "Check if valid connection exists in DIRECTION from (X,Y) in GRID.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+X is an integer column coordinate.
+Y is an integer row coordinate.
+DIRECTION is a symbol: up, down, left, or right.
+
+Direction-aware: horizontal chars only connect left/right,
+vertical chars only connect up/down.
+
+Returns t if connection exists, nil otherwise."
   (let* ((check-x (cond ((eq direction 'left) (1- x))
                        ((eq direction 'right) (1+ x))
                        (t x)))
@@ -498,11 +596,15 @@ Direction-aware: horizontal chars only connect left/right, vertical chars only c
 
 (defun dag-draw-test--find-malformed-junctions (grid)
   "Find all malformed junction patterns in GRID.
-Returns list of plists with :x, :y, :char, :problem, :context.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+
 Scans entire grid for:
-  - Junctions adjacent to node border characters (┼│, │┼, etc.)
+  - Junctions adjacent to node border characters
   - Junction characters with wrong connection counts
-  - Floating junctions not connected to edges."
+  - Floating junctions not connected to edges
+
+Returns list of plists with :x, :y, :char, :problem, :context keys."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (malformed '())
@@ -533,11 +635,15 @@ Scans entire grid for:
 
 (defun dag-draw-test--validate-junction-connectivity (grid)
   "Validate junction characters have correct number of connections.
-Returns plist with :all-valid boolean and :invalid-junctions list.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+
 Checks:
   - Corners (┌┐└┘) connect exactly 2 directions
   - T-junctions (├┤┬┴) connect exactly 3 directions
-  - Cross (┼) connects exactly 4 directions."
+  - Cross (┼) connects exactly 4 directions
+
+Returns plist with :all-valid (boolean) and :invalid-junctions (list) keys."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (invalid-junctions '())
@@ -615,8 +721,12 @@ Checks:
 
 (defun dag-draw-test--validate-junction-border-separation (grid)
   "Validate junctions are not adjacent to node border characters.
-Returns plist with :no-adjacency boolean and :adjacent-junctions list.
-Checks all 4 neighbors of each junction for border characters."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+
+Checks all 4 neighbors of each junction character for node border chars.
+
+Returns plist with :no-adjacency (boolean) and :adjacent-junctions (list)."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (adjacent-junctions '())
@@ -648,8 +758,14 @@ Checks all 4 neighbors of each junction for border characters."
 
 (defun dag-draw-test--trace-edge-junctions (grid start-pos end-pos)
   "Trace edge path and return all junction positions along the way.
-START-POS and END-POS are (x . y) cons cells.
-Returns list of plists with :x, :y, :junction-char."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+START-POS is a cons cell (x . y) for starting position.
+END-POS is a cons cell (x . y) for ending position.
+
+Uses BFS to trace path and record junction characters encountered.
+
+Returns list of plists with :x, :y, :junction-char keys."
   (let ((junction-chars '(?┼ ?├ ?┤ ?┬ ?┴ ?┌ ?┐ ?└ ?┘))
         (edge-chars '(?│ ?─ ?┼ ?├ ?┤ ?┬ ?┴ ?┌ ?┐ ?└ ?┘ ?▼ ?▲ ?▶ ?◀))
         (visited (make-hash-table :test 'equal))
@@ -690,8 +806,14 @@ Returns list of plists with :x, :y, :junction-char."
 
 (defun dag-draw-test--verify-hierarchical-y-coords (graph grid scale)
   "Verify Y-coordinates follow GKNV D3.6: Y = rank × ranksep.
-GRAPH is the dag-draw graph, GRID is parsed ASCII, SCALE is world→grid factor.
-Returns plist with :correct boolean and :violations list."
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+SCALE is a number for world-to-grid coordinate conversion.
+
+Checks that node Y positions match the GKNV hierarchical formula.
+
+Returns plist with :correct (boolean) and :violations (list) keys."
   (let ((violations '())
         (correct t)
         (nodes (dag-draw-test--extract-expected-nodes graph))
@@ -726,8 +848,15 @@ Returns plist with :correct boolean and :violations list."
     (list :correct correct :violations (nreverse violations))))
 
 (defun dag-draw-test--verify-separation-constraints (graph grid scale)
-  "Verify X-separation follows GKNV D3.3: ρ(a,b) = (xsize_a + xsize_b)/2 + nodesep.
-Returns plist with :all-satisfied boolean and :violations list."
+  "Verify X-separation follows GKNV D3.3 formula.
+
+GRAPH is a `dag-draw-graph' structure with layout complete.
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+SCALE is a number for world-to-grid coordinate conversion.
+
+Checks: ρ(a,b) = (xsize_a + xsize_b)/2 + nodesep for adjacent nodes.
+
+Returns plist with :all-satisfied (boolean) and :violations (list) keys."
   (let ((violations '())
         (all-satisfied t)
         (nodes (dag-draw-test--extract-expected-nodes graph))
@@ -786,8 +915,12 @@ Returns plist with :all-satisfied boolean and :violations list."
 
 (defun dag-draw-test--measure-grid-distance (grid pos1 pos2)
   "Measure Manhattan distance between POS1 and POS2 on grid.
-POS1 and POS2 are (x . y) cons cells.
-Returns (dx . dy) cons cell."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+POS1 is a cons cell (x . y) for first position.
+POS2 is a cons cell (x . y) for second position.
+
+Returns cons cell (dx . dy) with horizontal and vertical distances."
   (let ((dx (abs (- (car pos2) (car pos1))))
         (dy (abs (- (cdr pos2) (cdr pos1)))))
     (cons dx dy)))
@@ -795,8 +928,14 @@ Returns (dx . dy) cons cell."
 ;;; Edge Path Analysis Functions
 
 (defun dag-draw-test--get-edge-path (grid from-node to-node)
-  "Get full edge path from FROM-NODE to TO-NODE as list of grid coordinates.
-FROM-NODE and TO-NODE are node plists with :x, :y, :width, :height.
+  "Get full edge path from FROM-NODE to TO-NODE.
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+FROM-NODE is a plist with :x, :y, :width, :height keys.
+TO-NODE is a plist with :x, :y, :width, :height keys.
+
+Uses BFS to trace continuous edge path between nodes.
+
 Returns list of (x y) coordinate pairs, or nil if no path found."
   (let* ((from-x (plist-get from-node :x))
          (from-y (plist-get from-node :y))
@@ -868,8 +1007,13 @@ Returns list of (x y) coordinate pairs, or nil if no path found."
 
 (defun dag-draw-test--verify-path-continuity (grid path)
   "Verify PATH has no gaps (all adjacent positions connected).
-PATH is list of (x y) coordinate pairs.
-Returns plist with :continuous boolean and :gaps list."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+PATH is a list of (x y) coordinate pairs.
+
+Checks that consecutive path positions are exactly 1 step apart.
+
+Returns plist with :continuous (boolean) and :gaps (list) keys."
   (let ((gaps '())
         (continuous t))
     (when (> (length path) 1)
@@ -890,7 +1034,13 @@ Returns plist with :continuous boolean and :gaps list."
 
 (defun dag-draw-test--verify-orthogonal-routing (grid path)
   "Verify PATH uses only horizontal/vertical segments (no diagonals).
-Returns plist with :orthogonal boolean and :diagonal-segments list."
+
+GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
+PATH is a list of (x y) coordinate pairs.
+
+Checks that each path segment is either purely horizontal or vertical.
+
+Returns plist with :orthogonal (boolean) and :diagonal-segments (list) keys."
   (let ((diagonal-segments '())
         (orthogonal t))
     (when (> (length path) 1)

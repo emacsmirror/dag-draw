@@ -46,7 +46,17 @@
 
 (defun dag-draw--classify-edges-gknv (graph)
   "Classify edges using GKNV DFS taxonomy per Section 2.1.
-Returns hash table with keys: tree-edges, forward-edges, cross-edges, back-edges."
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Performs depth-first search starting from source nodes, classifying edges as:
+- tree-edges: edges to unvisited nodes
+- forward-edges: edges to descendants already visited
+- cross-edges: edges between non-ancestor nodes
+- back-edges: edges creating cycles (point to ancestors)
+
+Returns hash table with keys tree-edges, forward-edges, cross-edges, back-edges.
+Each key maps to a list of `dag-draw-edge' structures."
   (let ((classification (ht-create))
         (visited (ht-create))
         (discovery-time (ht-create))
@@ -79,8 +89,19 @@ Returns hash table with keys: tree-edges, forward-edges, cross-edges, back-edges
     classification))
 
 (defun dag-draw--dfs-classify-edges (graph node visited discovery-time finish-time time-counter parent classification)
-  "DFS traversal that classifies edges per GKNV Section 2.1.
-Returns updated time counter."
+  "Perform DFS traversal and classify edges per GKNV Section 2.1.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE is a symbol representing the current node ID.
+VISITED is a hash table tracking node visit states (gray/black).
+DISCOVERY-TIME is a hash table mapping node IDs to discovery times.
+FINISH-TIME is a hash table mapping node IDs to finish times.
+TIME-COUNTER is an integer representing current time (incremented during traversal).
+PARENT is a hash table mapping nodes to their DFS parent.
+CLASSIFICATION is a hash table accumulating edge classifications.
+
+Modifies VISITED, DISCOVERY-TIME, FINISH-TIME, and CLASSIFICATION in place.
+Returns updated time counter as an integer."
   (ht-set! visited node t)
   (ht-set! discovery-time node time-counter)
   (setq time-counter (1+ time-counter))
@@ -122,7 +143,14 @@ Returns updated time counter."
 
 (defun dag-draw--break-cycles-using-gknv-classification (graph)
   "Break cycles by reversing back edges per GKNV Section 2.1.
-Returns the modified graph."
+
+GRAPH is a `dag-draw-graph' structure containing cycles.
+
+Uses DFS edge classification to identify back edges (edges creating cycles).
+Reverses each back edge to eliminate cycles while preserving graph structure.
+
+Modifies GRAPH in place by reversing back edges.
+Returns the modified GRAPH."
   (let ((classification (dag-draw--classify-edges-gknv graph)))
     (dolist (back-edge (ht-get classification 'back-edges))
       ;; Reverse back edge to break cycle
@@ -130,8 +158,16 @@ Returns the modified graph."
   graph)
 
 (defun dag-draw--reverse-edge (graph edge)
-  "Reverse an edge in the graph (internal direction only).
-GKNV Section 2.1: Only internal direction is flipped, visual direction preserved."
+  "Reverse an edge's internal direction while preserving visual direction.
+
+GRAPH is a `dag-draw-graph' structure containing the edge.
+EDGE is a `dag-draw-edge' to reverse.
+
+Per GKNV Section 2.1: only internal direction is flipped for algorithmic
+purposes. Original direction preserved in edge attributes for rendering.
+
+Modifies GRAPH in place by removing EDGE and adding reversed edge.
+Returns nil."
   (let ((from-node (dag-draw-edge-from-node edge))
         (to-node (dag-draw-edge-to-node edge))
         (weight (dag-draw-edge-weight edge))
@@ -148,8 +184,15 @@ GKNV Section 2.1: Only internal direction is flipped, visual direction preserved
       (dag-draw-add-edge graph to-node from-node weight label new-attrs))))
 
 (defun dag-draw--count-cycle-participation (graph)
-  "Count cycle participation for each edge per GKNV Section 2.1 heuristic.
-Returns hash table mapping edges to participation counts."
+  "Count how many cycles each edge participates in.
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Implements GKNV Section 2.1 heuristic for cycle-breaking.
+Analyzes strongly connected components to count cycle membership.
+
+Returns hash table mapping `dag-draw-edge' structures to integers
+representing the number of cycles each edge participates in."
   (let ((participation (ht-create)))
     ;; Initialize all edges with zero participation
     (dolist (edge (dag-draw-graph-edges graph))
@@ -164,7 +207,13 @@ Returns hash table mapping edges to participation counts."
     participation))
 
 (defun dag-draw--find-strongly-connected-components (graph)
-  "Find strongly connected components using Tarjan's algorithm."
+  "Find strongly connected components in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Simplified implementation of Tarjan's algorithm for finding SCCs.
+
+Returns list of components, where each component is a list of node IDs."
   ;; Simplified implementation - return list of node lists
   (let ((visited (ht-create))
         (components '()))
@@ -178,7 +227,14 @@ Returns hash table mapping edges to participation counts."
     components))
 
 (defun dag-draw--dfs-component (graph start visited)
-  "DFS to find connected component starting from node."
+  "Find connected component starting from START node using DFS.
+
+GRAPH is a `dag-draw-graph' structure.
+START is a symbol representing the starting node ID.
+VISITED is a hash table tracking which nodes have been visited.
+
+Modifies VISITED in place.
+Returns list of node IDs in the connected component."
   (let ((component '())
         (stack (list start)))
     (while stack
@@ -194,7 +250,16 @@ Returns hash table mapping edges to participation counts."
     component))
 
 (defun dag-draw--count-cycles-in-scc (graph scc participation)
-  "Count cycles within a strongly connected component."
+  "Count cycles within a strongly connected component.
+
+GRAPH is a `dag-draw-graph' structure.
+SCC is a list of node IDs forming a strongly connected component.
+PARTICIPATION is a hash table mapping edges to cycle participation counts.
+
+For each edge within the SCC, counts how many cycles it participates in.
+
+Modifies PARTICIPATION hash table in place.
+Returns nil."
   ;; For each edge in the SCC, perform DFS to count cycles it participates in
   (dolist (edge (dag-draw-graph-edges graph))
     (let ((from (dag-draw-edge-from-node edge))
@@ -205,7 +270,15 @@ Returns hash table mapping edges to participation counts."
           (ht-set! participation edge cycle-count))))))
 
 (defun dag-draw--find-source-sink-nodes (graph)
-  "Find source (no incoming) and sink (no outgoing) nodes per GKNV Section 2.1."
+  "Find source and sink nodes per GKNV Section 2.1.
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Source nodes: nodes with no incoming edges.
+Sink nodes: nodes with no outgoing edges.
+
+Returns hash table with keys 'sources and 'sinks, each mapping to a list
+of node IDs (symbols)."
   (let ((sources '())
         (sinks '())
         (has-incoming (ht-create))
@@ -236,8 +309,17 @@ Returns hash table mapping edges to participation counts."
 ;;; Simple Cycle Breaking
 
 (defun dag-draw--simple-has-cycle (graph visited rec-stack node)
-  "Check if graph has cycle starting from NODE using DFS.
-VISITED tracks visited nodes, REC-STACK tracks recursion stack."
+  "Check if GRAPH has cycle starting from NODE using DFS.
+
+GRAPH is a `dag-draw-graph' structure.
+VISITED is a hash table tracking which nodes have been visited.
+REC-STACK is a hash table tracking current recursion stack.
+NODE is a symbol representing the starting node ID.
+
+Uses recursion stack to detect back edges indicating cycles.
+
+Modifies VISITED and REC-STACK in place.
+Returns t if cycle found, nil otherwise."
   (ht-set! visited node t)
   (ht-set! rec-stack node t)
 
@@ -256,7 +338,14 @@ VISITED tracks visited nodes, REC-STACK tracks recursion stack."
     has-cycle))
 
 (defun dag-draw-simple-has-cycles (graph)
-  "Simple cycle detection using DFS."
+  "Detect cycles in GRAPH using simple DFS approach.
+
+GRAPH is a `dag-draw-graph' structure to check.
+
+Performs depth-first search from each unvisited node, tracking recursion
+stack to identify back edges that indicate cycles.
+
+Returns t if any cycles found, nil otherwise."
   (let ((visited (ht-create))
         (rec-stack (ht-create))
         (has-cycle nil))

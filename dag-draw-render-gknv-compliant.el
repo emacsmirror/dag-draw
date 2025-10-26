@@ -11,7 +11,14 @@
 
 (defun dag-draw--convert-gknv-to-ascii-grid (graph)
   "Pure conversion of GKNV final coordinates to ASCII grid.
-Does NOT modify graph coordinates or regenerate splines."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes and spline points.
+
+Performs coordinate conversion only - does NOT modify graph coordinates or
+regenerate splines. Calculates grid size, creates grid, draws nodes and edges
+using GKNV final coordinates, and converts to string.
+
+Returns a string containing the ASCII representation."
   
   (let* (;; Step 1: Calculate conversion parameters from GKNV final coordinates
          (bounds (dag-draw-get-graph-bounds graph))
@@ -51,7 +58,15 @@ Does NOT modify graph coordinates or regenerate splines."
     (dag-draw--ascii-grid-to-string grid)))
 
 (defun dag-draw--draw-nodes-gknv-compliant (graph grid min-x min-y scale)
-  "Draw nodes using GKNV final coordinates without modification."
+  "Draw nodes using GKNV final coordinates without modification.
+
+GRAPH is a `dag-draw-graph' structure.
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+MIN-X and MIN-Y are numbers representing minimum world coordinates.
+SCALE is a float representing the coordinate scale factor.
+
+For each node, converts world coordinates to grid coordinates and draws
+a box with the node label."
   
   (ht-each (lambda (node-id node)
              (let* (;; Use GKNV final coordinates directly
@@ -79,7 +94,15 @@ Does NOT modify graph coordinates or regenerate splines."
            (dag-draw-graph-nodes graph)))
 
 (defun dag-draw--draw-edges-gknv-compliant (graph grid min-x min-y scale)
-  "Draw edges using GKNV final splines without regeneration."
+  "Draw edges using GKNV final splines without regeneration.
+
+GRAPH is a `dag-draw-graph' structure.
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+MIN-X and MIN-Y are numbers representing minimum world coordinates.
+SCALE is a float representing the coordinate scale factor.
+
+For each edge with spline points, converts spline endpoints to grid
+coordinates and draws the edge with proper ports."
   
   (dolist (edge (dag-draw-graph-edges graph))
     (let ((spline-points (dag-draw-edge-spline-points edge)))
@@ -108,7 +131,17 @@ Does NOT modify graph coordinates or regenerate splines."
                                                  end-grid-x end-grid-y min-x min-y scale))))))
 
 (defun dag-draw--draw-edge-with-proper-ports (graph edge grid start-x start-y end-x end-y min-x min-y scale)
-  "Draw edge with ports calculated from GKNV node boundaries."
+  "Draw EDGE with ports calculated from GKNV node boundaries.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+START-X, START-Y, END-X, END-Y are integers representing edge endpoints in grid coordinates.
+MIN-X and MIN-Y are numbers representing minimum world coordinates.
+SCALE is a float representing the coordinate scale factor.
+
+Calculates proper port positions on node boundaries and draws a simple line
+between them."
   
   (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
          (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))

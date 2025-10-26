@@ -31,7 +31,15 @@
 ;;; Rank Normalization
 
 (defun dag-draw-normalize-ranks (graph)
-  "Normalize ranks so the minimum rank is 0."
+  "Normalize ranks so the minimum rank is 0.
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks.
+
+Finds the minimum rank across all nodes and adjusts all ranks by
+subtracting this minimum, ensuring ranks start from 0.
+
+Modifies GRAPH in place by updating node ranks and max-rank.
+Returns the modified GRAPH."
   (let ((min-rank most-positive-fixnum))
 
     ;; Find minimum rank
@@ -59,8 +67,15 @@
 
 (defun dag-draw-balance-ranks (graph)
   "Balance rank assignment to improve layout quality.
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks.
+
 Implements GKNV Figure 2-1 step 8: balance() function.
-Moves nodes with equal in/out weights to less crowded feasible ranks."
+Moves nodes with equal in/out weights to less crowded feasible ranks.
+Reduces rank crowding and improves drawing aspect ratio.
+
+Modifies GRAPH in place by updating node ranks.
+Returns the modified GRAPH."
   (when (dag-draw-graph-max-rank graph)
     ;; Build rank node counts
     (let ((rank-counts (make-vector (1+ (dag-draw-graph-max-rank graph)) 0)))
@@ -82,7 +97,15 @@ Moves nodes with equal in/out weights to less crowded feasible ranks."
   graph)
 
 (defun dag-draw--rank-move-valid-p (graph node-id new-rank)
-  "Check if moving NODE-ID to NEW-RANK preserves edge direction constraints."
+  "Check if moving NODE-ID to NEW-RANK preserves edge constraints.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node to check.
+NEW-RANK is an integer representing the proposed new rank.
+
+Validates GKNV constraints: λ(predecessor) < λ(node) < λ(successor).
+
+Returns t if move is valid, nil otherwise."
   (let ((valid t))
 
     ;; Check all incoming edges: predecessor must have strictly lower rank
@@ -105,7 +128,14 @@ Moves nodes with equal in/out weights to less crowded feasible ranks."
 
 (defun dag-draw--node-eligible-for-balancing-p (graph node-id)
   "Check if NODE-ID is eligible for GKNV balancing.
-GKNV criteria: 'Nodes having equal in- and out-edge weights and multiple feasible ranks'"
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node to check.
+
+GKNV criteria: Nodes having equal in- and out-edge weights.
+Source and sink nodes (no in/out edges) are not eligible.
+
+Returns t if node is eligible for balancing, nil otherwise."
   (let ((in-weight (dag-draw--calculate-node-in-weight graph node-id))
         (out-weight (dag-draw--calculate-node-out-weight graph node-id)))
 
@@ -116,7 +146,14 @@ GKNV criteria: 'Nodes having equal in- and out-edge weights and multiple feasibl
          (= in-weight out-weight))))  ; Equal weights
 
 (defun dag-draw--calculate-node-in-weight (graph node-id)
-  "Calculate total weight of incoming edges to NODE-ID."
+  "Calculate total weight of incoming edges to NODE-ID.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node.
+
+Sums weights of all edges entering NODE-ID.
+
+Returns total weight as a number."
   (let ((total-weight 0))
     (dolist (predecessor (dag-draw-get-predecessors graph node-id))
       (dolist (edge (dag-draw-get-edges-from graph predecessor))
@@ -125,15 +162,29 @@ GKNV criteria: 'Nodes having equal in- and out-edge weights and multiple feasibl
     total-weight))
 
 (defun dag-draw--calculate-node-out-weight (graph node-id)
-  "Calculate total weight of outgoing edges from NODE-ID."
+  "Calculate total weight of outgoing edges from NODE-ID.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node.
+
+Sums weights of all edges leaving NODE-ID.
+
+Returns total weight as a number."
   (let ((total-weight 0))
     (dolist (edge (dag-draw-get-edges-from graph node-id))
       (setq total-weight (+ total-weight (dag-draw-edge-weight edge))))
     total-weight))
 
 (defun dag-draw--find-feasible-ranks (graph node-id)
-  "Find all feasible ranks for NODE-ID that preserve edge constraints.
-Returns list of ranks where node can be placed without violating λ(pred) < λ(node) < λ(succ)."
+  "Find all feasible ranks for NODE-ID preserving edge constraints.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node.
+
+Calculates range of valid ranks based on predecessor and successor ranks.
+Ensures GKNV constraint: λ(pred) < λ(node) < λ(succ).
+
+Returns list of integers representing valid ranks for NODE-ID."
   (let ((min-feasible 0)
         (max-feasible (or (dag-draw-graph-max-rank graph) 0))
         (predecessors (dag-draw-get-predecessors graph node-id))
@@ -159,7 +210,15 @@ Returns list of ranks where node can be placed without violating λ(pred) < λ(n
 
 (defun dag-draw--gknv-balance-node (graph node-id rank-counts)
   "Apply GKNV balancing to a single eligible node.
-Moves node to the feasible rank with the fewest nodes."
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node to balance.
+RANK-COUNTS is a vector mapping rank numbers to node counts.
+
+Moves node to the feasible rank with the fewest nodes to reduce crowding.
+
+Modifies GRAPH and RANK-COUNTS in place.
+Returns nil."
   (let* ((feasible-ranks (dag-draw--find-feasible-ranks graph node-id))
          (current-rank (dag-draw-node-rank (dag-draw-get-node graph node-id)))
          (best-rank current-rank)

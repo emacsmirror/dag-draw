@@ -480,7 +480,14 @@ Implements proper spline routing that avoids node boundaries and other obstacles
 ;;; Main spline generation function
 
 (defun dag-draw-generate-splines (graph)
-  "Generate spline curves for all edges (Pass 4 of GKNV algorithm)."
+  "Generate spline curves for all edges.
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Implements GKNV Pass 4 (Section 5) creating region-constrained
+Bézier spline paths for inter-rank and intra-rank edges.
+
+Returns the modified GRAPH with spline-points set on all edges."
   (dolist (edge (dag-draw-graph-edges graph))
     (let* ((edge-type (dag-draw--classify-edge graph edge))
            (splines (cond

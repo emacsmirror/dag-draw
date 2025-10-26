@@ -177,9 +177,14 @@ Real-real edges: 1, real-virtual: 2, virtual-virtual: 8"
 ;;; Main positioning function
 
 (defun dag-draw-position-nodes (graph)
-  "Assign X and Y coordinates to nodes (Pass 3 of GKNV algorithm).
-This implements the node positioning pass using auxiliary graph construction
-for optimal X-coordinate assignment."
+  "Assign X and Y coordinates to all nodes.
+
+GRAPH is a `dag-draw-graph' structure with assigned ranks and ordering.
+
+Implements GKNV Pass 3 (Section 4) using auxiliary graph construction
+for optimal X-coordinate assignment and rank-based Y-coordinate placement.
+
+Returns the modified GRAPH with x-coord and y-coord set on all nodes."
 
   ;; Check coordinate mode for ASCII-native behavior
   (let ((coordinate-mode (or (dag-draw-graph-coordinate-mode graph) 'high-res)))

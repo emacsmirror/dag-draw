@@ -52,11 +52,20 @@
 ;;; Dynamic Scale Calculation
 
 (defun dag-draw--calculate-optimal-ascii-scale (graph target-width target-height)
-  "Calculate optimal scale factor based on graph complexity and ASCII constraints.
-GRAPH is the input graph, TARGET-WIDTH and TARGET-HEIGHT are the desired ASCII dimensions.
+  "Calculate optimal scale factor for converting world coordinates to ASCII grid.
 
-Following GKNV paper Section 1.2: coordinates should use '72 units per inch' for high resolution,
-but ASCII has ~5 characters per inch, requiring dynamic scaling based on graph complexity."
+GRAPH is a `dag-draw-graph' structure.
+TARGET-WIDTH and TARGET-HEIGHT are integers representing desired grid dimensions.
+
+Analyzes graph complexity (node count, edge density, hierarchy depth) and
+calculates a scale factor that balances resolution with fitting in the ASCII area.
+More complex graphs need smaller scale to fit in available space.
+
+Following GKNV paper Section 1.2: coordinates should use '72 units per inch'
+for high resolution, but ASCII has ~5 characters per inch, requiring dynamic
+scaling based on graph complexity.
+
+Returns a float representing the optimal scale factor."
   (let* ((node-count (dag-draw-node-count graph))
          (edge-count (dag-draw-edge-count graph))
          
@@ -91,9 +100,20 @@ but ASCII has ~5 characters per inch, requiring dynamic scaling based on graph c
       (dag-draw--validate-scale-prevents-collapse graph validated-scale target-width target-height))))
 
 (defun dag-draw--validate-scale-prevents-collapse (graph scale target-width target-height)
-  "Validate that SCALE prevents coordinate collapse, per GKNV aesthetic A2.
-Returns adjusted scale that ensures no two nodes collapse to same grid position.
-Only validates when nodes have actual coordinates set (after layout)."
+  "Validate that SCALE prevents coordinate collapse per GKNV aesthetic A2.
+
+GRAPH is a `dag-draw-graph' structure.
+SCALE is a float representing the current scale factor.
+TARGET-WIDTH and TARGET-HEIGHT are integers representing grid dimensions.
+
+Simulates grid positioning with current scale and checks if any two nodes
+would collapse to the same grid position. If collapse is detected, increases
+scale slightly and recursively validates again.
+
+Only validates when nodes have actual coordinates set (after GKNV layout).
+
+Returns an adjusted scale factor (float) that ensures no two nodes collapse
+to the same grid position."
   (if (or (= (dag-draw-node-count graph) 0)
           ;; Only validate if nodes have coordinates (after GKNV layout)
           (not (dag-draw--graph-has-positioned-nodes graph)))
@@ -127,7 +147,11 @@ Only validates when nodes have actual coordinates set (after layout)."
         scale))))
 
 (defun dag-draw--graph-has-positioned-nodes (graph)
-  "Check if GRAPH has nodes with positioned coordinates (after layout)."
+  "Check if GRAPH has nodes with positioned coordinates after layout.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns t if at least one node has both x-coord and y-coord set, nil otherwise."
   (let ((has-positioned nil))
     (ht-each (lambda (node-id node)
                (when (and (dag-draw-node-x-coord node)
@@ -138,7 +162,13 @@ Only validates when nodes have actual coordinates set (after layout)."
 
 (defun dag-draw--calculate-node-size-complexity (graph)
   "Calculate complexity factor based on node size variations.
-Graphs with larger or more varied node sizes need smaller scale factors."
+
+GRAPH is a `dag-draw-graph' structure.
+
+Calculates average node size and size variance. Graphs with larger or more
+varied node sizes need smaller scale factors to fit properly.
+
+Returns a float representing the normalized complexity factor."
   (if (= (dag-draw-node-count graph) 0)
       0.0
     (let* ((total-size 0)
@@ -164,7 +194,13 @@ Graphs with larger or more varied node sizes need smaller scale factors."
 
 (defun dag-draw--calculate-edge-density-factor (graph)
   "Calculate edge density complexity factor.
-Higher edge density relative to node count indicates more complex layout requirements."
+
+GRAPH is a `dag-draw-graph' structure.
+
+Higher edge density relative to node count indicates more complex layout
+requirements. Calculates the ratio of actual edges to maximum possible edges.
+
+Returns a float representing the scaled density factor."
   (let ((node-count (dag-draw-node-count graph)))
     (if (<= node-count 1)
         0.0
@@ -178,7 +214,13 @@ Higher edge density relative to node count indicates more complex layout require
 
 (defun dag-draw--estimate-hierarchy-depth (graph)
   "Estimate hierarchy depth for complexity calculation.
-Deeper hierarchies may need different scaling considerations."
+
+GRAPH is a `dag-draw-graph' structure.
+
+Finds source nodes and calculates maximum depth reachable from each.
+Deeper hierarchies may need different scaling considerations.
+
+Returns a float representing the estimated maximum hierarchy depth."
   (if (= (dag-draw-node-count graph) 0)
       0.0
     (let ((source-nodes (dag-draw-get-source-nodes graph)))
@@ -193,7 +235,15 @@ Deeper hierarchies may need different scaling considerations."
           max-depth)))))
 
 (defun dag-draw--calculate-max-depth-from-node (graph start-node)
-  "Calculate maximum depth reachable from START-NODE in GRAPH."
+  "Calculate maximum depth reachable from START-NODE in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+START-NODE is a symbol representing a node ID.
+
+Performs depth-first search to find the maximum depth of any path
+starting from START-NODE.
+
+Returns an integer representing the maximum depth."
   (let ((visited (ht-create))
         (max-depth 0))
     (dag-draw--depth-first-search graph start-node visited 0 
@@ -202,7 +252,13 @@ Deeper hierarchies may need different scaling considerations."
     max-depth))
 
 (defun dag-draw--depth-first-search (graph node visited current-depth callback)
-  "Perform DFS from NODE, calling CALLBACK with depth at each node."
+  "Perform depth-first search from NODE, calling CALLBACK with depth at each node.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE is a symbol representing the current node ID.
+VISITED is a hash table tracking visited nodes (modified in place).
+CURRENT-DEPTH is an integer representing the current depth level.
+CALLBACK is a function accepting one argument (depth) called for each visited node."
   (unless (ht-get visited node)
     (ht-set! visited node t)
     (funcall callback current-depth)
@@ -218,8 +274,17 @@ Deeper hierarchies may need different scaling considerations."
 ;; - dag-draw--world-to-grid-size
 
 (defun dag-draw--get-node-center-grid (node min-x min-y scale &optional graph)
-  "Get node center coordinates directly in grid space for simple edge routing.
-    VISUAL FIX: Simplified coordinate calculation to avoid conversion errors."
+  "Get node center coordinates in grid space for edge routing.
+
+NODE is a `dag-draw-node' structure.
+MIN-X and MIN-Y are numbers representing the minimum world coordinates.
+SCALE is a float representing the coordinate scale factor.
+GRAPH is an optional `dag-draw-graph' structure for adjusted position lookup.
+
+Converts GKNV world coordinates to grid coordinates. If GRAPH is provided and
+contains adjusted positions for this node, uses those instead of raw coordinates.
+
+Returns a `dag-draw-point' structure with grid coordinates."
   (let* ((node-id (dag-draw-node-id node))
          ;; GKNV Pass 3 Authority: Only use algorithm-assigned coordinates  
          ;; Section 4: "The third pass finds optimal coordinates for nodes"
@@ -248,7 +313,12 @@ Deeper hierarchies may need different scaling considerations."
 ;;; ASCII Grid Creation
 
 (defun dag-draw--create-ascii-grid (width height)
-  "Create empty ASCII grid of given WIDTH and HEIGHT."
+  "Create empty ASCII grid of given WIDTH and HEIGHT.
+
+WIDTH and HEIGHT are integers representing grid dimensions in characters.
+
+Returns a 2D vector where each row is a vector of characters, all initialized
+to space characters."
   (let ((grid (make-vector height nil)))
     (dotimes (y height)
       (aset grid y (make-vector width ?\s)))  ; Fill with spaces
@@ -258,7 +328,17 @@ Deeper hierarchies may need different scaling considerations."
 
 (defun dag-draw--would-violate-hierarchy (graph node-id proposed-y current-drawn-nodes)
   "Check if moving NODE-ID to PROPOSED-Y would violate hierarchical ordering.
-CURRENT-DRAWN-NODES is a list of (node-id x y width height) for already positioned nodes."
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is a symbol representing the node to check.
+PROPOSED-Y is an integer representing the proposed grid Y coordinate.
+CURRENT-DRAWN-NODES is a list of already-positioned nodes, each element is
+a list (node-id x y width height).
+
+Checks if the proposed position would violate rank ordering: lower-rank nodes
+should appear above (smaller Y) higher-rank nodes.
+
+Returns t if hierarchy would be violated, nil otherwise."
   (when graph
     (let ((node (dag-draw-get-node graph node-id))
           (violates-hierarchy nil))
@@ -282,7 +362,15 @@ CURRENT-DRAWN-NODES is a list of (node-id x y width height) for already position
         violates-hierarchy))))
 
 (defun dag-draw--rectangles-overlap (rect1 rect2)
-  "Check if two rectangles overlap or are too close. Each rectangle is (x1 y1 x2 y2)."
+  "Check if two rectangles overlap or are too close.
+
+RECT1 and RECT2 are lists of the form (x1 y1 x2 y2) where all coordinates
+are integers in grid space.
+
+Includes a minimum gap of 5 characters to prevent text corruption and ensure
+readable spacing.
+
+Returns t if the rectangles overlap or are within minimum gap, nil otherwise."
   (let ((x1-1 (nth 0 rect1)) (y1-1 (nth 1 rect1)) (x2-1 (nth 2 rect1)) (y2-1 (nth 3 rect1))
         (x1-2 (nth 0 rect2)) (y1-2 (nth 1 rect2)) (x2-2 (nth 2 rect2)) (y2-2 (nth 3 rect2))
         (min-gap 5)) ; Optimal minimum gap - prevents text corruption and ensures readable spacing
@@ -291,9 +379,20 @@ CURRENT-DRAWN-NODES is a list of (node-id x y width height) for already position
          (<= y1-1 (+ y2-2 min-gap)) (<= y1-2 (+ y2-1 min-gap))))) ; y proximity
 
 (defun dag-draw--resolve-node-collision (x y width height drawn-nodes &optional graph node-id)
-  "Resolve node collision by finding a non-overlapping position with minimum spacing.
-Returns (adjusted-x adjusted-y) that avoids all drawn nodes with safe spacing.
-GRAPH and NODE-ID are optional for hierarchy-aware collision resolution."
+  "Resolve node collision by finding a non-overlapping position.
+
+X and Y are integers representing the proposed grid position.
+WIDTH and HEIGHT are integers representing node dimensions in grid units.
+DRAWN-NODES is a list of rectangles, each (x1 y1 x2 y2 node-id).
+GRAPH is an optional `dag-draw-graph' structure for hierarchy-aware resolution.
+NODE-ID is an optional symbol representing the node being positioned.
+
+Searches in expanding radius with directional priorities (horizontal movement
+first to preserve hierarchical ordering). If GRAPH and NODE-ID are provided,
+ensures resolved position doesn't violate rank ordering.
+
+Returns a list (adjusted-x adjusted-y) where coordinates are integers
+representing a non-overlapping grid position with safe spacing."
   ;; Debug output removed for cleaner production code
   (let ((min-spacing 3)  ; Reduced spacing for better test compatibility
         (current-rect (list x y (+ x width -1) (+ y height -1)))
@@ -368,12 +467,24 @@ GRAPH and NODE-ID are optional for hierarchy-aware collision resolution."
 
 (defun dag-draw--center-aware-round (grid-coord)
   "Round grid coordinate to ensure proper centering for arrow placement.
+
+GRID-COORD is a number (possibly float) representing a grid coordinate.
+
 For ports that should be centered on node boundaries, this ensures the arrow
-lands at the true visual center of the box, not the mathematical center."
+lands at the true visual center of the box, not the mathematical center.
+
+Returns an integer grid coordinate."
   (round grid-coord))
 
 (defun dag-draw--ascii-grid-to-string (grid)
-  "Convert ASCII grid to string representation."
+  "Convert ASCII GRID to string representation.
+
+GRID is a 2D vector of characters.
+
+Converts each row to a string and joins with newlines. Preserves all
+characters including trailing spaces (important for layout).
+
+Returns a string containing the complete ASCII representation."
   (mapconcat (lambda (row)
                ;; FIXED: Don't use string-trim-right as it removes important characters
                ;; that happen to be followed by spaces. Instead, preserve all characters.

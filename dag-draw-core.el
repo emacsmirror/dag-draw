@@ -21,43 +21,84 @@
 ;;; Graph Traversal and Analysis
 
 (defun dag-draw-get-node (graph node-id)
-  "Get the node with NODE-ID from GRAPH, or nil if not found."
+  "Get the node with NODE-ID from GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is the unique identifier for the node.
+
+Returns the `dag-draw-node' structure, or nil if not found."
   (ht-get (dag-draw-graph-nodes graph) node-id))
 
 (defun dag-draw-get-edges-from (graph node-id)
-  "Get all edges originating from NODE-ID in GRAPH."
+  "Get all edges originating from NODE-ID in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is the unique identifier for the source node.
+
+Returns a list of `dag-draw-edge' structures."
   (--filter (eq (dag-draw-edge-from-node it) node-id)
             (dag-draw-graph-edges graph)))
 
 (defun dag-draw-get-edges-to (graph node-id)
-  "Get all edges terminating at NODE-ID in GRAPH."
+  "Get all edges terminating at NODE-ID in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is the unique identifier for the target node.
+
+Returns a list of `dag-draw-edge' structures."
   (--filter (eq (dag-draw-edge-to-node it) node-id)
             (dag-draw-graph-edges graph)))
 
 (defun dag-draw-get-successors (graph node-id)
-  "Get list of successor node IDs for NODE-ID in GRAPH."
+  "Get list of successor node IDs for NODE-ID in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is the unique identifier for the node.
+
+Returns a list of node IDs that are direct successors."
   (mapcar #'dag-draw-edge-to-node (dag-draw-get-edges-from graph node-id)))
 
 (defun dag-draw-get-predecessors (graph node-id)
-  "Get list of predecessor node IDs for NODE-ID in GRAPH."
+  "Get list of predecessor node IDs for NODE-ID in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+NODE-ID is the unique identifier for the node.
+
+Returns a list of node IDs that are direct predecessors."
   (mapcar #'dag-draw-edge-from-node (dag-draw-get-edges-to graph node-id)))
 
 (defun dag-draw-get-node-ids (graph)
-  "Get list of all node IDs in GRAPH."
+  "Get list of all node IDs in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns a list of all unique node identifiers."
   (ht-keys (dag-draw-graph-nodes graph)))
 
 (defun dag-draw-node-count (graph)
-  "Get the number of nodes in GRAPH."
+  "Get the number of nodes in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns an integer count of nodes."
   (ht-size (dag-draw-graph-nodes graph)))
 
 (defun dag-draw-edge-count (graph)
-  "Get the number of edges in GRAPH."
+  "Get the number of edges in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns an integer count of edges."
   (length (dag-draw-graph-edges graph)))
 
 ;;; Graph Properties
 
 (defun dag-draw-get-source-nodes (graph)
-  "Get list of source nodes (nodes with no incoming edges) in GRAPH."
+  "Get list of source nodes (nodes with no incoming edges) in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns a list of node IDs that have no predecessors."
   (let ((all-nodes (dag-draw-get-node-ids graph))
         (target-nodes (mapcar #'dag-draw-edge-to-node (dag-draw-graph-edges graph))))
     (--filter (not (member it target-nodes)) all-nodes)))
@@ -65,7 +106,12 @@
 ;;; Graph Modification
 
 (defun dag-draw-remove-node (graph node-id)
-  "Remove NODE-ID and all connected edges from GRAPH."
+  "Remove NODE-ID and all connected edges from GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+NODE-ID is the unique identifier for the node to remove.
+
+Returns the modified GRAPH with the node and its edges removed."
   (when (ht-get (dag-draw-graph-nodes graph) node-id)
     ;; Remove all edges connected to this node
     (setf (dag-draw-graph-edges graph)
@@ -77,7 +123,13 @@
   graph)
 
 (defun dag-draw-remove-edge (graph from-node to-node)
-  "Remove the edge from FROM-NODE to TO-NODE in GRAPH."
+  "Remove the edge from FROM-NODE to TO-NODE in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+FROM-NODE is the node ID of the edge source.
+TO-NODE is the node ID of the edge target.
+
+Returns the modified GRAPH with the specified edge removed."
   (setf (dag-draw-graph-edges graph)
         (--remove (and (eq (dag-draw-edge-from-node it) from-node)
                        (eq (dag-draw-edge-to-node it) to-node))
@@ -87,7 +139,12 @@
 ;;; Graph Copying and Cloning
 
 (defun dag-draw-copy-graph (graph)
-  "Create a deep copy of GRAPH."
+  "Create a deep copy of GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to copy.
+
+Returns a new `dag-draw-graph' with all nodes, edges, and attributes
+copied.  Modifications to the copy will not affect the original."
   (let ((new-graph (dag-draw-graph-create
                     :node-separation (dag-draw-graph-node-separation graph)
                     :rank-separation (dag-draw-graph-rank-separation graph)
@@ -133,7 +190,12 @@
 ;;; Debugging and Inspection
 
 (defun dag-draw-graph-summary (graph)
-  "Return a human-readable summary string of GRAPH."
+  "Return a human-readable summary string of GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns a string describing the graph's node count, edge count,
+and maximum rank."
   (format "Graph: %d nodes, %d edges, max-rank: %s"
           (dag-draw-node-count graph)
           (dag-draw-edge-count graph)

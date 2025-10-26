@@ -59,8 +59,16 @@
 ;;; Main Rendering Functions
 
 (defun dag-draw-render-ascii (graph)
-  "GKNV-compliant ASCII rendering: pure coordinate conversion without regeneration.
-This function respects the GKNV 4-pass algorithm and performs only coordinate conversion."
+  "Render GRAPH as ASCII art using GKNV-compliant coordinate conversion.
+
+GRAPH is a `dag-draw-graph' structure that must have positioned nodes.
+
+This function respects the GKNV 4-pass algorithm and performs only
+coordinate conversion from world coordinates to ASCII grid coordinates.
+If GRAPH nodes are not yet positioned, runs the layout algorithm first.
+
+Returns a string containing the ASCII representation of the graph with
+box-drawing characters for nodes and edges."
   ;; GKNV COMPLIANCE: Ensure positioning has completed
   ;; ASCII-first mode doesn't require splines, just positioned nodes
   (unless (and (> (ht-size (dag-draw-graph-nodes graph)) 0)
@@ -78,8 +86,15 @@ This function respects the GKNV 4-pass algorithm and performs only coordinate co
     (dag-draw--render-ascii-native graph)))
 
 (defun dag-draw--render-ascii-native (graph)
-  "Render graph with ASCII-native coordinates - no scale conversion needed.
-Coordinates are already in grid units from ASCII-native GKNV positioning."
+  "Render GRAPH with ASCII-native coordinates directly from GKNV positioning.
+
+GRAPH is a `dag-draw-graph' structure with nodes positioned in grid units.
+
+Coordinates from the GKNV algorithm are already in grid units, so no
+scale conversion is needed. Creates an ASCII grid, draws nodes and edges,
+applies junction character enhancement, and converts to string.
+
+Returns a string containing the ASCII representation of the graph."
 
   (message "DEBUG: Starting dag-draw--render-ascii-native - SOURCE FILE VERSION")
 
@@ -147,7 +162,14 @@ Coordinates are already in grid units from ASCII-native GKNV positioning."
 
 (defun dag-draw--avoid-ascii-collision (x y width height drawn-nodes)
   "Adjust node position to avoid collision with already drawn nodes.
-Returns (adjusted-x adjusted-y) that doesn't overlap with drawn-nodes."
+
+X and Y are integers representing the proposed grid position.
+WIDTH and HEIGHT are integers representing node dimensions in grid units.
+DRAWN-NODES is a list of rectangles, each (x1 y1 x2 y2) representing
+already-placed nodes.
+
+Returns a list (adjusted-x adjusted-y) where adjusted-x and adjusted-y
+are integers representing a non-overlapping grid position."
 
   (let ((current-rect (list x y (+ x width -1) (+ y height -1)))
         (min-separation 3))  ; Minimum 3-character separation between nodes
@@ -164,7 +186,11 @@ Returns (adjusted-x adjusted-y) that doesn't overlap with drawn-nodes."
 
 (defun dag-draw--ascii-rectangles-overlap (rect1 rect2)
   "Check if two rectangles overlap in ASCII grid space.
-Each rect is (left top right bottom)."
+
+RECT1 and RECT2 are lists of the form (left top right bottom) where
+all coordinates are integers in grid space.
+
+Returns t if the rectangles overlap, nil otherwise."
   (let ((x1-left (nth 0 rect1)) (y1-top (nth 1 rect1))
         (x1-right (nth 2 rect1)) (y1-bottom (nth 3 rect1))
         (x2-left (nth 0 rect2)) (y2-top (nth 1 rect2))
@@ -180,7 +206,14 @@ Each rect is (left top right bottom)."
 ;; DELETED: dag-draw--draw-edge-with-proper-ports - obsolete in ASCII-first architecture
 
 (defun dag-draw--calculate-boundary-port (center-x center-y width height side)
-  "Calculate port position on node boundary for given side."
+  "Calculate port position on node boundary for given SIDE.
+
+CENTER-X and CENTER-Y are numbers representing node center in grid units.
+WIDTH and HEIGHT are numbers representing node dimensions in grid units.
+SIDE is a symbol: one of `top', `bottom', `left', or `right'.
+
+Returns a list (x y) where x and y are integers representing the port
+position on the specified side of the node boundary."
   (let ((left (round (- center-x (/ width 2))))
         (right (round (+ center-x (/ width 2))))
         (top (round (- center-y (/ height 2))))
@@ -194,8 +227,18 @@ Each rect is (left top right bottom)."
      (t (list (round center-x) (round center-y))))))
 
 (defun dag-draw--draw-node-box (grid x y width height label)
-  "Draw a node box with label at specified grid position.
-Returns list of (x . y) cons cells representing node boundary positions."
+  "Draw a node box with LABEL at specified grid position.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are integers representing the top-left corner position.
+WIDTH and HEIGHT are integers representing box dimensions in characters.
+LABEL is a string (may contain newlines for multiline text).
+
+Draws box-drawing characters (┌ ┐ └ ┘ ─ │) to create a bordered box
+and centers the label text within it.
+
+Returns a list of (x . y) cons cells representing node boundary positions,
+used later to exclude these positions from junction character enhancement."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
         (boundaries nil))
@@ -253,8 +296,15 @@ Returns list of (x . y) cons cells representing node boundary positions."
 
 
 (defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
-  "Draw a simple line from (x1,y1) to (x2,y2) with arrow.
-GKNV-compliant: splines are now pre-clipped to boundaries, so simple drawing works."
+  "Draw a simple line from (X1,Y1) to (X2,Y2) with arrow.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X1, Y1, X2, Y2 are integers representing start and end positions in grid coordinates.
+
+Draws an L-shaped path (vertical first, then horizontal) using line characters
+(─ │) and adds a directional arrow (▼ ▲ ▶ ◀) at the endpoint.
+
+GKNV-compliant: splines are pre-clipped to boundaries, enabling simple drawing."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
 
@@ -289,7 +339,14 @@ GKNV-compliant: splines are now pre-clipped to boundaries, so simple drawing wor
 ;; Splines are now pre-clipped to boundaries, enabling simple line drawing
 
 (defun dag-draw--set-char (grid x y char)
-  "Safely set character in grid at position (x,y)."
+  "Safely set character in GRID at position (X,Y) to CHAR.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are integers representing grid coordinates.
+CHAR is a character to place at the position.
+
+Only sets the character if the position is within grid bounds.
+No bounds checking error is raised for out-of-bounds positions."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
     (when (and (>= x 0) (< x grid-width) (>= y 0) (< y grid-height))
@@ -302,8 +359,16 @@ GKNV-compliant: splines are now pre-clipped to boundaries, so simple drawing wor
 
 (defun dag-draw--draw-simple-edge (grid from-x from-y to-x to-y from-node to-node)
   "Draw a simple edge from (FROM-X,FROM-Y) to (TO-X,TO-Y) in GRID.
-This is a basic ASCII edge drawing for ASCII-native coordinate mode.
-FROM-NODE and TO-NODE are used to calculate proper port positions per GKNV Section 4.2."
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+FROM-X and FROM-Y are integers representing source node top-left corner.
+TO-X and TO-Y are integers representing destination node top-left corner.
+FROM-NODE is a `dag-draw-node' structure for the source node.
+TO-NODE is a `dag-draw-node' structure for the destination node.
+
+Calculates proper port positions on node boundaries per GKNV Section 4.2,
+then draws an orthogonal path with vertical and horizontal segments using
+line characters (─ │) and a downward arrow (▼) at the destination."
   
   ;; Calculate port positions per GKNV Section 4.2: Node Port as X-direction offset from node center
   (let* ((from-node-width (+ (length (dag-draw-node-label from-node)) 4))  ; Actual from-node width
@@ -338,7 +403,13 @@ FROM-NODE and TO-NODE are used to calculate proper port positions per GKNV Secti
     (dag-draw--set-grid-char grid to-port-x to-port-y ?▼)))
 
 (defun dag-draw--set-grid-char (grid x y char)
-  "Set character at position (X,Y) in GRID to CHAR, with bounds checking."
+  "Set character at position (X,Y) in GRID to CHAR with bounds checking.
+
+GRID is a 2D vector representing the ASCII character grid (modified in place).
+X and Y are integers representing grid coordinates.
+CHAR is a character to place at the position.
+
+Only sets the character if the position is within grid bounds."
   (when (and (>= x 0) (< x (length (aref grid 0)))
              (>= y 0) (< y (length grid)))
     (aset (aref grid y) x char)))

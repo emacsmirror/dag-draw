@@ -175,13 +175,27 @@ VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
 
 ;;;###autoload
 (defun dag-draw-create-graph (&optional attributes)
-  "Create a new empty directed graph with optional ATTRIBUTES."
+  "Create a new empty directed graph.
+
+ATTRIBUTES is an optional hash table of graph-level attributes.
+
+Returns a new `dag-draw-graph' structure ready for adding nodes
+and edges."
   (dag-draw-graph-create :attributes (or attributes (ht-create))))
 
 ;;;###autoload
 (defun dag-draw-add-node (graph node-id &optional label attributes)
-  "Add a node with NODE-ID to GRAPH with optional LABEL and ATTRIBUTES.
-Auto-sizes the node based on label length using 2 rows × 20 characters constraint."
+  "Add a node with NODE-ID to GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+NODE-ID is a unique identifier (typically a symbol).
+LABEL is an optional string for display (defaults to NODE-ID's name).
+ATTRIBUTES is an optional hash table of node-specific attributes.
+
+The node is auto-sized based on label length using text wrapping
+constraints (up to 2 rows of 25 characters each).
+
+Returns the created `dag-draw-node' structure."
   (let* ((node-label (or label (symbol-name node-id)))
          ;; Use the constrained text formatting (2 rows × 20 chars max)
          (text-lines (dag-draw--format-node-text-with-constraints node-label))
@@ -203,7 +217,18 @@ Auto-sizes the node based on label length using 2 rows × 20 characters constrai
 ;;;###autoload
 (defun dag-draw-add-edge (graph from-node to-node &optional weight label attributes)
   "Add an edge from FROM-NODE to TO-NODE in GRAPH.
-Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
+
+GRAPH is a `dag-draw-graph' structure to modify.
+FROM-NODE is the node ID of the edge source.
+TO-NODE is the node ID of the edge target.
+WEIGHT is an optional edge weight for optimization (defaults to 1).
+LABEL is an optional string label for the edge.
+ATTRIBUTES is an optional hash table of edge-specific attributes.
+
+The min-length constraint can be specified via ATTRIBUTES with key
+'min-length (defaults to 1).
+
+Returns the created `dag-draw-edge' structure."
   (let* ((attrs (or attributes (ht-create)))
          (min-length (or (and attrs (ht-get attrs 'min-length)) 1))
          (edge (dag-draw-edge-create
@@ -220,7 +245,11 @@ Optional WEIGHT, LABEL, and ATTRIBUTES can be specified."
 
 (defun dag-draw--process-edge-labels (graph)
   "Process edge labels per GKNV Section 5.3.
-Creates virtual nodes for labels and adjusts edge lengths before ranking."
+
+GRAPH is a `dag-draw-graph' structure that may contain labeled edges.
+
+Creates virtual nodes for labels and adjusts edge lengths before
+ranking.  This should be called before Pass 1 (ranking)."
   (when (dag-draw--graph-has-edge-labels-p graph)
     ;; GKNV Section 5.3: Create virtual nodes for edge labels
     (dag-draw--create-edge-label-virtual-nodes graph)
@@ -229,20 +258,32 @@ Creates virtual nodes for labels and adjusts edge lengths before ranking."
     (dag-draw--apply-label-edge-length-compensation graph)))
 
 (defun dag-draw--graph-has-edge-labels-p (graph)
-  "Check if any edges in GRAPH have labels."
+  "Check if any edges in GRAPH have labels.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns non-nil if at least one edge has a label."
   (cl-some (lambda (edge) (dag-draw-edge-label edge))
            (dag-draw-graph-edges graph)))
 
 ;;;###autoload
 (defun dag-draw-layout-graph (graph &rest args)
-  "Apply the GKNV layout algorithm to GRAPH with ASCII resolution preprocessing.
-This performs the four GKNV passes with ASCII resolution after ranking:
-ranking, ASCII resolution adjustment, ordering, positioning, and spline generation.
+  "Apply the GKNV layout algorithm to GRAPH.
 
-Optional keyword arguments:
-  :coordinate-mode MODE - Sets coordinate system mode ('ascii is primary, 'high-res deprecated)
-                         'ascii: ASCII-native coordinates optimized for all rendering (default)
-                         'high-res: Legacy mode with coordinate transformation complexity"
+GRAPH is a `dag-draw-graph' structure to layout.
+
+This performs the four GKNV passes:
+1. Ranking - assigns vertical levels to nodes
+2. Ordering - arranges nodes within ranks to minimize crossings
+3. Positioning - assigns x,y coordinates to nodes
+4. Spline generation - creates edge routing paths
+
+Optional keyword arguments (passed as ARGS):
+  :coordinate-mode MODE - Sets coordinate system mode
+                         'ascii: ASCII-native coordinates (default)
+                         'high-res: Legacy high-resolution mode
+
+Returns the GRAPH with layout information assigned to nodes and edges."
   ;; Parse keyword arguments
   (let ((coordinate-mode 'ascii))     ; Default to ASCII-first mode
     (while args
@@ -298,8 +339,13 @@ Optional keyword arguments:
 ;;; ASCII Resolution Preprocessing
 
 (defun dag-draw--estimate-ascii-scale (graph)
-  "Estimate the scale factor that will be used for ASCII conversion.
-Returns the actual scale factor used for world-coordinates → ASCII-grid conversion."
+  "Estimate the scale factor for ASCII coordinate conversion.
+
+GRAPH is a `dag-draw-graph' structure to analyze.
+
+Returns a float representing the scale factor used for converting
+world coordinates to ASCII grid positions.  The scale is dynamically
+adjusted based on graph complexity."
   ;; GKNV AESTHETIC A3 "Keep edges short" with clarity maintenance
   ;; Dynamic scaling based on graph size and complexity for optimal ASCII output
   (if (and graph (> (dag-draw-node-count graph) 2))
@@ -316,8 +362,16 @@ Returns the actual scale factor used for world-coordinates → ASCII-grid conver
 
 (defun dag-draw--calculate-min-ascii-routing-space (&optional graph)
   "Calculate minimum ASCII characters needed for clean edge routing.
-If GRAPH is provided, uses dynamic analysis of edge patterns for optimal spacing.
-Otherwise uses safe defaults for edge routing."
+
+GRAPH is an optional `dag-draw-graph' structure for dynamic analysis.
+
+If GRAPH is provided, uses dynamic analysis of edge patterns for
+optimal spacing.  Otherwise uses safe defaults.
+
+Returns a property list with:
+  :min-horizontal - minimum character spacing between nodes
+  :min-vertical - minimum row spacing between ranks
+  :port-offset - space needed for port positioning"
   (let* ((min-vertical (if graph
                            ;; Dynamic calculation based on graph structure
                            (progn
@@ -351,8 +405,12 @@ Otherwise uses safe defaults for edge routing."
      :port-offset 2)))               ; Space needed for port positioning variety
 
 (defun dag-draw--adjust-separations-for-ascii (graph)
-  "Adjust nodesep/ranksep to ensure sufficient ASCII resolution.
-Called BEFORE GKNV passes to ensure clean edge routing space."
+  "Adjust node and rank separations for ASCII resolution.
+
+GRAPH is a `dag-draw-graph' structure to modify.
+
+Called BEFORE GKNV passes to ensure clean edge routing space.
+Increases separations if needed based on estimated ASCII scale."
   (let* ((scale (dag-draw--estimate-ascii-scale graph))
          (requirements (dag-draw--calculate-min-ascii-routing-space graph))
          (min-world-nodesep (/ (float (plist-get requirements :min-horizontal)) scale))
@@ -370,15 +428,27 @@ Called BEFORE GKNV passes to ensure clean edge routing space."
       (setf (dag-draw-graph-rank-separation graph) min-world-ranksep))))
 
 (defun dag-draw--ensure-ascii-resolution (graph)
-  "Ensure ASCII grid will have sufficient resolution for edge routing.
-Must be called BEFORE dag-draw-layout-graph to adjust parameters."
+  "Ensure ASCII grid has sufficient resolution for edge routing.
+
+GRAPH is a `dag-draw-graph' structure to prepare.
+
+Must be called BEFORE the GKNV layout passes.  Adjusts graph
+parameters to ensure clean ASCII rendering."
   (dag-draw--adjust-separations-for-ascii graph)
   (message "ASCII-RESOLUTION: Graph prepared for scale %.3f"
            (dag-draw--estimate-ascii-scale graph)))
 
 ;;;###autoload
 (defun dag-draw-render-graph (graph &optional format)
-  "Render GRAPH in the specified FORMAT (default: `dag-draw-default-output-format').
+  "Render GRAPH in the specified output format.
+
+GRAPH is a `dag-draw-graph' structure that has been laid out.
+FORMAT is an optional symbol specifying output format:
+  'svg - Scalable Vector Graphics
+  'ascii - ASCII art text representation
+  'dot - Graphviz DOT language
+  Defaults to `dag-draw-default-output-format'.
+
 Returns a string representation of the rendered graph."
   (let ((output-format (or format dag-draw-default-output-format)))
     (cond
@@ -417,9 +487,15 @@ Returns a string representation of the rendered graph."
 ;;; Text Processing Utilities
 
 (defun dag-draw--format-node-text-with-constraints (text)
-  "Format TEXT for node display with expanded constraints.
-Returns a list of strings representing the formatted rows.
-Supports longer text labels while maintaining readable formatting."
+  "Format TEXT for node display with wrapping constraints.
+
+TEXT is a string to format for display in a node.
+
+Wraps text to fit within node display constraints (up to 2 rows
+of 25 characters each).  Supports word wrapping and truncation
+for overly long text.
+
+Returns a list of strings representing the formatted rows."
   (let ((max-chars-per-line 25))  ; Increased from 20 to 25 characters per line
     (if (<= (length text) max-chars-per-line)
         (list text)
@@ -458,9 +534,15 @@ Supports longer text labels while maintaining readable formatting."
             (list line1 line2)))))))
 
 (defun dag-draw--calculate-constrained-node-size (text-lines)
-  "Calculate appropriate variable node size for constrained text lines.
-ASCII-FIRST APPROACH: Measures actual ASCII grid requirements, then converts to world coordinates.
-Returns (width . height) where dimensions fit the actual text content per GKNV Section 1.2."
+  "Calculate appropriate node size for formatted text lines.
+
+TEXT-LINES is a list of strings representing the node's text content.
+
+Uses ASCII-first approach: measures actual ASCII grid requirements,
+then converts to world coordinates per GKNV Section 1.2.
+
+Returns a cons cell (WIDTH . HEIGHT) in world coordinate units,
+where dimensions fit the actual text content with appropriate padding."
   (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
          (num-lines (length text-lines))
          ;; ASCII-FIRST CALCULATION: Direct measurement of actual requirements
@@ -482,8 +564,15 @@ Returns (width . height) where dimensions fit the actual text content per GKNV S
     (cons node-width node-height)))
 
 (defun dag-draw--smart-wrap-text (text max-width)
-  "Wrap TEXT to lines no longer than MAX-WIDTH, breaking at whitespace nearest to middle.
-Returns a list of lines."
+  "Wrap TEXT intelligently to fit within MAX-WIDTH.
+
+TEXT is a string to wrap.
+MAX-WIDTH is the maximum number of characters per line (integer).
+
+Breaks at whitespace nearest to the middle of the text for
+balanced line lengths.
+
+Returns a list of wrapped lines (strings)."
   (if (<= (length text) max-width)
       (list text)  ; No wrapping needed
 
@@ -514,7 +603,11 @@ Returns a list of lines."
 
 (defun dag-draw-get-graph-bounds (graph)
   "Get bounding box of the positioned graph.
-Returns (min-x min-y max-x max-y)."
+
+GRAPH is a `dag-draw-graph' structure with positioned nodes.
+
+Returns a list (MIN-X MIN-Y MAX-X MAX-Y) representing the
+bounding rectangle that contains all nodes."
   (if (= (ht-size (dag-draw-graph-nodes graph)) 0)
       ;; Empty graph - return default bounds
       (list 0 0 100 100)
