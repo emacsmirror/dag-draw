@@ -95,7 +95,7 @@ box-drawing characters for nodes and edges."
 GRAPH is a `dag-draw-graph' structure with nodes positioned in grid units.
 
 Coordinates from the GKNV algorithm are already in grid units, so no
-scale conversion is needed. Creates an ASCII grid, draws nodes and edges,
+scale conversion is needed.  Creates an ASCII grid, draws nodes and edges,
 applies junction character enhancement, and converts to string.
 
 Returns a string containing the ASCII representation of the graph."

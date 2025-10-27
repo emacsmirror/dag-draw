@@ -122,7 +122,7 @@ Returns a plist with:
 
 GRAPH is a `dag-draw-graph' structure to check.
 
-Uses depth-first search to classify edges. Back edges indicate cycles.
+Uses depth-first search to classify edges.  Back edges indicate cycles.
 
 Returns list of `dag-draw-edge' structures representing back edges
 that create cycles."

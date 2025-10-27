@@ -29,7 +29,7 @@
 GRAPH is a `dag-draw-graph' structure with positioned nodes and spline points.
 
 Performs coordinate conversion only - does NOT modify graph coordinates or
-regenerate splines. Calculates grid size, creates grid, draws nodes and edges
+regenerate splines.  Calculates grid size, creates grid, draws nodes and edges
 using GKNV final coordinates, and converts to string.
 
 Returns a string containing the ASCII representation."

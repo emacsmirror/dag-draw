@@ -13,7 +13,7 @@
 ;;
 ;; Based on GKNV Figure 2-1 step 8: balance() function.
 ;; "Nodes having equal in- and out-edge weights and multiple feasible ranks
-;; are moved to a feasible rank with the fewest nodes. The purpose is to
+;; are moved to a feasible rank with the fewest nodes.  The purpose is to
 ;; reduce crowding and improve the aspect ratio of the drawing."
 ;;
 ;; Functions:

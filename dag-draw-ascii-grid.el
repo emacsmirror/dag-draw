@@ -23,7 +23,7 @@
 ;; ASCII Grid Rendering - GKNV Adaptation:
 ;;
 ;; This module adapts the GKNV graph drawing algorithm for ASCII character grid
-;; output. The GKNV paper describes graphical (PostScript) output, so this module
+;; output.  The GKNV paper describes graphical (PostScript) output, so this module
 ;; implements ASCII-specific decisions from doc/implementation-decisions.md.
 ;;
 ;; ASCII Decisions: D5.1-D5.8 (Character-grid specific)
@@ -38,7 +38,7 @@
 ;;
 ;; Baseline Status: ✅ Compliant with ASCII adaptation decisions
 ;;
-;; Note: GKNV paper does not cover ASCII rendering. This module implements
+;; Note: GKNV paper does not cover ASCII rendering.  This module implements
 ;; the ASCII-specific decisions documented in implementation-decisions.md
 ;; while maintaining GKNV algorithm correctness for the underlying layout.
 ;;
@@ -118,7 +118,7 @@ SCALE is a float representing the current scale factor.
 TARGET-WIDTH and TARGET-HEIGHT are integers representing grid dimensions.
 
 Simulates grid positioning with current scale and checks if any two nodes
-would collapse to the same grid position. If collapse is detected, increases
+would collapse to the same grid position.  If collapse is detected, increases
 scale slightly and recursively validates again.
 
 Only validates when nodes have actual coordinates set (after GKNV layout).
@@ -176,7 +176,7 @@ Returns t if at least one node has both x-coord and y-coord set, nil otherwise."
 
 GRAPH is a `dag-draw-graph' structure.
 
-Calculates average node size and size variance. Graphs with larger or more
+Calculates average node size and size variance.  Graphs with larger or more
 varied node sizes need smaller scale factors to fit properly.
 
 Returns a float representing the normalized complexity factor."
@@ -209,7 +209,7 @@ Returns a float representing the normalized complexity factor."
 GRAPH is a `dag-draw-graph' structure.
 
 Higher edge density relative to node count indicates more complex layout
-requirements. Calculates the ratio of actual edges to maximum possible edges.
+requirements.  Calculates the ratio of actual edges to maximum possible edges.
 
 Returns a float representing the scaled density factor."
   (let ((node-count (dag-draw-node-count graph)))
@@ -293,7 +293,7 @@ MIN-X and MIN-Y are numbers representing the minimum world coordinates.
 SCALE is a float representing the coordinate scale factor.
 GRAPH is an optional `dag-draw-graph' structure for adjusted position lookup.
 
-Converts GKNV world coordinates to grid coordinates. If GRAPH is provided and
+Converts GKNV world coordinates to grid coordinates.  If GRAPH is provided and
 contains adjusted positions for this node, uses those instead of
 raw coordinates.
 
@@ -401,7 +401,7 @@ GRAPH is an optional `dag-draw-graph' structure for hierarchy-aware resolution.
 NODE-ID is an optional symbol representing the node being positioned.
 
 Searches in expanding radius with directional priorities (horizontal movement
-first to preserve hierarchical ordering). If GRAPH and NODE-ID are provided,
+first to preserve hierarchical ordering).  If GRAPH and NODE-ID are provided,
 ensures resolved position doesn't violate rank ordering.
 
 Returns a list (adjusted-x adjusted-y) where coordinates are integers
@@ -494,7 +494,7 @@ Returns an integer grid coordinate."
 
 GRID is a 2D vector of characters.
 
-Converts each row to a string and joins with newlines. Preserves all
+Converts each row to a string and joins with newlines.  Preserves all
 characters including trailing spaces (important for layout).
 
 Returns a string containing the complete ASCII representation."

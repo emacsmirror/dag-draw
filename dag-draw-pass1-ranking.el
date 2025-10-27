@@ -36,7 +36,7 @@
 ;; Baseline Status: ✅ Compliant
 ;;
 ;; GKNV Section 2.4 states: "The network simplex is very sensitive to the choice of
-;; the negative edge to replace. We observed that searching cyclically through
+;; the negative edge to replace.  We observed that searching cyclically through
 ;; all the tree edges... can save many iterations."
 ;;
 ;; See doc/implementation-decisions.md (D1.2-D1.8) for full decision rationale.
@@ -1242,11 +1242,11 @@ Argument GRAPH ."
 
 (defun dag-draw--dfs-find-cycle-edges (graph node-id visited rec-stack cycle-edges-ref)
   "DFS to find edges that are part of cycles (back edges).
-CYCLE-EDGES-REF is a list reference for accumulating edges.
-Argument GRAPH .
-Argument _node .
-Argument VISITED .
-Argument REC-STACK ."
+GRAPH is a `dag-draw-graph' structure to search.
+NODE-ID is the current node being visited.
+VISITED is a hash table tracking visited nodes.
+REC-STACK is a hash table tracking the current recursion stack.
+CYCLE-EDGES-REF is a list reference for accumulating cycle edges."
   (ht-set! visited node-id t)
   (ht-set! rec-stack node-id t)
 

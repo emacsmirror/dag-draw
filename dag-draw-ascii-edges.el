@@ -367,7 +367,7 @@ Argument MAX-Y ."
         (list boundary-x (round intersect-y))))))
 
 (defun dag-draw--line-intersects-horizontal (x1 y1 x2 y2 boundary-y min-x max-x)
-  "Find intersection of line (X1,Y1)→(X2,Y2) w/ horiz. boundary at BOUNDARY-Y.
+  "Find intersection of line (X1,Y1)→(X2,Y2) w/ horiz.  boundary at BOUNDARY-Y.
 Returns (x,y) intersection point or nil if no intersection within X range.
 Argument MIN-X .
 Argument MAX-X ."

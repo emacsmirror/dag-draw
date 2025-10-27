@@ -78,7 +78,7 @@ WIDTH and HEIGHT are integers representing box dimensions in characters.
 LABEL is a string (may contain newlines for multiline text).
 
 Draws box-drawing characters (┌ ┐ └ ┘ ─ │) to create a bordered box.
-Handles negative coordinates by clipping to visible area. Centers label
+Handles negative coordinates by clipping to visible area.  Centers label
 text within the box interior, supporting multiline labels."
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))

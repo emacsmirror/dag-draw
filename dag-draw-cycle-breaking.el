@@ -27,7 +27,7 @@
 ;; Baseline Status: ✅ Compliant
 ;;
 ;; GKNV Section 2.1 states: "From the standpoint of stability, the depth-first
-;; cycle-breaking heuristic seems preferable. It also makes more informative
+;; cycle-breaking heuristic seems preferable.  It also makes more informative
 ;; drawings than would be obtained by collapsing all the nodes in a cycle."
 ;;
 ;; See doc/implementation-decisions.md (D1.1) for full decision rationale.
@@ -167,7 +167,7 @@ GRAPH is a `dag-draw-graph' structure containing the edge.
 EDGE is a `dag-draw-edge' to reverse.
 
 Per GKNV Section 2.1: only internal direction is flipped for algorithmic
-purposes. Original direction preserved in edge attributes for rendering.
+purposes.  Original direction preserved in edge attributes for rendering.
 
 Modifies GRAPH in place by removing EDGE and adding reversed edge.
 Returns nil."

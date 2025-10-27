@@ -28,7 +28,7 @@
 GRAPH is a `dag-draw-graph' structure containing nodes and edges.
 
 Creates a DOT language representation suitable for processing with
-Graphviz tools. Includes node declarations with labels and edge
+Graphviz tools.  Includes node declarations with labels and edge
 declarations with optional edge labels.
 
 Returns a string containing the complete DOT format graph specification."

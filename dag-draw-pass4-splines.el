@@ -837,7 +837,7 @@ Returns (left top right bottom) in world coordinate system."
 
 (defun dag-draw--line-rectangle-intersection (x1 y1 x2 y2 rect)
   "Find intersection point of line segment (X1,Y1)→(X2,Y2) with rectangle boundary.
-RECT is (left top right bottom). Returns (x y) of intersection point or nil."
+RECT is (left top right bottom).  Returns (x y) of intersection point or nil."
   (let* ((left (nth 0 rect))
          (top (nth 1 rect))
          (right (nth 2 rect))

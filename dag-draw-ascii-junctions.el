@@ -23,7 +23,7 @@
 ;; This module implements junction character enhancement for ASCII graph rendering,
 ;; as specified in CLAUDE.md "Implementation Principles: Junction characters for ASCII graphs".
 ;;
-;; Junction characters are CRITICAL for ASCII visual quality. They transform basic
+;; Junction characters are CRITICAL for ASCII visual quality.  They transform basic
 ;; edge routing (─ │) into visually polished diagrams with proper semigraphics
 ;; at connection points (┬ ┴ ├ ┤ ┌ ┐ └ ┘ ┼).
 ;;
@@ -291,7 +291,7 @@ CLAUDE.md: `When the edge requires a direction change'"
     (nreverse corners)))
 
 (defun dag-draw--is-direction-change (dx-in dy-in dx-out dy-out)
-  "Check if the direction changes between incoming and outgoing vectors.
+  "Check if the direction change occurs between incoming and outgoing vectors.
 DX-IN, DY-IN: incoming direction vector.
 DX-OUT, DY-OUT: outgoing direction vector.
 Returns t if direction changes from horizontal to vertical or vice versa."
@@ -581,8 +581,8 @@ X and Y are integers representing grid coordinates.
 DIRECTION is a symbol: one of `up', `down', `left', or `right'.
 
 Key insight: Direction matters! A horizontal line (─) only connects left/right,
-a vertical line (│) only connects up/down. Only junction characters connect
-in multiple directions. Node border corners are decorations, not connections.
+a vertical line (│) only connects up/down.  Only junction characters connect
+in multiple directions.  Node border corners are decorations, not connections.
 
 Returns t if an edge character is found AND compatible with DIRECTION,
 nil otherwise."
@@ -637,7 +637,7 @@ locally-relevant algorithm'
 
 NODE-BOUNDARIES positions are excluded from junction enhancement to
 prevent corruption of node box borders.  Arrow characters
-(▼ ▲ ► ◀) are never replaced."
+\(▼ ▲ ► ◀) are never replaced."
   (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries))
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))

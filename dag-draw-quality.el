@@ -14,7 +14,7 @@
 ;;; Commentary:
 
 ;; This module provides dynamic analysis of graph structure to calculate optimal
-;; rank separation for hollow routing. It implements the GKNV paper's recommendation
+;; rank separation for hollow routing.  It implements the GKNV paper's recommendation
 ;; to "optionally increase separation between adjacent ranks to improve the slope
 ;; of nearly horizontal edges to make them more readable."
 ;;
@@ -92,7 +92,7 @@ FROM-RANK is an integer representing the source rank.
 TO-RANK is an integer representing the destination rank.
 
 Measures horizontal displacement (X-coordinate difference) for all edges
-between the ranks. Affects routing complexity and space requirements.
+between the ranks.  Affects routing complexity and space requirements.
 
 Returns maximum horizontal distance as a number."
   (let ((max-distance 0))
@@ -151,7 +151,7 @@ FROM-RANK is an integer representing the source rank.
 TO-RANK is an integer representing the destination rank.
 
 Implements dynamic spacing following GKNV recommendation to increase
-separation for better edge readability. Considers edge convergence,
+separation for better edge readability.  Considers edge convergence,
 density, and horizontal routing distances.
 
 Returns number of ASCII rows needed as an integer."
@@ -179,7 +179,7 @@ Returns number of ASCII rows needed as an integer."
 GRAPH is a `dag-draw-graph' structure with layout complete.
 
 Analyzes all adjacent rank pairs and returns the largest separation
-requirement. Ensures sufficient space for the most complex rank transition.
+requirement.  Ensures sufficient space for the most complex rank transition.
 
 Returns maximum spacing in ASCII rows as an integer."
   (let ((ranks (dag-draw--get-graph-ranks graph)))
@@ -208,7 +208,7 @@ Checks that arrow characters appear only on boundaries, not inside
 node text areas.
 
 Returns hash table with `valid' (boolean) and `violations'
-(list) keys."
+\(list) keys."
   (let ((result (ht-create))
         (violations '())
         (arrow-chars '(?▼ ?▲ ?▶ ?◀ ?↓ ?↑ ?→ ?←)))
@@ -332,7 +332,7 @@ a symbol: up, down, left, or right.
 Verifies arrow characters match their intended direction.
 
 Returns hash table with `valid' (boolean) and `semantic-errors'
-(list) keys."
+\(list) keys."
   (let ((result (ht-create))
         (semantic-errors '())
         (direction-chars '((up    . (?▲ ?↑))
@@ -416,7 +416,7 @@ Returns plist with complexity metrics for debugging and optimization."
 GRAPH is a `dag-draw-graph' structure with layout complete.
 
 Prints analysis of graph structure and spacing requirements for each
-rank transition. Useful for understanding dynamic spacing decisions.
+rank transition.  Useful for understanding dynamic spacing decisions.
 
 Returns maximum spacing in ASCII rows as an integer."
   (let* ((complexity (dag-draw--analyze-graph-complexity graph))

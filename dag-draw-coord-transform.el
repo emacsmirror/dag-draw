@@ -92,7 +92,7 @@ Returns an integer grid size (minimum 1) in character units."
 GRAPH is a `dag-draw-graph' structure with positioned nodes.
 
 This anti-corruption layer isolates ASCII coordinate normalization from
-other rendering paths. The coordinate context ensures:
+other rendering paths.  The coordinate context ensures:
 - All grid coordinates are non-negative (required for array indices)
 - Original GKNV proportions are preserved
 - Offsets are tracked for accurate transformation

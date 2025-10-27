@@ -26,7 +26,7 @@
 ;;
 ;; Baseline Status: ✅ Compliant (Fallback implementation)
 ;;
-;; GKNV Figure 2-2, line 2 states: "Our version keeps nodes in a queue. Nodes are
+;; GKNV Figure 2-2, line 2 states: "Our version keeps nodes in a queue.  Nodes are
 ;; placed in the queue when they have no unscanned in-edges."
 ;;
 ;; See doc/implementation-decisions.md (D1.2) for decision rationale.

@@ -195,7 +195,7 @@ Returns a string containing the closing SVG tag."
 TEXT is a string that may contain XML special characters.
 
 Replaces & < > \" ' with their XML entity equivalents to ensure
-valid XML output. Escapes & first to avoid double-escaping.
+valid XML output.  Escapes & first to avoid double-escaping.
 
 Returns the escaped string safe for use in XML attributes and content."
   ;; Escape & first, then other characters (avoiding double-escaping)
