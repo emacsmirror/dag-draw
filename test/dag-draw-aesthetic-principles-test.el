@@ -1,6 +1,6 @@
 ;;; dag-draw-aesthetic-principles-test.el --- Tests for GKNV Aesthetic Principles A1-A4 -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

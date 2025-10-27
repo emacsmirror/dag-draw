@@ -1,6 +1,6 @@
 ;;; dag-draw-rank-balancing-test.el --- TDD for GKNV rank balancing implementation -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

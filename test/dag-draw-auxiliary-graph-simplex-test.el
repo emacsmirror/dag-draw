@@ -1,6 +1,6 @@
 ;;; dag-draw-auxiliary-graph-simplex-test.el --- TDD tests for auxiliary graph network simplex -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

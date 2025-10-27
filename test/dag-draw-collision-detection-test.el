@@ -1,6 +1,6 @@
 ;;; dag-draw-collision-detection-test.el --- TDD for collision detection and clean edge routing -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

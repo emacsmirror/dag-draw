@@ -1,6 +1,6 @@
 ;;; dag-draw-gknv-spline-region-test.el --- Tests for GKNV Spline Region Computation -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

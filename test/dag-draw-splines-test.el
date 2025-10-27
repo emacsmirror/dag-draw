@@ -1,6 +1,6 @@
 ;;; dag-draw-splines-test.el --- Tests for dag-draw-splines.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

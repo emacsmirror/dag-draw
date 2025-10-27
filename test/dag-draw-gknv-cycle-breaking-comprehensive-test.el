@@ -1,6 +1,6 @@
 ;;; dag-draw-gknv-cycle-breaking-comprehensive-test.el --- Comprehensive GKNV cycle breaking tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

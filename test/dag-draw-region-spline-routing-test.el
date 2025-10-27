@@ -1,6 +1,6 @@
 ;;; dag-draw-region-spline-routing-test.el --- TDD tests for region-based spline routing -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

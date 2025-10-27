@@ -1,6 +1,6 @@
 ;;; dag-draw-complex-routing-test.el --- Test complex graph edge routing issues -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

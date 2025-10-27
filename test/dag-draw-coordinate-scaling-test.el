@@ -1,6 +1,6 @@
 ;;; dag-draw-coordinate-scaling-test.el --- Tests for GKNV to ASCII coordinate scaling -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

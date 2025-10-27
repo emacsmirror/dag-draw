@@ -1,6 +1,6 @@
 ;;; dag-draw-algorithms-test.el --- Tests for dag-draw-algorithms.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

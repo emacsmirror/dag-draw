@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-box-test.el --- Unit tests for ASCII box drawing and text placement -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

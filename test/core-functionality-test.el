@@ -1,6 +1,6 @@
 ;;; core-functionality-test.el --- Core functionality tests for dag-draw -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

@@ -1,6 +1,6 @@
 ;;; dag-draw-core-test.el --- Tests for dag-draw-core.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

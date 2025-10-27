@@ -1,6 +1,6 @@
 ;;; dag-draw-full-network-simplex-test.el --- TDD tests for complete GKNV network simplex -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

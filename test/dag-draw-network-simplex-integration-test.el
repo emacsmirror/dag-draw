@@ -1,6 +1,6 @@
 ;;; dag-draw-network-simplex-integration-test.el --- TDD for network simplex integration -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

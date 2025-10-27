@@ -1,6 +1,6 @@
 ;;; gknv-paper-compliance-test.el --- GKNV paper compliance verification -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

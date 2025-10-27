@@ -1,6 +1,6 @@
 ;;; dag-draw-pattern-isolation-test.el --- Isolate and test specific visual patterns -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

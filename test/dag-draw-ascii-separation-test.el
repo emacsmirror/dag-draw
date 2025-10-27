@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-separation-test.el --- Tests for ASCII-specific separations -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

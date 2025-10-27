@@ -1,6 +1,6 @@
 ;;; dag-draw.el --- Draw directed graphs using the GKNV algorithm -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; Author: Trevoke
 ;; Version: 0.1.0
@@ -67,6 +67,8 @@
 ;; graphs in various formats including SVG and ASCII art.
 
 ;;; Code:
+
+(require 'cl-lib)
 
 (require 'dash)
 (require 'ht)

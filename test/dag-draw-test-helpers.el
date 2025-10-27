@@ -1,6 +1,6 @@
 ;;; dag-draw-test-helpers.el --- Helper functions for dag-draw tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

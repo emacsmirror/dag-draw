@@ -1,6 +1,6 @@
 ;;; dag-draw-coordinate-positioning-test.el --- TDD tests for GKNV coordinate positioning -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

@@ -1,6 +1,6 @@
 ;;; dag-draw-topological.el --- Topological rank assignment fallback -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; Author: Claude Code
 ;; Package-Requires: ((emacs "26.1"))

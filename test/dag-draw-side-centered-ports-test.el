@@ -1,6 +1,6 @@
 ;;; dag-draw-side-centered-ports-test.el --- TDD for GKNV-compliant side-centered port selection -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

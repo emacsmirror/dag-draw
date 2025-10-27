@@ -1,6 +1,6 @@
 ;;; gknv-algorithm-comprehensive-test.el --- Comprehensive GKNV algorithm tests per paper specification -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-routing-buttercup-test.el --- Buttercup tests for ASCII edge routing -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

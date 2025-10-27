@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-rendering-quality-test.el --- ASCII rendering quality tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

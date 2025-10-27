@@ -1,6 +1,6 @@
 ;;; dag-draw-spline-length-integration-test.el --- TDD for spline length integration -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

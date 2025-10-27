@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-edge-routing-test.el --- Acceptance tests for ASCII edge routing -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

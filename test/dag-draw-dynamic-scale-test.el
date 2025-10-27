@@ -1,6 +1,6 @@
 ;;; dag-draw-dynamic-scale-test.el --- Tests for dynamic ASCII scale calculation -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

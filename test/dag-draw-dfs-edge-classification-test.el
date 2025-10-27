@@ -1,6 +1,6 @@
 ;;; dag-draw-dfs-edge-classification-test.el --- Tests for GKNV DFS edge classification -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

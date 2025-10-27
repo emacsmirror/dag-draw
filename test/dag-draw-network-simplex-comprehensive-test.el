@@ -1,6 +1,6 @@
 ;;; dag-draw-network-simplex-comprehensive-test.el --- Comprehensive network simplex tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

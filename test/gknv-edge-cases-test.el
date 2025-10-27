@@ -1,6 +1,6 @@
 ;;; gknv-edge-cases-test.el --- GKNV algorithm edge cases and robustness tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

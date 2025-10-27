@@ -1,6 +1,6 @@
 ;;; dag-draw-aesthetic-principles.el --- GKNV Aesthetic Principles A1-A4 -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; Author: Claude Code
 ;; Package-Requires: ((emacs "26.1"))

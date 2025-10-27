@@ -1,6 +1,6 @@
 ;;; dag-draw-canonical-interface-test.el --- Test the canonical GKNV interface -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

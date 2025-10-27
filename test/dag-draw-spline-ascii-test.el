@@ -1,6 +1,6 @@
 ;;; dag-draw-spline-ascii-test.el --- Tests for spline-based ASCII rendering -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

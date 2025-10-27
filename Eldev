@@ -15,5 +15,7 @@
 ;; Add test loading roots
 (eldev-add-loading-roots 'test "test")
 
-;; Linting configuration  
-(setq eldev-lint-default '(elisp))
+(eldev-use-plugin 'maintainer)
+
+;; Linting configuration
+(setq eldev-lint-default '(checkdoc package-lint))

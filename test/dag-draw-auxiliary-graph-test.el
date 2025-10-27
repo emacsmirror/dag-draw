@@ -1,6 +1,6 @@
 ;;; dag-draw-auxiliary-graph-test.el --- Tests for GKNV auxiliary graph construction -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

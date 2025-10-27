@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-integration-test.el --- Integration tests for full ASCII DAG rendering -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

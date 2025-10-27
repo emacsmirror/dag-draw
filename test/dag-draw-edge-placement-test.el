@@ -1,6 +1,6 @@
 ;;; dag-draw-edge-placement-test.el --- Tests for proper edge character placement -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

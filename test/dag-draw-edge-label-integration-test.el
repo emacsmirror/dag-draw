@@ -1,6 +1,6 @@
 ;;; dag-draw-edge-label-integration-test.el --- Integration tests for edge labels -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

@@ -1,6 +1,6 @@
 ;;; dag-draw-coordinate-mode-test.el --- Tests for coordinate-mode parameter -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

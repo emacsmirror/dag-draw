@@ -1,6 +1,6 @@
 ;;; dag-draw-corner-arrows-test.el --- TDD tests for GKNV corner-arrow combinations -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

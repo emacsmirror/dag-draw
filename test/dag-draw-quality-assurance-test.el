@@ -1,6 +1,6 @@
 ;;; dag-draw-quality-assurance-test.el --- TDD tests for quality assurance functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

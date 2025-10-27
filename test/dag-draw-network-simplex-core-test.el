@@ -1,6 +1,6 @@
 ;;; dag-draw-network-simplex-core-test.el --- TDD for GKNV network simplex core algorithm -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

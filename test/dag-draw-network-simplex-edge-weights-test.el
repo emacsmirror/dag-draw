@@ -1,6 +1,6 @@
 ;;; dag-draw-network-simplex-edge-weights-test.el --- TDD tests for enhanced edge weight system -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

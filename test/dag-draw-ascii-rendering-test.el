@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-rendering-test.el --- Unit tests for ASCII rendering components -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

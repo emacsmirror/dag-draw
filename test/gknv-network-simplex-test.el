@@ -1,6 +1,6 @@
 ;;; gknv-network-simplex-test.el --- Network Simplex algorithm tests per GKNV paper -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

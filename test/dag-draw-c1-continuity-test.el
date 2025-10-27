@@ -1,6 +1,6 @@
 ;;; dag-draw-c1-continuity-test.el --- Tests for GKNV C1 continuity -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

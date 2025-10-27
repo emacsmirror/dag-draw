@@ -1,6 +1,6 @@
 ;;; dag-draw-gknv-function-names-test.el --- Tests for standard GKNV function names -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

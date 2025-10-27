@@ -1,6 +1,6 @@
 ;;; dag-draw-algorithms-minimal-test.el --- Minimal tests for dag-draw-algorithms.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

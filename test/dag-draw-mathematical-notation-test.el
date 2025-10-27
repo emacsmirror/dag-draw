@@ -1,6 +1,6 @@
 ;;; dag-draw-mathematical-notation-test.el --- Tests for GKNV mathematical notation compliance -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

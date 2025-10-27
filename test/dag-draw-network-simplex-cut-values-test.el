@@ -1,6 +1,6 @@
 ;;; dag-draw-network-simplex-cut-values-test.el --- Tests for GKNV cut value calculation -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

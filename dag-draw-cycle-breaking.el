@@ -1,6 +1,6 @@
 ;;; dag-draw-cycle-breaking.el --- Cycle detection and breaking for DAG layout -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; Author: Claude Code
 ;; Package-Requires: ((emacs "26.1"))

@@ -1,6 +1,6 @@
 ;;; dag-draw-rank-hierarchy-test.el --- Tests for proper GKNV rank assignment -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

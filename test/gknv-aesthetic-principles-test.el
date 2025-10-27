@@ -1,6 +1,6 @@
 ;;; gknv-aesthetic-principles-test.el --- GKNV aesthetic principles verification tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

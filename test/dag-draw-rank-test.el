@@ -1,6 +1,6 @@
 ;;; dag-draw-rank-test.el --- Tests for dag-draw-rank.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

@@ -1,6 +1,6 @@
 ;;; dag-draw-ascii-coordinate-failure-test.el --- Test showing ASCII coordinate collapse -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

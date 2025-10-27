@@ -1,6 +1,6 @@
 ;;; dag-draw-end-to-end-test.el --- End-to-end tests for complete DAG pipeline -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 

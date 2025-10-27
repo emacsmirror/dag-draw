@@ -1,6 +1,6 @@
 ;;; dag-draw-junction-char-test.el --- Tests for enhanced junction characters -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024
+;; Copyright (C) 2024, 2025
 
 ;;; Commentary:
 
