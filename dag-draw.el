@@ -400,7 +400,7 @@ Returns a property list with:
                                (require 'dag-draw-ascii-grid)
                                (ht-each (lambda (_node-id node)
                                           (let ((ascii-width (dag-draw--world-to-grid-size
-                                                             (dag-draw-node-x-size node) scale)))
+                                                              (dag-draw-node-x-size node) scale)))
                                             (setq max-ascii-width (max max-ascii-width ascii-width))))
                                         (dag-draw-graph-nodes graph))
                                ;; Use max node width plus minimum buffer for routing
