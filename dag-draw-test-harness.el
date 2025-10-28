@@ -219,11 +219,7 @@ Returns list of edge plists with :from, :to, :path keys."
 (defun dag-draw-test--trace-edges-from-node (grid from-node all-nodes)
   "Trace edges starting FROM-NODE in GRID, connecting to nodes in ALL-NODES.
 Returns list of edge plists."
-  (let ((edges '())
-        (from-x (plist-get from-node :x))
-        (from-y (plist-get from-node :y))
-        (from-width (plist-get from-node :width))
-        (from-height (plist-get from-node :height)))
+  (let ((edges '()))
 
     ;; Check all edge exit points on node boundary
     (let ((exit-points (dag-draw-test--find-edge-exit-points grid from-node)))
@@ -402,7 +398,7 @@ Returns plist with :valid (boolean) and :broken-boundaries (list) keys."
 
     (list :valid valid :broken-boundaries broken-boundaries)))
 
-(defun dag-draw-test--check-node-boundary-integrity (node ascii-string)
+(defun dag-draw-test--check-node-boundary-integrity (node _ascii-string)
   "Check that NODE has complete, unbroken boundary in ASCII-STRING."
   ;; Simplified check - ensure node has reasonable dimensions and text
   (and (> (plist-get node :width) 2)
@@ -501,8 +497,7 @@ Returns plist with :topology-match, :node-count-match, :edge-count-match keys."
   ;; XP: Use graph-based detection instead of character hunting
   (let ((found-nodes (dag-draw-test--find-nodes-using-graph-data ascii-string graph))
         (found-edges (dag-draw-test--find-edges ascii-string))
-        (expected-nodes (dag-draw-test--extract-expected-nodes graph))
-        (expected-edges (dag-draw-test--extract-expected-edges graph)))
+        (expected-nodes (dag-draw-test--extract-expected-nodes graph)))
 
     (list :topology-match (>= (length found-nodes) (length expected-nodes))
           :node-count-match (>= (length found-nodes) (length expected-nodes))
@@ -647,11 +642,10 @@ Returns plist with :all-valid (boolean) and :invalid-junctions (list) keys."
   (let ((grid-height (gethash 'height grid))
         (grid-width (gethash 'width grid))
         (invalid-junctions '())
-        (all-valid t)
+        (all-valid t))
         ;; IMPORTANT: Node border corners (?┌ ?┐ ?└ ?┘) are NOT edge characters!
         ;; They're decorations and should not indicate connectivity.
         ;; This matches the fix in dag-draw--has-edge-in-direction.
-        (edge-chars '(?│ ?─ ?┼ ?├ ?┤ ?┬ ?┴ ?▼ ?▲ ?▶ ?◀)))
 
     (dotimes (y grid-height)
       (dotimes (x grid-width)
@@ -872,7 +866,7 @@ Returns plist with :all-satisfied (boolean) and :violations (list) keys."
             (push node (gethash rank rank-groups)))))
 
       ;; For each rank with multiple nodes, check separation
-      (maphash (lambda (rank rank-nodes)
+      (maphash (lambda (_rank rank-nodes)
                  (when (> (length rank-nodes) 1)
                    ;; Sort nodes by x-coordinate
                    (let ((sorted-nodes (sort rank-nodes
@@ -913,7 +907,7 @@ Returns plist with :all-satisfied (boolean) and :violations (list) keys."
 
     (list :all-satisfied all-satisfied :violations (nreverse violations))))
 
-(defun dag-draw-test--measure-grid-distance (grid pos1 pos2)
+(defun dag-draw-test--measure-grid-distance (_grid pos1 pos2)
   "Measure Manhattan distance between POS1 and POS2 on grid.
 
 GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
@@ -1005,7 +999,7 @@ Returns list of (x y) coordinate pairs, or nil if no path found."
           (push current path))
         path))))
 
-(defun dag-draw-test--verify-path-continuity (grid path)
+(defun dag-draw-test--verify-path-continuity (_grid path)
   "Verify PATH has no gaps (all adjacent positions connected).
 
 GRID is a hash table from `dag-draw-test--parse-ascii-grid'.
@@ -1032,7 +1026,7 @@ Returns plist with :continuous (boolean) and :gaps (list) keys."
             (setq continuous nil)))))
     (list :continuous continuous :gaps (nreverse gaps))))
 
-(defun dag-draw-test--verify-orthogonal-routing (grid path)
+(defun dag-draw-test--verify-orthogonal-routing (_grid path)
   "Verify PATH use only horizontal/vertical segments (no diagonals).
 
 GRID is a hash table from `dag-draw-test--parse-ascii-grid'.

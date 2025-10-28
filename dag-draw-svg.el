@@ -107,7 +107,7 @@ coordinates and a <text> element for the label.
 
 Returns a string containing SVG <g> group with all node elements."
   (let ((node-svg "  <g class=\"nodes\">\n"))
-    (ht-each (lambda (node-id node)
+    (ht-each (lambda (_node-id node)
                (let* ((x (or (dag-draw-node-x-coord node) 0))
                       (y (or (dag-draw-node-y-coord node) 0))
                       (width (dag-draw-node-x-size node))
