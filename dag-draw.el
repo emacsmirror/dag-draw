@@ -6,7 +6,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "26.1") (dash "2.19.1") (ht "2.3"))
 ;; Keywords: tools, extensions
-;; URL: https://github.com/example/dag-draw.el
+;; URL: https://codeberg.com/trevoke/dag-draw.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
