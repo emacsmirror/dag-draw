@@ -3,7 +3,6 @@
 ;; Copyright (C) 2024, 2025
 
 ;; Author: Claude Code
-;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: internal
 
 ;;; Commentary:
