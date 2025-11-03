@@ -144,8 +144,8 @@
     (describe "Virtual Node Insertion - Section 3, line 894"
       (it "should insert virtual nodes for multi-rank edges"
         (let ((graph (dag-draw-create-graph)))
-          ;; Force multi-rank edge by setting minimum edge length > 1
-          ;; TODO: This requires implementation of δ(e) > 1 support
+          ;; NOTE: δ(e) > 1 support is implemented (see dag-draw-edge-δ and :min-length)
+          ;; For labeled edges, min-length is automatically set to 2 (GKNV Section 5.3)
           (dag-draw-add-node graph 'a "Node A")
           (dag-draw-add-node graph 'b "Node B")
           (dag-draw-add-edge graph 'a 'b)

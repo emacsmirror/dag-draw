@@ -106,33 +106,6 @@ or nil to keep the current character."
 
 ;;; Edge Analysis for Junction Detection
 
-(defun dag-draw--analyze-junction-points (graph)
-  "Analyze GRAPH to find points where junction characters are needed.
-
-GRAPH is a `dag-draw-graph' structure.
-
-CLAUDE.md: `walks the edge in order to determine the locally-relevant
-algorithm'
-
-Performs three-phase analysis:
-1. Port boundary junctions (edge start/end points)
-2. Direction change junctions (corners in edge paths)
-3. Edge intersection junctions (joins/splits/crossings)
-
-Returns a list of junction point specifications (plists)."
-  (when graph
-    (let ((junction-points '()))
-      ;; Phase 1: Detect port boundary junctions (CLAUDE.md: "At the start/end of edge")
-      (setq junction-points (append junction-points (dag-draw--detect-port-junctions graph)))
-
-      ;; Phase 2: Detect direction change junctions (CLAUDE.md: "When edge requires direction change")
-      (setq junction-points (append junction-points (dag-draw--detect-direction-changes graph)))
-
-      ;; Phase 3: Detect edge intersection junctions (CLAUDE.md: "When edges join/separate/cross")
-      (setq junction-points (append junction-points (dag-draw--detect-edge-intersections graph)))
-
-      junction-points)))
-
 (defun dag-draw--detect-port-junctions (graph)
   "Detect junction points at node port boundaries in GRAPH.
 CLAUDE.md: `At the start of the edge, at the port boundary'
@@ -204,15 +177,6 @@ coordinate change."
    ((eq direction 'right) 'left)
    (t direction)))
 
-(defun dag-draw--detect-direction-changes (_graph)
-  "Detect points where edges require direction change.
-CLAUDE.md: `When the edge requires a direction change'
-Returns a list of direction change junction specifications.
-Argument GRAPH ."
-  ;; TODO: Implement spline analysis for direction changes
-  ;; For now, return empty list as this requires complex spline path analysis
-  '())
-
 (defun dag-draw--detect-direction-changes-in-path (edge-path)
   "Detect direction change (corners) in EDGE-PATH.
 EDGE-PATH is a list of cons cells (x . y) representing the path.
@@ -267,16 +231,6 @@ Returns one of: `up', `down', `left', `right'."
    ((and (zerop dx) (< dy 0)) 'up)
    ;; Diagonal or zero - should not happen in orthogonal paths
    (t 'unknown)))
-
-(defun dag-draw--detect-edge-intersections (_graph)
-  "Detect points where edges join, separate, or cross.
-CLAUDE.md: `When two edges join, or two edges separate'
-and `When two edges cross'
-Returns a list of intersection junction specifications.
-Argument GRAPH ."
-  ;; TODO: Implement grid-based intersection analysis
-  ;; For now, return empty list as this requires ASCII grid coordinate analysis
-  '())
 
 (defun dag-draw--detect-crossings-in-paths (edge-paths)
   "Detect crossing points between multiple EDGE-PATHS.

@@ -75,19 +75,19 @@
 
   (describe "edge analysis for junction detection"
     (it "should analyze edge intersections in ASCII grid"
-      ;; This tests the analysis function that determines where junctions are needed
+      ;; This tests port junction detection at node boundaries
       (let ((graph (dag-draw-create-graph)))
         (dag-draw-add-node graph 'a "A")
         (dag-draw-add-node graph 'b "B")
         (dag-draw-add-node graph 'c "C")
         (dag-draw-add-edge graph 'a 'b)
         (dag-draw-add-edge graph 'a 'c)
-        
+
         ;; Layout the graph to get coordinates
         (dag-draw-layout-graph graph :coordinate-mode 'ascii)
-        
-        ;; Analyze where junction characters are needed
-        (let ((junction-points (dag-draw--analyze-junction-points graph)))
+
+        ;; Detect port boundary junctions
+        (let ((junction-points (dag-draw--detect-port-junctions graph)))
           (expect junction-points :not :to-be nil)
           (expect (length junction-points) :to-be-greater-than 0))))
     
