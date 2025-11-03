@@ -289,8 +289,9 @@ Argument NODE-ID ."
                (right (+ node-x node-width -1))
                (top node-y)
                (bottom (+ node-y node-height -1)))          ;; DEBUG: Log boundary intersection attempt
-          (message "INTERSECTION-DEBUG: Node %s bounds: (%d,%d,%d,%d) line: (%d,%d)->(%d,%d)"
-                   node-id left top right bottom x1 y1 x2 y2)          ;; Check intersection with each boundary edge
+          (when dag-draw-debug-output
+            (message "INTERSECTION-DEBUG: Node %s bounds: (%d,%d,%d,%d) line: (%d,%d)->(%d,%d)"
+                     node-id left top right bottom x1 y1 x2 y2))          ;; Check intersection with each boundary edge
           (let ((result (or
                          ;; Left boundary (vertical line at x=left)
                          (dag-draw--line-intersects-vertical x1 y1 x2 y2 left top bottom)

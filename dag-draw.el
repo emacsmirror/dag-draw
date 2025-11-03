@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024, 2025
 
 ;; Author: Trevoke
-;; Version: 0.1.0
+;; Version: 1.0.0
 ;; Package-Requires: ((emacs "26.1") (dash "2.19.1") (ht "2.3"))
 ;; Keywords: tools, extensions
 ;; URL: https://codeberg.org/trevoke/dag-draw.el
@@ -133,6 +133,12 @@ VISUAL RESULT: Prevents negative coordinates while maintaining readable layout."
   :type '(choice (const :tag "SVG" svg)
                  (const :tag "ASCII" ascii)
                  (const :tag "DOT" dot))
+  :group 'dag-draw)
+
+(defcustom dag-draw-debug-output nil
+  "When non-nil, print debug messages during graph layout and rendering.
+Useful for troubleshooting layout issues or understanding algorithm behavior."
+  :type 'boolean
   :group 'dag-draw)
 
 ;;; Core Data Structures

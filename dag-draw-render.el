@@ -99,7 +99,8 @@ applies junction character enhancement, and converts to string.
 
 Returns a string containing the ASCII representation of the graph."
 
-  (message "DEBUG: Starting dag-draw--render-ascii-native - SOURCE FILE VERSION")
+  (when dag-draw-debug-output
+    (message "DEBUG: Starting dag-draw--render-ascii-native - SOURCE FILE VERSION"))
 
   ;; Calculate grid bounds directly from ASCII coordinates
   (let* ((nodes (ht-values (dag-draw-graph-nodes graph)))
@@ -114,27 +115,32 @@ Returns a string containing the ASCII representation of the graph."
          (grid-height (round (max 10 (+ (- max-y min-y) 5))))
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))
 
-    (message "\n=== ASCII-NATIVE RENDERING ===")
-    (message "Grid bounds: (%d,%d) to (%d,%d)" min-x min-y max-x max-y)
-    (message "Grid size: %dx%d" grid-width grid-height)
+    (when dag-draw-debug-output
+      (message "\n=== ASCII-NATIVE RENDERING ===")
+      (message "Grid bounds: (%d,%d) to (%d,%d)" min-x min-y max-x max-y)
+      (message "Grid size: %dx%d" grid-width grid-height))
 
     ;; Draw nodes directly using ASCII coordinates (ensure integers)
     ;; Collect node boundary positions to exclude from junction enhancement
     (let ((node-boundaries nil))
-      (message "DEBUG: About to loop over %d nodes" (length nodes))
+      (when dag-draw-debug-output
+        (message "DEBUG: About to loop over %d nodes" (length nodes)))
       (dolist (node nodes)
-        (message "DEBUG: Processing node: %s" (dag-draw-node-label node))
+        (when dag-draw-debug-output
+          (message "DEBUG: Processing node: %s" (dag-draw-node-label node)))
         (let ((x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
               (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
               (label (dag-draw-node-label node))
               (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
               (height 3))  ; Standard node height
           ;; Draw node and collect its boundary positions
-          (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d" label x y width height)
+          (when dag-draw-debug-output
+            (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d" label x y width height))
           (let ((boundaries (dag-draw--draw-node-box grid x y width height label)))
-            (message "DEBUG: Got %d boundaries back, first few: %S"
-                     (length boundaries)
-                     (seq-take boundaries 5))
+            (when dag-draw-debug-output
+              (message "DEBUG: Got %d boundaries back, first few: %S"
+                       (length boundaries)
+                       (seq-take boundaries 5)))
             (setq node-boundaries (append node-boundaries boundaries)))))
 
       ;; Draw edges directly using ASCII coordinates (ensure integers)
@@ -145,15 +151,17 @@ Returns a string containing the ASCII representation of the graph."
                (from-y (round (- (or (dag-draw-node-y-coord from-node) 0) min-y)))
                (to-x (round (- (or (dag-draw-node-x-coord to-node) 0) min-x)))
                (to-y (round (- (or (dag-draw-node-y-coord to-node) 0) min-y))))
-          (message "DEBUG: Drawing edge from (%d,%d) to (%d,%d)" from-x from-y to-x to-y)
+          (when dag-draw-debug-output
+            (message "DEBUG: Drawing edge from (%d,%d) to (%d,%d)" from-x from-y to-x to-y))
           (dag-draw--draw-simple-edge grid from-x from-y to-x to-y from-node to-node)))
 
       ;; CLAUDE.md: Apply junction characters after routing, before final output
       ;; "walks the edge in order to determine the locally-relevant algorithm"
       ;; FIX: Exclude node boundaries from junction enhancement to prevent corruption
-      (message "DEBUG: Total node boundaries collected: %d" (length node-boundaries))
-      (when (< (length node-boundaries) 15)
-        (message "DEBUG: First few boundaries: %S" (seq-take node-boundaries 10)))
+      (when dag-draw-debug-output
+        (message "DEBUG: Total node boundaries collected: %d" (length node-boundaries))
+        (when (< (length node-boundaries) 15)
+          (message "DEBUG: First few boundaries: %S" (seq-take node-boundaries 10))))
       (dag-draw--apply-junction-chars-to-grid grid node-boundaries))
 
     ;; Convert grid to string
@@ -246,8 +254,9 @@ used later to exclude these positions from junction character enhancement."
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
         (boundaries nil))
 
-    (message "DEBUG draw-node-box: x=%d y=%d width=%d height=%d grid=%dx%d"
-             x y width height grid-width grid-height)
+    (when dag-draw-debug-output
+      (message "DEBUG draw-node-box: x=%d y=%d width=%d height=%d grid=%dx%d"
+               x y width height grid-width grid-height))
 
     ;; Only draw if within grid bounds
     (when (and (>= x 0) (>= y 0)
@@ -294,7 +303,8 @@ used later to exclude these positions from junction character enhancement."
           (push (cons pos-x pos-y) boundaries))))
 
     ;; Return list of boundary positions
-    (message "DEBUG draw-node-box returning: %d boundaries" (length boundaries))
+    (when dag-draw-debug-output
+      (message "DEBUG draw-node-box returning: %d boundaries" (length boundaries)))
     boundaries))
 
 

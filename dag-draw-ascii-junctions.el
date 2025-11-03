@@ -591,7 +591,8 @@ locally-relevant algorithm'
 NODE-BOUNDARIES positions are excluded from junction enhancement to
 prevent corruption of node box borders.  Arrow characters
 \(▼ ▲ ► ◀) are never replaced."
-  (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries))
+  (when dag-draw-debug-output
+    (message "DEBUG junction: Processing grid with %d boundaries" (length node-boundaries)))
   (let* ((grid-height (length grid))
          (grid-width (if (> grid-height 0) (length (aref grid 0)) 0))
          ;; Include ?+ as it's used as a fallback junction character
