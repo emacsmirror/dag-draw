@@ -417,10 +417,7 @@ Prints analysis of graph structure and spacing requirements for each
 rank transition.  Useful for understanding dynamic spacing decisions.
 
 Returns maximum spacing in ASCII rows as an integer."
-  (let* ((complexity (dag-draw--analyze-graph-complexity graph))
-         (max-spacing (dag-draw--calculate-max-required-rank-separation graph)))
-
-    max-spacing))
+  (dag-draw--calculate-max-required-rank-separation graph))
 
 (provide 'dag-draw-quality)
 

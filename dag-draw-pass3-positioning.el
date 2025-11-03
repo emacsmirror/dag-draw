@@ -272,7 +272,7 @@ Argument GRAPH ."
     (setq best-layout-width (dag-draw--calculate-layout-width graph))
 
     ;; Iterative GKNV positioning enhancement
-    (dotimes (iteration max-iterations)
+    (dotimes (_iteration max-iterations)
       ;; Step 8: minpath() - straighten virtual node chains
       (dag-draw--minpath-straighten-virtual-chains graph)
 

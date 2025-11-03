@@ -74,7 +74,7 @@ SCALE is a float representing the coordinate scale factor.
 For each node, converts world coordinates to grid coordinates and draws
 a box with the node label."
 
-  (ht-each (lambda (node-id node)
+  (ht-each (lambda (_node-id node)
              (let* (;; Use GKNV final coordinates directly
                     (world-x (dag-draw-node-x-coord node))
                     (world-y (dag-draw-node-y-coord node))
