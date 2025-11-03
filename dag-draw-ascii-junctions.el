@@ -17,10 +17,12 @@
 ;; BOUNDED CONTEXT: ASCII Rendering Context
 ;; UPSTREAM CONTEXT: GKNV Algorithm Context (via Coordinate Transform Layer)
 ;; LAYER: Visual Enhancement
-;; AUTHORITY: CLAUDE.md "Implementation Principles: Junction characters for ASCII graphs"
+;; AUTHORITY: CLAUDE.md "Implementation Principles: Junction characters for
+;;            ASCII graphs"
 ;;
-;; This module implements junction character enhancement for ASCII graph rendering,
-;; as specified in CLAUDE.md "Implementation Principles: Junction characters for ASCII graphs".
+;; This module implements junction character enhancement for ASCII graph
+;; rendering, as specified in CLAUDE.md "Implementation Principles: Junction
+;; characters for ASCII graphs".
 ;;
 ;; Junction characters are CRITICAL for ASCII visual quality.  They transform basic
 ;; edge routing (─ │) into visually polished diagrams with proper semigraphics
@@ -44,7 +46,8 @@
 ;; - Output: Grid with enhanced junction characters
 ;; - Authority: CLAUDE.md junction specifications
 ;;
-;; See CLAUDE.md section "Junction characters for ASCII graphs" for full specifications.
+;; See CLAUDE.md section "Junction characters for ASCII graphs" for full
+;; specifications.
 
 ;;; Code:
 

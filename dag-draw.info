@@ -1,7 +1,9 @@
 This is dag-draw.info, produced by makeinfo version 7.2 from
 dag-draw.texi.
 
-Copyright (C) 2024-2025
+noindent SPDX-License-Identifier: GPL-3.0
+
+   Copyright (C) 2023-2025
 
    You can redistribute this document and/or modify it under the terms
 of the GNU General Public License as published by the Free Software
@@ -2666,132 +2668,132 @@ File: dag-draw.info,  Node: Variable Index,  Prev: Function Index,  Up: Top
 
 
 Tag Table:
-Node: Top698
-Node: Introduction5316
-Node: What is dag-draw?5531
-Node: Why use dag-draw?6985
-Node: What's a DAG?7795
-Node: How does it work?8583
-Node: Getting Started9576
-Node: Installation10078
-Node: Dependencies10305
-Node: From Source10559
-Node: Using packageel10928
-Node: Your First Graph (The Black Triangle)11129
-Node: Understanding What Just Happened12556
-Node: Step 1 Create a Graph12948
-Node: Step 2 Add Nodes13245
-Node: Step 3 Connect with Edges13763
-Node: Step 4 Layout and Render14152
-Node: A Slightly More Complex Example14678
-Node: Tutorial From Basics to Advanced17379
-Node: Working with Nodes18020
-Node: Basic Node Creation18274
-Node: Node Labels18812
-Node: Node Attributes19479
-Node: Retrieving Nodes20138
-Node: Working with Edges20835
-Node: Basic Edge Creation21135
-Node: Multiple Edges21603
-Node: Edge Weights22271
-Node: Edge Labels22831
-Node: Edge Constraints23265
-Node: Layout The Magic Step23674
-Node: Basic Layout24024
-Node: What Layout Does24427
-Node: Customizing Spacing25708
-Node: ASCII vs High-Resolution Layout26512
-Node: Rank Constraints27242
-Node: Rendering From Coordinates to Pictures27659
-Node: ASCII Rendering28010
-Node: SVG Rendering28775
-Node: DOT Rendering29746
-Node: Choosing the Right Format30251
-Node: Practical Examples30871
-Node: Example 1 Course Prerequisites31172
-Node: Example 2 Build Dependencies32374
-Node: Example 3 Project Task Dependencies33498
-Node: Reference35402
-Node: Graph Functions36041
-Node: dag-draw-create-graph36230
-Node: dag-draw-layout-graph36852
-Node: Node Functions37640
-Node: dag-draw-add-node37861
-Node: dag-draw-get-node38823
-Node: Node Accessors39367
-Node: dag-draw-node-id39686
-Node: dag-draw-node-label39932
-Node: dag-draw-node-x-coord40195
-Node: dag-draw-node-y-coord40507
-Node: dag-draw-node-rank40818
-Node: dag-draw-node-order41217
-Node: dag-draw-node-attributes41598
-Node: Edge Functions41981
-Node: dag-draw-add-edge42207
-Node: dag-draw-get-edges43008
-Node: Edge Accessors43517
-Node: dag-draw-edge-from-node43833
-Node: dag-draw-edge-to-node44095
-Node: dag-draw-edge-weight44385
-Node: dag-draw-edge-min-length44755
-Node: dag-draw-edge-spline-points45127
-Node: dag-draw-edge-attributes45581
-Node: Rendering Functions45867
-Node: dag-draw-render-graph46074
-Node: Configuration Variables46845
-Node: dag-draw-default-node-separation47224
-Node: dag-draw-default-rank-separation47684
-Node: dag-draw-ascii-node-separation48181
-Node: dag-draw-ascii-rank-separation48693
-Node: dag-draw-default-output-format49188
-Node: Graph Structure Accessors49590
-Node: dag-draw-graph-nodes49952
-Node: dag-draw-graph-edges50376
-Node: dag-draw-graph-node-separation50684
-Node: dag-draw-graph-rank-separation51147
-Node: dag-draw-graph-coordinate-mode51618
-Node: Data Structure Details52073
-Node: Node Structure52300
-Node: Edge Structure53094
-Node: Graph Structure53781
-Node: Troubleshooting54547
-Node: Graph has cycles55011
-Node: Node not found55633
-Node: Nodes overlap in ASCII output56317
-Node: Graph looks cramped56778
-Node: Graph looks too spread out57517
-Node: Must call layout before rendering58053
-Node: ASCII output shows broken characters58687
-Node: SVG doesn't display in Emacs59407
-Node: Performance is slow for large graphs60148
-Node: Edges cross when they shouldn't61026
-Node: Advanced Topics61919
-Node: Understanding the GKNV Algorithm62203
-Node: The Four Passes62585
-Node: Why This Algorithm?64328
-Node: Custom Renderers64881
-Node: Renderer Interface65220
-Node: Accessing Layout Information65789
-Node: Example Simple Text Renderer66722
-Node: Integration Examples67889
-Node: With Org Mode68128
-Node: With Project Management69489
-Node: Performance Optimization70650
-Node: Caching Layouts70897
-Node: Incremental Updates71385
-Node: Coordinate Systems72330
-Node: ASCII Mode (Default)72607
-Node: High-Resolution Mode72975
-Node: When to Use Which73369
-Node: Contributing73839
-Node: Development Setup74058
-Node: Testing74363
-Node: Code Style74713
-Node: Pull Requests75060
-Node: Reporting Bugs75366
-Node: Index75709
-Node: Function Index75817
-Node: Variable Index75945
+Node: Top744
+Node: Introduction5362
+Node: What is dag-draw?5577
+Node: Why use dag-draw?7031
+Node: What's a DAG?7841
+Node: How does it work?8629
+Node: Getting Started9622
+Node: Installation10124
+Node: Dependencies10351
+Node: From Source10605
+Node: Using packageel10974
+Node: Your First Graph (The Black Triangle)11175
+Node: Understanding What Just Happened12602
+Node: Step 1 Create a Graph12994
+Node: Step 2 Add Nodes13291
+Node: Step 3 Connect with Edges13809
+Node: Step 4 Layout and Render14198
+Node: A Slightly More Complex Example14724
+Node: Tutorial From Basics to Advanced17425
+Node: Working with Nodes18066
+Node: Basic Node Creation18320
+Node: Node Labels18858
+Node: Node Attributes19525
+Node: Retrieving Nodes20184
+Node: Working with Edges20881
+Node: Basic Edge Creation21181
+Node: Multiple Edges21649
+Node: Edge Weights22317
+Node: Edge Labels22877
+Node: Edge Constraints23311
+Node: Layout The Magic Step23720
+Node: Basic Layout24070
+Node: What Layout Does24473
+Node: Customizing Spacing25754
+Node: ASCII vs High-Resolution Layout26558
+Node: Rank Constraints27288
+Node: Rendering From Coordinates to Pictures27705
+Node: ASCII Rendering28056
+Node: SVG Rendering28821
+Node: DOT Rendering29792
+Node: Choosing the Right Format30297
+Node: Practical Examples30917
+Node: Example 1 Course Prerequisites31218
+Node: Example 2 Build Dependencies32420
+Node: Example 3 Project Task Dependencies33544
+Node: Reference35448
+Node: Graph Functions36087
+Node: dag-draw-create-graph36276
+Node: dag-draw-layout-graph36898
+Node: Node Functions37686
+Node: dag-draw-add-node37907
+Node: dag-draw-get-node38869
+Node: Node Accessors39413
+Node: dag-draw-node-id39732
+Node: dag-draw-node-label39978
+Node: dag-draw-node-x-coord40241
+Node: dag-draw-node-y-coord40553
+Node: dag-draw-node-rank40864
+Node: dag-draw-node-order41263
+Node: dag-draw-node-attributes41644
+Node: Edge Functions42027
+Node: dag-draw-add-edge42253
+Node: dag-draw-get-edges43054
+Node: Edge Accessors43563
+Node: dag-draw-edge-from-node43879
+Node: dag-draw-edge-to-node44141
+Node: dag-draw-edge-weight44431
+Node: dag-draw-edge-min-length44801
+Node: dag-draw-edge-spline-points45173
+Node: dag-draw-edge-attributes45627
+Node: Rendering Functions45913
+Node: dag-draw-render-graph46120
+Node: Configuration Variables46891
+Node: dag-draw-default-node-separation47270
+Node: dag-draw-default-rank-separation47730
+Node: dag-draw-ascii-node-separation48227
+Node: dag-draw-ascii-rank-separation48739
+Node: dag-draw-default-output-format49234
+Node: Graph Structure Accessors49636
+Node: dag-draw-graph-nodes49998
+Node: dag-draw-graph-edges50422
+Node: dag-draw-graph-node-separation50730
+Node: dag-draw-graph-rank-separation51193
+Node: dag-draw-graph-coordinate-mode51664
+Node: Data Structure Details52119
+Node: Node Structure52346
+Node: Edge Structure53140
+Node: Graph Structure53827
+Node: Troubleshooting54593
+Node: Graph has cycles55057
+Node: Node not found55679
+Node: Nodes overlap in ASCII output56363
+Node: Graph looks cramped56824
+Node: Graph looks too spread out57563
+Node: Must call layout before rendering58099
+Node: ASCII output shows broken characters58733
+Node: SVG doesn't display in Emacs59453
+Node: Performance is slow for large graphs60194
+Node: Edges cross when they shouldn't61072
+Node: Advanced Topics61965
+Node: Understanding the GKNV Algorithm62249
+Node: The Four Passes62631
+Node: Why This Algorithm?64374
+Node: Custom Renderers64927
+Node: Renderer Interface65266
+Node: Accessing Layout Information65835
+Node: Example Simple Text Renderer66768
+Node: Integration Examples67935
+Node: With Org Mode68174
+Node: With Project Management69535
+Node: Performance Optimization70696
+Node: Caching Layouts70943
+Node: Incremental Updates71431
+Node: Coordinate Systems72376
+Node: ASCII Mode (Default)72653
+Node: High-Resolution Mode73021
+Node: When to Use Which73415
+Node: Contributing73885
+Node: Development Setup74104
+Node: Testing74409
+Node: Code Style74759
+Node: Pull Requests75106
+Node: Reporting Bugs75412
+Node: Index75755
+Node: Function Index75863
+Node: Variable Index75991
 
 End Tag Table
 

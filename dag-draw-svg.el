@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'dag-draw-core)
+(require 'dag-draw-pass4-splines)
 
 ;;; Customization
 

@@ -38,7 +38,8 @@
 ;;
 ;; Functions:
 ;; - dag-draw-simple-has-cycles: Detect if graph contains cycles
-;; - dag-draw--break-cycles-using-gknv-classification: GKNV DFS edge classification cycle breaking
+;; - dag-draw--break-cycles-using-gknv-classification: GKNV DFS edge
+;;   classification cycle breaking
 ;; - dag-draw--simple-has-cycle: Helper for DFS cycle detection
 
 ;;; Code:
@@ -310,7 +311,7 @@ a list of node IDs (symbols)."
       result)))
 
 ;; Aliases for backward compatibility and test consistency
-(defalias 'dag-draw-has-cycles 'dag-draw-simple-has-cycles
+(defalias 'dag-draw-has-cycles #'dag-draw-simple-has-cycles
   "Alias for simple cycle detection function.")
 
 ;;; Simple Cycle Breaking

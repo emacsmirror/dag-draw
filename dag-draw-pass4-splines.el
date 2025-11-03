@@ -248,11 +248,11 @@ Argument TO-NODE ."
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
          (splines (dag-draw--compute-s-array L-array start-port end-port
-                                            (not (null obstacles)) ; enhanced-mode when obstacles present
+                                            obstacles ; enhanced-mode when obstacles present
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
          ;; Use enhanced tight bbox calculation when obstacles require precise computation
-         (_bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
+         (_bboxes (dag-draw--compute-bboxes splines obstacles)))
 
     ;; Return splines with proper GKNV compliance
     splines))
@@ -274,11 +274,11 @@ Argument GRAPH ."
          ;; GKNV Stage 2: Compute Bézier splines using linear path as hints
          ;; Use enhanced mode with C¹ continuity when obstacles require complex routing
          (splines (dag-draw--compute-s-array L-array start-port end-port
-                                            (not (null obstacles)) ; enhanced-mode when obstacles present
+                                            obstacles ; enhanced-mode when obstacles present
                                             0 0))                 ; default tangent angles
          ;; GKNV Stage 3: Compute actual bounding boxes
          ;; Use enhanced tight bbox calculation when obstacles require precise computation
-         (_bboxes (dag-draw--compute-bboxes splines (not (null obstacles)))))
+         (_bboxes (dag-draw--compute-bboxes splines obstacles)))
 
     ;; Return splines with proper GKNV compliance
     splines))

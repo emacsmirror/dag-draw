@@ -7,7 +7,10 @@
 @c %**end of header
 
 @copying
-Copyright (C) 2024-2025
+noindent
+SPDX-License-Identifier: GPL-3.0
+
+Copyright (C) 2023-2025
 
 You can redistribute this document and/or modify it under the terms
 of the GNU General Public License as published by the Free Software

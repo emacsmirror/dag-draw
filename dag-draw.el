@@ -6,7 +6,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "26.1") (dash "2.19.1") (ht "2.3"))
 ;; Keywords: tools, extensions
-;; URL: https://codeberg.com/trevoke/dag-draw.el
+;; URL: https://codeberg.org/trevoke/dag-draw.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -525,7 +525,7 @@ Returns a list of strings representing the formatted rows."
             (setq words (cdr words)))
           ;; Fill second line up to max-chars-per-line
           (when words
-            (let ((remaining-text (mapconcat 'identity words " ")))
+            (let ((remaining-text (mapconcat #'identity words " ")))
               (if (<= (length remaining-text) max-chars-per-line)
                   ;; All remaining text fits in second line
                   (setq line2 remaining-text)

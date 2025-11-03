@@ -25,7 +25,10 @@ This manual is for Dag Draw version 0.1.0
 :PROPERTIES:
 :copying:  t
 :END:
-Copyright (C) 2024, 2025-{{{year}}}
+#+TEXINFO: noindent
+SPDX-License-Identifier: GPL-3.0
+
+Copyright (C) 2023-{{{year}}}
 
 You can redistribute this document and/or modify it under the terms
 of the GNU General Public License as published by the Free Software

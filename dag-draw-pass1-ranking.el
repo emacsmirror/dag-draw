@@ -633,7 +633,7 @@ Argument TREE-EDGES ."
         components))))
 
 ;; Alias for backward compatibility
-(defalias 'dag-draw--calculate-proper-cut-value 'dag-draw--gknv-cut-value-calculation
+(defalias 'dag-draw--calculate-proper-cut-value #'dag-draw--gknv-cut-value-calculation
   "GKNV cut value calculation per Section 2.3.")
 
 (defun dag-draw--gknv-cut-value-calculation (edge tree-info graph)
