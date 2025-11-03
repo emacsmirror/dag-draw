@@ -310,10 +310,6 @@ a list of node IDs (symbols)."
       (ht-set! result 'sinks sinks)
       result)))
 
-;; Aliases for backward compatibility and test consistency
-(defalias 'dag-draw-has-cycles #'dag-draw-simple-has-cycles
-  "Alias for simple cycle detection function.")
-
 ;;; Simple Cycle Breaking
 
 (defun dag-draw--simple-has-cycle (graph visited rec-stack node)

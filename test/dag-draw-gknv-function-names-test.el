@@ -44,11 +44,7 @@
     
     (it "should have dag-draw-init-rank from Figure 2-2"
       ;; RED TEST: init_rank() function from GKNV Figure 2-2
-      (expect (fboundp 'dag-draw-init-rank) :to-be t))
-    
-    (it "should have dag-draw-feasible-tree from Figure 2-2"
-      ;; RED TEST: feasible_tree() function from GKNV Figure 2-2  
-      (expect (fboundp 'dag-draw-feasible-tree) :to-be t)))
+      (expect (fboundp 'dag-draw-init-rank) :to-be t)))
   
   (describe "Pass 2: Vertex Ordering Functions"
     

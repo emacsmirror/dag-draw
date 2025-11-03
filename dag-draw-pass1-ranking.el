@@ -70,125 +70,7 @@
   cut-value   ; Cut value for network simplex
   is-tight)   ; Whether edge is tight (slack = 0)
 
-;;; Spanning Tree Construction
-
-(defun dag-draw--create-feasible-spanning-tree (graph)
-  "Create feasible spanning tree from GRAPH for network simplex.
-This implements the spanning tree construction from GKNV paper section 2.3.
-
-The algorithm:
-1. Initialize data structures for tracking tree relationships
-2. Use DFS to build spanning tree from each connected component
-3. Collect visited nodes and construct final tree structure"
-  (let ((tree-data (dag-draw--initialize-spanning-tree-data graph)))
-    (dag-draw--build-spanning-forest graph tree-data)
-    (dag-draw--construct-spanning-tree tree-data)))
-
-(defun dag-draw--initialize-spanning-tree-data (graph)
-  "Initialize data structures needed for spanning tree construction.
-Argument GRAPH ."
-  (let ((data (ht-create)))
-    (ht-set! data 'visited (ht-create))
-    (ht-set! data 'tree-edges-ref (list '()))
-    (ht-set! data 'parent-map (ht-create))
-    (ht-set! data 'children-map (ht-create))
-    (ht-set! data 'roots '())
-
-    ;; Initialize children map for all nodes
-    (ht-each (lambda (node-id _node)
-               (ht-set! (ht-get data 'children-map) node-id '()))
-             (dag-draw-graph-nodes graph))
-
-    data))
-
-(defun dag-draw--build-spanning-forest (graph tree-data)
-  "Build spanning forest using DFS from each connected component.
-Argument GRAPH .
-Argument TREE-DATA ."
-  (let ((visited (ht-get tree-data 'visited))
-        (tree-edges-ref (ht-get tree-data 'tree-edges-ref))
-        (parent-map (ht-get tree-data 'parent-map))
-        (children-map (ht-get tree-data 'children-map)))
-
-    ;; Process each unvisited node as potential root of new component
-    (ht-each (lambda (node-id _node)
-               (unless (ht-get visited node-id)
-                 ;; Found new connected component - node becomes root
-                 (let ((current-roots (ht-get tree-data 'roots)))
-                   (ht-set! tree-data 'roots (cons node-id current-roots)))
-                 (ht-set! parent-map node-id nil)
-                 (dag-draw--dfs-spanning-tree graph node-id visited tree-edges-ref
-                                              parent-map children-map)))
-             (dag-draw-graph-nodes graph))))
-
-(defun dag-draw--construct-spanning-tree (tree-data)
-  "Construct final spanning tree structure from collected data.
-Argument TREE-DATA ."
-  (let ((tree (make-dag-draw-spanning-tree))
-        (visited (ht-get tree-data 'visited))
-        (tree-nodes '()))
-
-    ;; Collect all visited nodes
-    (ht-each (lambda (node-id visited-p)
-               (when visited-p
-                 (push node-id tree-nodes)))
-             visited)
-
-    ;; Build final tree structure
-    (setf (dag-draw-spanning-tree-edges tree) (car (ht-get tree-data 'tree-edges-ref)))
-    (setf (dag-draw-spanning-tree-nodes tree) tree-nodes)
-    (setf (dag-draw-spanning-tree-parent tree) (ht-get tree-data 'parent-map))
-    (setf (dag-draw-spanning-tree-children tree) (ht-get tree-data 'children-map))
-    (setf (dag-draw-spanning-tree-roots tree) (ht-get tree-data 'roots))
-
-    tree))
-
-(defun dag-draw--dfs-spanning-tree (graph node visited tree-edges-ref parent-map children-map)
-  "DFS traversal to build spanning tree edges.
-Adds edges to TREE-EDGES-REF and updates parent/children relationships.
-Argument GRAPH .
-Argument NODE .
-Argument VISITED ."
-  (ht-set! visited node t)
-
-  ;; Visit all unvisited successors
-  (dolist (successor (dag-draw-get-successors graph node))
-    (unless (ht-get visited successor)
-      ;; Add tree edge to spanning tree
-      (dag-draw--add-spanning-tree-edge tree-edges-ref node successor graph)
-
-      ;; Update parent-child relationships
-      (dag-draw--set-parent-child-relationship parent-map children-map successor node)
-
-      ;; Recurse to build subtree
-      (dag-draw--dfs-spanning-tree graph successor visited tree-edges-ref
-                                   parent-map children-map))))
-
-(defun dag-draw--add-spanning-tree-edge (tree-edges-ref from-node to-node graph)
-  "Add a new spanning tree edge from FROM-NODE to TO-NODE.
-Preserve original weight.
-Argument TREE-EDGES-REF ."
-  (let* ((original-edge (dag-draw--find-graph-edge graph from-node to-node))
-         ;; GKNV ω(e) - edge weight for optimization (Section 1.2, line 83)
-         (ω (if original-edge
-                (dag-draw-edge-ω original-edge)
-              1)) ; Default ω(e) = 1 if no original edge found
-         (tree-edge (make-dag-draw-tree-edge
-                     :from-node from-node
-                     :to-node to-node
-                     :weight ω            ; Preserve original weight ω(e)
-                     :cut-value 0         ; Will be calculated during network simplex
-                     :is-tight t)))       ; Initially assume all tree edges are tight
-    (setcar tree-edges-ref (cons tree-edge (car tree-edges-ref)))))
-
-(defun dag-draw--set-parent-child-relationship (parent-map children-map child parent)
-  "Set PARENT as the parent of CHILD and update bidirectional relationship.
-Argument PARENT-MAP .
-Argument CHILDREN-MAP ."
-  (ht-set! parent-map child parent)
-  (let ((current-children (ht-get children-map parent)))
-    (ht-set! children-map parent (cons child current-children))))
-
+;;; Spanning Tree Construction (GKNV Figure 2-2)
 
 (defun dag-draw--assign-ranks-from-root (graph spanning-tree node ranking)
   "Recursively assign ranks starting from NODE using tree structure.
@@ -554,7 +436,7 @@ Negative cut values indicate optimization opportunities.
 Argument TREE-INFO .
 Argument GRAPH ."
   ;; GKNV Section 2.3: Proper cut value calculation
-  (dag-draw--calculate-proper-cut-value edge tree-info graph))
+  (dag-draw--gknv-cut-value-calculation edge tree-info graph))
 
 (defun dag-draw--dfs-collect-component (start-node edges visited)
   "DFS to collect all nodes reachable from START-NODE via EDGES.
@@ -631,10 +513,6 @@ Argument TREE-EDGES ."
           (ht-set! components 'head-component head-component))
 
         components))))
-
-;; Alias for backward compatibility
-(defalias 'dag-draw--calculate-proper-cut-value #'dag-draw--gknv-cut-value-calculation
-  "GKNV cut value calculation per Section 2.3.")
 
 (defun dag-draw--gknv-cut-value-calculation (edge tree-info graph)
   "GKNV Section 2.3: Cut value = sum of weights from tail to head minus reverse.

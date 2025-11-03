@@ -88,11 +88,7 @@
       ;; Test init_rank() from Figure 2-2
       (dag-draw-init-rank graph)
       (expect (dag-draw-node-λ (dag-draw-get-node graph 'a)) :not :to-be nil)
-      
-      ;; Test feasible_tree() from Figure 2-2  
-      (let ((tree (dag-draw-feasible-tree graph)))
-        (expect tree :not :to-be nil))
-      
+
       ;; Complete layout for spline test
       (dag-draw-ordering graph)
       (dag-draw-position graph)

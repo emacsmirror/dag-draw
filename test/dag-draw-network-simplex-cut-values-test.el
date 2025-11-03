@@ -70,21 +70,21 @@
         (dag-draw-add-edge graph 'a 'c 1)  ; weight = 1
         
         ;; Create spanning tree structure
-        (let ((tree-info (dag-draw-feasible-tree graph)))
+        (let ((tree-info (dag-draw--construct-feasible-tree graph)))
           (expect tree-info :not :to-be nil)
           
           ;; Test that cut values are calculated properly
           ;; For edge (a,b), cut value should consider all edges crossing the cut
           ;; when tree is divided by removing edge (a,b)
-          (let* ((tree-edges (dag-draw-spanning-tree-edges tree-info))
-                 (ab-edge (cl-find-if (lambda (e) 
-                                        (and (eq (dag-draw-tree-edge-from-node e) 'a)
-                                             (eq (dag-draw-tree-edge-to-node e) 'b)))
+          (let* ((tree-edges (ht-get tree-info 'tree-edges))
+                 (ab-edge (cl-find-if (lambda (e)
+                                        (and (eq (dag-draw-edge-from-node e) 'a)
+                                             (eq (dag-draw-edge-to-node e) 'b)))
                                       tree-edges)))
             (when ab-edge
-              (let ((cut-value (dag-draw--calculate-proper-cut-value ab-edge tree-info graph)))
+              (let ((cut-value (dag-draw--gknv-cut-value-calculation ab-edge tree-info graph)))
                 ;; Cut value should be computed using GKNV formula, not simple weight
-                (expect cut-value :not :to-equal (- (dag-draw-tree-edge-weight ab-edge)))
+                (expect cut-value :not :to-equal (- (dag-draw-edge-weight ab-edge)))
                 ;; Should be a proper calculation based on component analysis
                 (expect (numberp cut-value) :to-be t)))))))
     
@@ -97,12 +97,12 @@
         
         (dag-draw-add-edge graph 'x 'y 2)
         (dag-draw-add-edge graph 'y 'z 1)
-        
+
         ;; Create spanning tree
-        (let ((tree-info (dag-draw-feasible-tree graph)))
-          (let* ((tree-edges (dag-draw-spanning-tree-edges tree-info))
+        (let ((tree-info (dag-draw--construct-feasible-tree graph)))
+          (let* ((tree-edges (ht-get tree-info 'tree-edges))
                  (xy-edge (car tree-edges)))  ; Get first tree edge
-            
+
             ;; Test component identification
             (let ((components (dag-draw--identify-cut-components xy-edge tree-edges)))
               (expect components :not :to-be nil)
@@ -131,17 +131,17 @@
         ;; Non-tree edge that will contribute to cut value
         (dag-draw-add-edge graph 'left 'bottom 3)
         (dag-draw-add-edge graph 'right 'bottom 4)
-        
-        (let ((tree-info (dag-draw-feasible-tree graph)))
+
+        (let ((tree-info (dag-draw--construct-feasible-tree graph)))
           ;; Test proper cut value calculation with crossing edges
-          (let* ((tree-edges (dag-draw-spanning-tree-edges tree-info))
-                 (root-left-edge (cl-find-if 
-                                  (lambda (e) 
-                                    (and (eq (dag-draw-tree-edge-from-node e) 'root)
-                                         (eq (dag-draw-tree-edge-to-node e) 'left)))
+          (let* ((tree-edges (ht-get tree-info 'tree-edges))
+                 (root-left-edge (cl-find-if
+                                  (lambda (e)
+                                    (and (eq (dag-draw-edge-from-node e) 'root)
+                                         (eq (dag-draw-edge-to-node e) 'left)))
                                   tree-edges)))
             (when root-left-edge
-              (let ((cut-value (dag-draw--calculate-proper-cut-value 
+              (let ((cut-value (dag-draw--gknv-cut-value-calculation
                                 root-left-edge tree-info graph)))
                 ;; Cut value should account for all crossing edges
                 ;; This is complex calculation, but should not be just -weight

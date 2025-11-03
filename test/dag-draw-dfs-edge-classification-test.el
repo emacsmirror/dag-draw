@@ -154,9 +154,9 @@
         (dag-draw-add-edge graph 'y 'x)
         
         ;; Should detect and break cycles using GKNV classification
-        (expect (dag-draw-has-cycles graph) :to-be t)
+        (expect (dag-draw-simple-has-cycles graph) :to-be t)
         (dag-draw--break-cycles-using-gknv-classification graph)
-        (expect (dag-draw-has-cycles graph) :to-be nil)))))
+        (expect (dag-draw-simple-has-cycles graph) :to-be nil)))))
 
 (provide 'dag-draw-dfs-edge-classification-test)
 

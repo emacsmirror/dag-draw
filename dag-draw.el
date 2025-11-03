@@ -688,10 +688,6 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 (defalias 'dag-draw-init-rank 'dag-draw-assign-ranks
   "GKNV init_rank() - initial rank assignment from Figure 2-2.")
 
-(declare-function dag-draw--create-feasible-spanning-tree "dag-draw-pass1-ranking")
-(defalias 'dag-draw-feasible-tree 'dag-draw--create-feasible-spanning-tree
-  "GKNV feasible_tree() - create initial spanning tree from Figure 2-2.")
-
 ;; Section 5.2 spline generation
 (declare-function dag-draw--create-inter-rank-spline "dag-draw-pass4-splines")
 (defalias 'dag-draw-generate-spline 'dag-draw--create-inter-rank-spline
