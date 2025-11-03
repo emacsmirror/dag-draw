@@ -640,29 +640,23 @@ Argument GRAPH ."
                          (car (dag-draw-get-node-ids graph)))))
 
     ;; Step 3: GKNV Figure 2-2 algorithm - while tight_tree() < V do
-    (let ((iteration-count 0)
-          (max-iterations (* total-nodes total-nodes)) ; Prevent infinite loops
-          (previous-tree-size -1))  ; Track progress
+    ;; Loop exits when either:
+    ;; - All nodes found (current-tree-size >= total-nodes) - SUCCESS
+    ;; - No progress made (current-tree-size <= previous-tree-size) - STALLED
+    (let ((previous-tree-size -1))  ; Track progress to detect stalls
       (while (and (< current-tree-size total-nodes)
-                  (< iteration-count max-iterations)
                   (> current-tree-size previous-tree-size)) ; Ensure progress
         (setq previous-tree-size current-tree-size)
         (setq current-tree-size (dag-draw--tight-tree graph fixed-node))
 
         (when (< current-tree-size total-nodes)
           ;; Step 4-9: Find boundary edge with minimal slack and adjust ranks
-          (dag-draw--expand-tight-tree graph fixed-node))
+          (dag-draw--expand-tight-tree graph fixed-node)))
 
-        (cl-incf iteration-count))
-
-      (cond
-       ((>= iteration-count max-iterations)
-        (error "GKNV tight tree expansion failed to converge after %d iterations" max-iterations))
-       ((<= current-tree-size previous-tree-size)
-        ;; If we're stalled but haven't reached all nodes, try connecting components
-        ;; by adjusting ranks to make cross-component edges feasible
-        (when (< current-tree-size total-nodes)
-          (dag-draw--connect-disconnected-components graph fixed-node)))))
+      ;; If we haven't found all nodes yet, we must have stalled
+      ;; Handle disconnected components by adjusting ranks
+      (when (< current-tree-size total-nodes)
+        (dag-draw--connect-disconnected-components graph fixed-node)))
 
     ;; Step 10: Initialize cut values (GKNV Figure 2-2, line 10: init_cutvalues())
     (let ((tree-edges (dag-draw--collect-tight-tree-edges graph fixed-node)))

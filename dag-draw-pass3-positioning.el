@@ -219,9 +219,6 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
     ;; Apply GKNV positioning enhancements
     (dag-draw--apply-gknv-positioning-enhancements graph)
 
-    ;; Ensure all nodes have valid coordinates (fallback for missing coordinates)
-    (dag-draw--ensure-all-nodes-have-coordinates graph)
-
     ;; Apply ASCII coordinate rounding if in ASCII mode
     (when (eq coordinate-mode 'ascii)
       (dag-draw--round-coordinates-for-ascii graph)))
@@ -262,26 +259,6 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
                (plist-get positioning-aesthetics :symmetry-score))))
 
   graph)
-
-(defun dag-draw--ensure-all-nodes-have-coordinates (graph)
-  "Ensure all nodes have valid X and Y coordinates.
-This is a fallback to prevent nil coordinate errors in rendering.
-Argument GRAPH ."
-  (let ((default-x 100)
-        (default-y 100)
-        (x-offset 0)
-        (y-offset 0))
-
-    (ht-each (lambda (_node-id node)
-               ;; Assign default coordinates if missing
-               (unless (dag-draw-node-x-coord node)
-                 (setf (dag-draw-node-x-coord node) (+ default-x x-offset))
-                 (setq x-offset (+ x-offset 100)))  ; Space out nodes horizontally
-
-               (unless (dag-draw-node-y-coord node)
-                 (setf (dag-draw-node-y-coord node) (+ default-y y-offset))
-                 (setq y-offset (+ y-offset 60))))  ; Space out nodes vertically
-             (dag-draw-graph-nodes graph))))
 
 ;;; Coordinate normalization and adjustment
 
