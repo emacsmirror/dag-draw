@@ -72,25 +72,6 @@ Returns the Unicode box-drawing character appropriate for the junction type,
 or nil to keep the current character."
   (let ((junction-type (plist-get context :type)))
     (cond
-     ;; Port boundary junctions (CLAUDE.md: \"At the start/end of edge, at port boundary\")
-     ((eq junction-type 'port-start)
-      (let ((direction (plist-get context :direction)))
-        (cond
-         ((eq direction 'down) ?┬)  ; ─ becomes ┬ when edge starts downward
-         ((eq direction 'up) ?┴)    ; ─ becomes ┴ when edge starts upward
-         ((eq direction 'left) ?┤)  ; │ becomes ┤ when edge starts leftward
-         ((eq direction 'right) ?├) ; │ becomes ├ when edge starts rightward
-         (t ?+))))  ; fallback
-
-     ((eq junction-type 'port-end)
-      (let ((direction (plist-get context :direction)))
-        (cond
-         ((eq direction 'up) ?┴)     ; ─ becomes ┴ when edge ends from above
-         ((eq direction 'down) ?┬)   ; ─ becomes ┬ when edge ends from below
-         ((eq direction 'left) ?┤)   ; │ becomes ┤ when edge ends from left
-         ((eq direction 'right) ?├)  ; │ becomes ├ when edge ends from right
-         (t ?+))))  ; fallback
-
      ;; Direction change junctions (CLAUDE.md: \"When edge requires direction change\")
      ((eq junction-type 'direction-change)
       (let ((from-dir (plist-get context :from-direction))
@@ -99,32 +80,7 @@ or nil to keep the current character."
          ((and (eq from-dir 'right) (eq to-dir 'down)) ?┐)  ; right→down corner
          ((and (eq from-dir 'left) (eq to-dir 'down)) ?┌)   ; left→down corner
          ((and (eq from-dir 'right) (eq to-dir 'up)) ?┘)    ; right→up corner
-         ((and (eq from-dir 'left) (eq to-dir 'up)) ?└)     ; left→up corner
-         ((and (eq from-dir 'down) (eq to-dir 'right)) ?└)  ; down→right corner
-         ((and (eq from-dir 'down) (eq to-dir 'left)) ?┘)   ; down→left corner
-         ((and (eq from-dir 'up) (eq to-dir 'right)) ?┌)    ; up→right corner
-         ((and (eq from-dir 'up) (eq to-dir 'left)) ?┐)     ; up→left corner
-         (t ?+))))  ; fallback
-
-     ;; Edge joining junctions (CLAUDE.md: \"When two edges join\")
-     ((eq junction-type 'edge-join)
-      (let ((outgoing-dir (plist-get context :outgoing-direction)))
-        (cond
-         ((eq outgoing-dir 'right) ?┴)   ; edges from above join rightward
-         ((eq outgoing-dir 'left) ?┴)    ; edges from above join leftward
-         ((eq outgoing-dir 'down) ?┬)    ; edges from sides join downward
-         ((eq outgoing-dir 'up) ?┴)      ; edges from sides join upward
-         (t ?┼))))  ; fallback to cross
-
-     ;; Edge separation junctions (CLAUDE.md: \"When two edges separate\")
-     ((eq junction-type 'edge-split)
-      (let ((incoming-dir (plist-get context :incoming-direction)))
-        (cond
-         ((eq incoming-dir 'left) ?┬)    ; horizontal line splits downward
-         ((eq incoming-dir 'right) ?┬)   ; horizontal line splits downward
-         ((eq incoming-dir 'down) ?┴)    ; vertical line splits sideways
-         ((eq incoming-dir 'up) ?┬)      ; vertical line splits sideways
-         (t ?┼))))  ; fallback to cross
+         ((and (eq from-dir 'left) (eq to-dir 'up)) ?└))))
 
      ;; Edge crossing junctions (CLAUDE.md: \"When two edges cross\")
      ((eq junction-type 'edge-cross) ?┼)  ; always use cross character
@@ -136,13 +92,8 @@ or nil to keep the current character."
         (cond
          ((and (eq main-dir 'down) (eq branch-dir 'right)) ?├)   ; down + right branch
          ((and (eq main-dir 'down) (eq branch-dir 'left)) ?┤)    ; down + left branch
-         ((and (eq main-dir 'up) (eq branch-dir 'right)) ?├)     ; up + right branch
-         ((and (eq main-dir 'up) (eq branch-dir 'left)) ?┤)      ; up + left branch
          ((and (eq main-dir 'right) (eq branch-dir 'down)) ?┬)   ; right + down branch
-         ((and (eq main-dir 'right) (eq branch-dir 'up)) ?┴)     ; right + up branch
-         ((and (eq main-dir 'left) (eq branch-dir 'down)) ?┬)    ; left + down branch
-         ((and (eq main-dir 'left) (eq branch-dir 'up)) ?┴)      ; left + up branch
-         (t ?┼))))  ; fallback to cross
+         ((and (eq main-dir 'right) (eq branch-dir 'up)) ?┴))))
 
      ;; Straight line: no junction needed, return nil to keep current character
      ((eq junction-type 'straight-line) nil)

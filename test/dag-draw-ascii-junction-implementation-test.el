@@ -56,11 +56,6 @@
         (let ((result (dag-draw--get-enhanced-junction-char context)))
           (expect result :to-equal ?┐))))
 
-    (it "should return T-junction for port-start with downward direction"
-      (let ((context (list :type 'port-start :direction 'down)))
-        (let ((result (dag-draw--get-enhanced-junction-char context)))
-          (expect result :to-equal ?┬))))
-
     (it "should return corner for right-to-down direction change"
       (let ((context (list :type 'direction-change
                           :from-direction 'right
@@ -72,27 +67,6 @@
       (let ((context (list :type 'edge-cross)))
         (let ((result (dag-draw--get-enhanced-junction-char context)))
           (expect result :to-equal ?┼))))))
-
-(describe "D5.1: Port Boundary Junction Detection"
-  (describe "Port junction detection framework"
-    (it "should detect port junctions for a simple edge"
-      (let* ((graph (dag-draw-create-graph))
-             (node-a (dag-draw-add-node graph 'a "A"))
-             (node-b (dag-draw-add-node graph 'b "B"))
-             (edge (dag-draw-add-edge graph 'a 'b)))
-
-        ;; Manually set coordinates to simulate after-layout state
-        (setf (dag-draw-node-x-coord node-a) 10.0)
-        (setf (dag-draw-node-y-coord node-a) 10.0)
-        (setf (dag-draw-node-x-coord node-b) 10.0)
-        (setf (dag-draw-node-y-coord node-b) 30.0)
-
-        (let ((junctions (dag-draw--detect-port-junctions graph)))
-          (expect (length junctions) :to-equal 2)
-
-          ;; Should have one port-start and one port-end
-          (let ((types (mapcar (lambda (j) (plist-get j :type)) junctions)))
-            (expect types :to-have-same-items-as '(port-start port-end))))))))
 
 (describe "Priority 1: Function Call Signature Fix"
   (describe "Local junction context analysis"

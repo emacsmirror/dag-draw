@@ -52,42 +52,14 @@
   (describe "dag-draw--get-enhanced-junction-char"
     (it "should exist as a function"
       (expect (fboundp 'dag-draw--get-enhanced-junction-char) :to-be t))
-    
-    (it "should handle starting port junction characters"
-      ;; CLAUDE.md: "At the start of the edge, at the port boundary"
-      ;; Example: node boundary `─` should become `┬` when edge starts downward
-      (let ((context '(:type port-start :direction down :current-char ?─)))
-        (expect (dag-draw--get-enhanced-junction-char context)
-                :to-equal ?┬)))
-    
-    (it "should handle ending port junction characters"
-      ;; CLAUDE.md: Similar logic at destination ports
-      ;; Example: node boundary `─` should become `┴` when edge ends from above
-      (let ((context '(:type port-end :direction up :current-char ?─)))
-        (expect (dag-draw--get-enhanced-junction-char context)
-                :to-equal ?┴)))
-    
+
     (it "should handle direction change junctions"
       ;; CLAUDE.md: "When the edge requires a direction change"
       ;; Example: horizontal line going right that needs to turn down
       (let ((context '(:type direction-change :from-direction right :to-direction down :current-char ?─)))
         (expect (dag-draw--get-enhanced-junction-char context)
                 :to-equal ?┐)))
-    
-    (it "should handle edge joining junctions"
-      ;; CLAUDE.md: "When two edges join, or two edges separate"
-      ;; Example: two edges coming from above joining into horizontal line
-      (let ((context '(:type edge-join :incoming-directions (up up) :outgoing-direction right)))
-        (expect (dag-draw--get-enhanced-junction-char context)
-                :to-equal ?┴)))
-    
-    (it "should handle edge separation junctions"
-      ;; CLAUDE.md: "When two edges join, or two edges separate"
-      ;; Example: horizontal line splitting into two downward edges
-      (let ((context '(:type edge-split :incoming-direction left :outgoing-directions (down down))))
-        (expect (dag-draw--get-enhanced-junction-char context)
-                :to-equal ?┬)))
-    
+
     (it "should handle edge crossing junctions"
       ;; CLAUDE.md: "When two edges cross"
       ;; Example: horizontal and vertical edges crossing
