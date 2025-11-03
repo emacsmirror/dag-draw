@@ -526,16 +526,10 @@ Returns the modified GRAPH with spline-points set on all edges."
     (let* ((edge-type (dag-draw--classify-edge graph edge))
            (splines (cond
                      ((eq edge-type 'inter-rank-edge)
-                      (message "SPLINE-GEN: Creating inter-rank spline for %s->%s"
-                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-inter-rank-spline graph edge))
                      ((eq edge-type 'flat-edge)
-                      (message "SPLINE-GEN: Creating flat spline for %s->%s"
-                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-flat-spline graph edge))
                      ((eq edge-type 'self-edge)
-                      (message "SPLINE-GEN: Creating self spline for %s->%s"
-                               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                       (dag-draw--create-self-spline graph edge))
                      ;; PHASE 3 FIX: All edges must have splines per GKNV algorithm
                      (t (progn
@@ -543,18 +537,6 @@ Returns the modified GRAPH with spline-points set on all edges."
                                    edge-type (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
                           (dag-draw--create-inter-rank-spline graph edge)))))
            (spline-points (dag-draw--convert-splines-to-points splines)))
-
-      (message "SPLINE-GEN: Edge %s->%s generated %d spline points"
-               (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
-               (if spline-points (length spline-points) 0))
-
-      ;; DEBUG: Show actual spline coordinates for connectivity analysis
-      (when spline-points
-        (message "  SPLINE-COORDS: Start: (%.1f,%.1f) End: (%.1f,%.1f)"
-                 (dag-draw-point-x (car spline-points))
-                 (dag-draw-point-y (car spline-points))
-                 (dag-draw-point-x (car (last spline-points)))
-                 (dag-draw-point-y (car (last spline-points)))))
 
       ;; Store splines in edge
       (setf (dag-draw-edge-spline-points edge) spline-points)))

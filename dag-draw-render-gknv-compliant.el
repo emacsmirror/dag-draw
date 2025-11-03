@@ -50,16 +50,9 @@ Returns a string containing the ASCII representation."
                                     (min 50 (+ 20 (* 5 (dag-draw-node-count graph))))
                                   10))
          (grid-height (max complexity-min-height (+ 5 (ceiling (* height scale)))))
-         ;; DEBUG: Show complexity calculation
-         (_ (message "COMPLEXITY: nodes=%d min-height=%d final-height=%d"
-                     (dag-draw-node-count graph) complexity-min-height grid-height))
 
          ;; Step 3: Create ASCII grid
          (grid (dag-draw--create-ascii-grid grid-width grid-height)))
-
-    (message "\n=== GKNV-COMPLIANT ASCII CONVERSION ===")
-    (message "GKNV bounds: (%.1f,%.1f) to (%.1f,%.1f)" min-x min-y max-x max-y)
-    (message "ASCII grid: %dx%d, scale=%.3f" grid-width grid-height scale)
 
     ;; Step 4: Draw nodes using GKNV final coordinates
     (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
@@ -99,8 +92,6 @@ a box with the node label."
                     (grid-x (round (- grid-center-x (/ grid-width 2))))
                     (grid-y (round (- grid-center-y (/ grid-height 2)))))
 
-               (message "GKNV-NODE: %s world(%.1f,%.1f) → grid(%d,%d) size(%dx%d)"
-                        node-id world-x world-y grid-x grid-y grid-width grid-height)
 
                ;; Draw node box at calculated position
                (dag-draw--draw-node-box grid grid-x grid-y grid-width grid-height node-label)))
@@ -134,10 +125,6 @@ coordinates and draws the edge with proper ports."
                (end-grid-x (round (dag-draw--world-to-grid-coord end-world-x min-x scale)))
                (end-grid-y (round (dag-draw--world-to-grid-coord end-world-y min-y scale))))
 
-          (message "GKNV-EDGE: %s→%s world(%.1f,%.1f)→(%.1f,%.1f) grid(%d,%d)→(%d,%d)"
-                   (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge)
-                   start-world-x start-world-y end-world-x end-world-y
-                   start-grid-x start-grid-y end-grid-x end-grid-y)
 
           ;; Draw edge using proper port-based connection
           (dag-draw--draw-edge-with-proper-ports graph edge grid start-grid-x start-grid-y
@@ -188,9 +175,6 @@ between them."
          (to-port (dag-draw--calculate-boundary-port to-grid-center-x to-grid-center-y
                                                      to-grid-width to-grid-height 'top)))
 
-    (message "GKNV-PORTS: %s port(%d,%d) → %s port(%d,%d)"
-             (dag-draw-edge-from-node edge) (nth 0 from-port) (nth 1 from-port)
-             (dag-draw-edge-to-node edge) (nth 0 to-port) (nth 1 to-port))
 
     ;; Draw simple line between proper ports
     (dag-draw--draw-simple-line grid (nth 0 from-port) (nth 1 from-port)

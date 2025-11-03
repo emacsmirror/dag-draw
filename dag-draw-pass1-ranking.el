@@ -275,9 +275,10 @@ Argument GRAPH ."
 
       ;; Step 2: Run full network simplex optimization (GKNV Figure 2-1 steps 3-6)
       (let ((optimization-result (dag-draw--optimize-network-simplex tree-info filtered-graph)))
-        (message "Network simplex optimization: %s in %d iterations"
-                 (if (ht-get optimization-result 'converged) "converged" "stopped")
-                 (ht-get optimization-result 'iterations))
+        (when dag-draw-debug-output
+          (message "Network simplex optimization: %s in %d iterations"
+                   (if (ht-get optimization-result 'converged) "converged" "stopped")
+                   (ht-get optimization-result 'iterations)))
 
         ;; Step 3: Transfer ranks from filtered graph back to original graph
         (dag-draw--transfer-ranks-to-original-graph filtered-graph graph)
@@ -964,8 +965,9 @@ Returns the modified GRAPH with rank assignments on all nodes."
   ;; GKNV Section 1.1: Evaluate aesthetic principles to guide algorithm decisions
   (let ((ranking-aesthetics (dag-draw--evaluate-ranking-aesthetics graph)))
     (when (< (plist-get ranking-aesthetics :hierarchical-score) 0.7)
-      (message "GKNV A1: Hierarchical structure score %.2f - consider rank rebalancing"
-               (plist-get ranking-aesthetics :hierarchical-score))))
+      (when dag-draw-debug-output
+        (message "GKNV A1: Hierarchical structure score %.2f - consider rank rebalancing"
+                 (plist-get ranking-aesthetics :hierarchical-score)))))
 
   graph)
 

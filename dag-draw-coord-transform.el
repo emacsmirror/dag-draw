@@ -122,12 +122,6 @@ Returns a hash table with the following keys:
                    (- max-x min-x)  ; Original width preserved
                    (- max-y min-y))) ; Original height preserved
 
-    ;; Debug output
-    (message "ASCII-CONTEXT: offset-x=%.1f offset-y=%.1f" offset-x offset-y)
-    (message "ASCII-CONTEXT: original bounds (%.1f,%.1f,%.1f,%.1f) → ascii bounds (%.1f,%.1f,%.1f,%.1f)"
-             min-x min-y max-x max-y
-             0.0 0.0 (nth 2 (ht-get context 'ascii-bounds)) (nth 3 (ht-get context 'ascii-bounds)))
-
     context))
 
 (defun dag-draw--ascii-world-to-grid (world-x world-y context scale)

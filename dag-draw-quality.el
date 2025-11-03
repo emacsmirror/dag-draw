@@ -418,24 +418,8 @@ rank transition.  Useful for understanding dynamic spacing decisions.
 
 Returns maximum spacing in ASCII rows as an integer."
   (let* ((complexity (dag-draw--analyze-graph-complexity graph))
-         (max-spacing (dag-draw--calculate-max-required-rank-separation graph))
-         (ranks (dag-draw--get-graph-ranks graph)))
+         (max-spacing (dag-draw--calculate-max-required-rank-separation graph)))
 
-    (message "=== DYNAMIC SPACING ANALYSIS ===")
-    (message "Graph complexity: %s" complexity)
-    (message "Calculated max rank separation: %d ASCII rows" max-spacing)
-
-    (when (>= (length ranks) 2)
-      (dotimes (i (1- (length ranks)))
-        (let* ((from-rank (nth i ranks))
-               (to-rank (nth (1+ i) ranks))
-               (spacing (dag-draw--calculate-dynamic-rank-separation graph from-rank to-rank))
-               (edges (dag-draw--count-edges-between-ranks graph from-rank to-rank))
-               (convergence (dag-draw--max-edges-to-same-destination graph from-rank to-rank)))
-          (message "Rank %d→%d: %d rows (edges: %d, max convergence: %d)"
-                   from-rank to-rank spacing edges convergence))))
-
-    (message "=== END SPACING ANALYSIS ===")
     max-spacing))
 
 (provide 'dag-draw-quality)

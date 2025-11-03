@@ -391,8 +391,9 @@ Returns a property list with:
                            (progn
                              (require 'dag-draw-quality)
                              (let ((dynamic-spacing (dag-draw--calculate-max-required-rank-separation graph)))
-                               (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)"
-                                        dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph))
+                               (when dag-draw-debug-output
+                                 (message "DYNAMIC-SPACING: Calculated %d rows for graph (nodes: %d, edges: %d)"
+                                          dynamic-spacing (dag-draw-node-count graph) (dag-draw-edge-count graph)))
                                (dag-draw--debug-spacing-calculation graph)
                                dynamic-spacing))
                          ;; Safe default for edge routing
@@ -432,13 +433,15 @@ Increases separations if needed based on estimated ASCII scale."
 
     ;; Increase separations if needed for ASCII resolution
     (when (< (dag-draw-graph-node-separation graph) min-world-nodesep)
-      (message "ASCII-RESOLUTION: Increasing nodesep from %.1f to %.1f for scale %.3f"
-               (dag-draw-graph-node-separation graph) min-world-nodesep scale)
+      (when dag-draw-debug-output
+        (message "ASCII-RESOLUTION: Increasing nodesep from %.1f to %.1f for scale %.3f"
+                 (dag-draw-graph-node-separation graph) min-world-nodesep scale))
       (setf (dag-draw-graph-node-separation graph) min-world-nodesep))
 
     (when (< (dag-draw-graph-rank-separation graph) min-world-ranksep)
-      (message "ASCII-RESOLUTION: Increasing ranksep from %.1f to %.1f for scale %.3f"
-               (dag-draw-graph-rank-separation graph) min-world-ranksep scale)
+      (when dag-draw-debug-output
+        (message "ASCII-RESOLUTION: Increasing ranksep from %.1f to %.1f for scale %.3f"
+                 (dag-draw-graph-rank-separation graph) min-world-ranksep scale))
       (setf (dag-draw-graph-rank-separation graph) min-world-ranksep))))
 
 (defun dag-draw--ensure-ascii-resolution (graph)
@@ -449,8 +452,9 @@ GRAPH is a `dag-draw-graph' structure to prepare.
 Must be called BEFORE the GKNV layout passes.  Adjusts graph
 parameters to ensure clean ASCII rendering."
   (dag-draw--adjust-separations-for-ascii graph)
-  (message "ASCII-RESOLUTION: Graph prepared for scale %.3f"
-           (dag-draw--estimate-ascii-scale graph)))
+  (when dag-draw-debug-output
+    (message "ASCII-RESOLUTION: Graph prepared for scale %.3f"
+             (dag-draw--estimate-ascii-scale graph))))
 
 ;;;###autoload
 (defun dag-draw-render-graph (graph &optional format)

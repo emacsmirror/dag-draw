@@ -239,24 +239,16 @@ Returns the modified GRAPH with x-coord and y-coord set on all nodes."
                         (list final-x final-y width height))))
            (dag-draw-graph-nodes graph))
 
-  ;; DEBUG: Show final node positions after X and Y coordinate assignment
-  (message "NODE POSITIONS after complete positioning:")
-  (ht-each (lambda (node-id node)
-             (message "  Node %s: (%.1f,%.1f) rank=%s"
-                      node-id
-                      (or (dag-draw-node-x-coord node) 0)
-                      (or (dag-draw-node-y-coord node) 0)
-                      (or (dag-draw-node-rank node) "nil")))
-           (dag-draw-graph-nodes graph))
-
   ;; GKNV Section 1.1: Evaluate aesthetic principles for positioning decisions
   (let ((positioning-aesthetics (dag-draw--evaluate-positioning-aesthetics graph)))
     (when (> (plist-get positioning-aesthetics :average-edge-length) 200)
-      (message "GKNV A3: Average edge length %.1f exceeds threshold - consider tighter layout"
-               (plist-get positioning-aesthetics :average-edge-length)))
+      (when dag-draw-debug-output
+        (message "GKNV A3: Average edge length %.1f exceeds threshold - consider tighter layout"
+                 (plist-get positioning-aesthetics :average-edge-length))))
     (when (< (plist-get positioning-aesthetics :symmetry-score) 0.5)
-      (message "GKNV A4: Layout symmetry score %.2f - consider balance improvements"
-               (plist-get positioning-aesthetics :symmetry-score))))
+      (when dag-draw-debug-output
+        (message "GKNV A4: Layout symmetry score %.2f - consider balance improvements"
+                 (plist-get positioning-aesthetics :symmetry-score)))))
 
   graph)
 
@@ -281,8 +273,6 @@ Argument GRAPH ."
 
     ;; Iterative GKNV positioning enhancement
     (dotimes (iteration max-iterations)
-      (message "GKNV positioning enhancement iteration %d" (1+ iteration))
-
       ;; Step 8: minpath() - straighten virtual node chains
       (dag-draw--minpath-straighten-virtual-chains graph)
 
@@ -292,14 +282,11 @@ Argument GRAPH ."
       ;; Check if this iteration improved the layout
       (let ((current-width (dag-draw--calculate-layout-width graph)))
         (when (< current-width best-layout-width)
-          (message "GKNV enhancement: Improved layout width from %s to %s"
-                   best-layout-width current-width)
           (setq best-layout-width current-width)
           (dag-draw--store-coordinates graph best-coordinates))))
 
     ;; Restore best coordinates found
-    (dag-draw--restore-coordinates graph best-coordinates)
-    (message "GKNV positioning enhancements completed. Final width: %s" best-layout-width)))
+    (dag-draw--restore-coordinates graph best-coordinates)))
 
 (defun dag-draw--store-coordinates (graph coordinate-store)
   "Store current node coordinates in COORDINATE-STORE hash table.

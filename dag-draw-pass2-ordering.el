@@ -466,16 +466,18 @@ Returns the modified GRAPH with order assignments within each rank."
     (dag-draw--apply-ordering-to-graph graph (ht-get convergence-result 'best-ranks))
 
     ;; Log convergence information
-    (message "Crossing reduction completed: iterations=%s crossings=%s converged=%s"
-             (ht-get convergence-result 'iterations)
-             (ht-get convergence-result 'final-crossings)
-             (ht-get convergence-result 'converged))
+    (when dag-draw-debug-output
+      (message "Crossing reduction completed: iterations=%s crossings=%s converged=%s"
+               (ht-get convergence-result 'iterations)
+               (ht-get convergence-result 'final-crossings)
+               (ht-get convergence-result 'converged)))
 
     ;; GKNV Section 1.1: Evaluate aesthetic principles for ordering decisions
     (let ((ordering-aesthetics (dag-draw--evaluate-ordering-aesthetics graph)))
       (when (> (plist-get ordering-aesthetics :crossing-count) 0)
-        (message "GKNV A2: Edge crossings detected (%d) - visual anomalies present"
-                 (plist-get ordering-aesthetics :crossing-count))))
+        (when dag-draw-debug-output
+          (message "GKNV A2: Edge crossings detected (%d) - visual anomalies present"
+                   (plist-get ordering-aesthetics :crossing-count)))))
 
     graph))
 
