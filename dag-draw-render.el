@@ -61,10 +61,14 @@
 
 ;;; Main Rendering Functions
 
-(defun dag-draw-render-ascii (graph)
+(defun dag-draw-render-ascii (graph &optional selected)
   "Render GRAPH as ASCII art using GKNV-compliant coordinate conversion.
 
 GRAPH is a `dag-draw-graph' structure that must have positioned nodes.
+
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
+Selected nodes are drawn with double-line box characters (╔╗╚╝═║) instead
+of single-line characters (┌┐└┘─│).
 
 This function respects the GKNV 4-pass algorithm and performs only
 coordinate conversion from world coordinates to ASCII grid coordinates.
@@ -86,12 +90,14 @@ box-drawing characters for nodes and edges."
       "(Empty Graph)"
 
     ;; ASCII-first mode: coordinates are already in grid units, no conversion needed
-    (dag-draw--render-ascii-native graph)))
+    (dag-draw--render-ascii-native graph selected)))
 
-(defun dag-draw--render-ascii-native (graph)
+(defun dag-draw--render-ascii-native (graph &optional selected)
   "Render GRAPH with ASCII-native coordinates directly from GKNV positioning.
 
 GRAPH is a `dag-draw-graph' structure with nodes positioned in grid units.
+
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
 
 Coordinates from the GKNV algorithm are already in grid units, so no
 scale conversion is needed.  Creates an ASCII grid, draws nodes and edges,
@@ -128,15 +134,18 @@ Returns a string containing the ASCII representation of the graph."
       (dolist (node nodes)
         (when dag-draw-debug-output
           (message "DEBUG: Processing node: %s" (dag-draw-node-label node)))
-        (let ((x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
-              (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
-              (label (dag-draw-node-label node))
-              (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
-              (height 3))  ; Standard node height
+        (let* ((node-id (dag-draw-node-id node))
+               (node-selected-p (and selected (eq node-id selected)))
+               (x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
+               (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
+               (label (dag-draw-node-label node))
+               (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
+               (height 3))  ; Standard node height
           ;; Draw node and collect its boundary positions
           (when dag-draw-debug-output
-            (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d" label x y width height))
-          (let ((boundaries (dag-draw--draw-node-box grid x y width height label)))
+            (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d selected=%s"
+                     label x y width height node-selected-p))
+          (let ((boundaries (dag-draw--draw-node-box grid x y width height label node-selected-p)))
             (when dag-draw-debug-output
               (message "DEBUG: Got %d boundaries back, first few: %S"
                        (length boundaries)
@@ -237,26 +246,52 @@ position on the specified side of the node boundary."
      ((eq side 'right) (list right (round center-y)))
      (t (list (round center-x) (round center-y))))))
 
-(defun dag-draw--draw-node-box (grid x y width height label)
+(defun dag-draw--get-box-chars (selected-p)
+  "Return box-drawing characters based on SELECTED-P.
+
+If SELECTED-P is non-nil, returns double-line box characters.
+Otherwise returns single-line box characters.
+
+Returns a plist with keys:
+  :top-left :top-right :bottom-left :bottom-right
+  :horizontal :vertical"
+  (if selected-p
+      (list :top-left ?╔
+            :top-right ?╗
+            :bottom-left ?╚
+            :bottom-right ?╝
+            :horizontal ?═
+            :vertical ?║)
+    (list :top-left ?┌
+          :top-right ?┐
+          :bottom-left ?└
+          :bottom-right ?┘
+          :horizontal ?─
+          :vertical ?│)))
+
+(defun dag-draw--draw-node-box (grid x y width height label &optional selected-p)
   "Draw a node box with LABEL at specified grid position.
 
 GRID is a 2D vector representing the ASCII character grid (modified in place).
 X and Y are integers representing the top-left corner position.
 WIDTH and HEIGHT are integers representing box dimensions in characters.
 LABEL is a string (may contain newlines for multiline text).
+SELECTED-P is an optional boolean indicating if this node is selected.
 
-Draws box-drawing characters (┌ ┐ └ ┘ ─ │) to create a bordered box
-and centers the label text within it.
+Draws box-drawing characters to create a bordered box.
+If SELECTED-P is non-nil, uses double-line characters (╔ ╗ ╚ ╝ ═ ║).
+Otherwise uses single-line characters (┌ ┐ └ ┘ ─ │).
 
 Returns a list of (x . y) cons cells representing node boundary positions,
 used later to exclude these positions from junction character enhancement."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
-        (boundaries nil))
+        (boundaries nil)
+        (chars (dag-draw--get-box-chars selected-p)))
 
     (when dag-draw-debug-output
-      (message "DEBUG draw-node-box: x=%d y=%d width=%d height=%d grid=%dx%d"
-               x y width height grid-width grid-height))
+      (message "DEBUG draw-node-box: x=%d y=%d width=%d height=%d grid=%dx%d selected=%s"
+               x y width height grid-width grid-height selected-p))
 
     ;; Only draw if within grid bounds
     (when (and (>= x 0) (>= y 0)
@@ -267,9 +302,9 @@ used later to exclude these positions from junction character enhancement."
       (dotimes (i width)
         (let ((pos-x (+ x i)))
           (dag-draw--set-char grid pos-x y
-                              (cond ((= i 0) ?┌)
-                                    ((= i (1- width)) ?┐)
-                                    (t ?─)))
+                              (cond ((= i 0) (plist-get chars :top-left))
+                                    ((= i (1- width)) (plist-get chars :top-right))
+                                    (t (plist-get chars :horizontal))))
           (push (cons pos-x y) boundaries)))
 
       ;; Draw middle rows with label (supports multiline text)
@@ -280,7 +315,7 @@ used later to exclude these positions from junction character enhancement."
                                 (nth row label-lines)
                               "")))  ; Empty string for rows without text
             ;; Left border
-            (dag-draw--set-char grid x actual-row ?│)
+            (dag-draw--set-char grid x actual-row (plist-get chars :vertical))
             (push (cons x actual-row) boundaries)
             ;; Content area with proper multiline text rendering
             (dotimes (col (- width 2))
@@ -289,7 +324,7 @@ used later to exclude these positions from junction character enhancement."
                     (dag-draw--set-char grid char-pos actual-row (aref current-line col))
                   (dag-draw--set-char grid char-pos actual-row ?\s))))
             ;; Right border
-            (dag-draw--set-char grid (+ x width -1) actual-row ?│)
+            (dag-draw--set-char grid (+ x width -1) actual-row (plist-get chars :vertical))
             (push (cons (+ x width -1) actual-row) boundaries))))
 
       ;; Draw bottom border and record boundary positions
@@ -297,9 +332,9 @@ used later to exclude these positions from junction character enhancement."
         (let ((pos-x (+ x i))
               (pos-y (+ y height -1)))
           (dag-draw--set-char grid pos-x pos-y
-                              (cond ((= i 0) ?└)
-                                    ((= i (1- width)) ?┘)
-                                    (t ?─)))
+                              (cond ((= i 0) (plist-get chars :bottom-left))
+                                    ((= i (1- width)) (plist-get chars :bottom-right))
+                                    (t (plist-get chars :horizontal))))
           (push (cons pos-x pos-y) boundaries))))
 
     ;; Return list of boundary positions

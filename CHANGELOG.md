@@ -81,6 +81,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Node Selection Visualization** - All rendering formats support highlighting a selected node
+  - ASCII: Selected nodes rendered with double-line box characters (╔═╗╚╝║)
+  - SVG: Selected nodes rendered with blue glow filter effect
+  - DOT: Selected nodes rendered with style=bold attribute
+  - Added optional `selected` parameter to `dag-draw-render-graph` and format-specific renderers
+  - Graceful handling of invalid node IDs (renders normally without error)
+  - 37 comprehensive tests covering selection in all formats
+  - Use cases: Interactive viewers, tutorials, debugging, workflow status
+
 ### Planned Features
 
 - Full network simplex implementation for X-coordinate optimization

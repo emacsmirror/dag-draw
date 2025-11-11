@@ -40,10 +40,13 @@
 
 ;;; SVG Rendering
 
-(defun dag-draw-render-svg (graph)
+(defun dag-draw-render-svg (graph &optional selected)
   "Render GRAPH as SVG string with positioned nodes and smooth spline edges.
 
 GRAPH is a `dag-draw-graph' structure with positioned nodes and spline points.
+
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
+Selected nodes are rendered with a glow filter effect for visual emphasis.
 
 Calculates graph bounds, creates an SVG header with appropriate viewBox,
 renders edges as SVG paths, and renders nodes as SVG rectangles with labels.
@@ -58,13 +61,15 @@ Returns a string containing the complete SVG XML representation of the graph."
          (height (- max-y min-y))
          (margin 20)
          (svg-width (+ width (* 2 margin)))
-         (svg-height (+ height (* 2 margin))))
+         (svg-height (+ height (* 2 margin)))
+         ;; Only use selection if the node actually exists in the graph
+         (valid-selected (and selected (dag-draw-get-node graph selected) selected)))
 
     (concat
      (dag-draw--svg-header svg-width svg-height (- min-x margin) (- min-y margin) width height)
-     (dag-draw--svg-defs)
+     (dag-draw--svg-defs valid-selected)
      (dag-draw--svg-render-edges graph)
-     (dag-draw--svg-render-nodes graph)
+     (dag-draw--svg-render-nodes graph valid-selected)
      (dag-draw--svg-footer))))
 
 (defun dag-draw--svg-header (svg-width svg-height view-x view-y view-width view-height)
@@ -80,16 +85,31 @@ viewBox attributes."
   (format "<svg width=\"%.1f\" height=\"%.1f\" viewBox=\"%.1f %.1f %.1f %.1f\" xmlns=\"http://www.w3.org/2000/svg\">\n"
           svg-width svg-height view-x view-y view-width view-height))
 
-(defun dag-draw--svg-defs ()
-  "Generate SVG definitions for arrow markers and styles.
+(defun dag-draw--svg-defs (&optional selected)
+  "Generate SVG definitions for arrow markers, filters, and styles.
+
+SELECTED is an optional node ID indicating if selection filter should be included.
 
 Returns a string containing SVG <defs> section with arrowhead marker
-definition and CSS styles for nodes, node labels, edges, and edge labels."
+definition, optional selection glow filter, and CSS styles."
   (concat
    "  <defs>\n"
    "    <marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"9\" refY=\"3.5\" orient=\"auto\">\n"
    "      <polygon points=\"0 0, 10 3.5, 0 7\" fill=\"" dag-draw-render-svg-edge-stroke "\" />\n"
    "    </marker>\n"
+   ;; Add selection glow filter if a node is selected
+   (if selected
+       (concat
+        "    <filter id=\"selection-glow\">\n"
+        "      <feGaussianBlur in=\"SourceAlpha\" stdDeviation=\"3\" result=\"blur\"/>\n"
+        "      <feFlood flood-color=\"#4a90e2\" flood-opacity=\"0.5\" result=\"color\"/>\n"
+        "      <feComposite in=\"color\" in2=\"blur\" operator=\"in\" result=\"coloredBlur\"/>\n"
+        "      <feMerge>\n"
+        "        <feMergeNode in=\"coloredBlur\"/>\n"
+        "        <feMergeNode in=\"SourceGraphic\"/>\n"
+        "      </feMerge>\n"
+        "    </filter>\n")
+     "")
    "    <style><![CDATA[\n"
    "      .node { fill: " dag-draw-render-svg-node-fill "; stroke: " dag-draw-render-svg-node-stroke "; stroke-width: 1; }\n"
    "      .node-label { font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; dominant-baseline: central; }\n"
@@ -98,29 +118,34 @@ definition and CSS styles for nodes, node labels, edges, and edge labels."
    "    ]]></style>\n"
    "  </defs>\n"))
 
-(defun dag-draw--svg-render-nodes (graph)
+(defun dag-draw--svg-render-nodes (graph &optional selected)
   "Render all nodes in GRAPH as SVG rectangles with labels.
 
 GRAPH is a `dag-draw-graph' structure containing positioned nodes.
 
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
+
 For each node, creates an SVG <rect> element centered at the node's
-coordinates and a <text> element for the label.
+coordinates and a <text> element for the label. If the node ID matches
+SELECTED, applies the selection-glow filter.
 
 Returns a string containing SVG <g> group with all node elements."
   (let ((node-svg "  <g class=\"nodes\">\n"))
-    (ht-each (lambda (_node-id node)
+    (ht-each (lambda (node-id node)
                (let* ((x (or (dag-draw-node-x-coord node) 0))
                       (y (or (dag-draw-node-y-coord node) 0))
                       (width (dag-draw-node-x-size node))
                       (height (dag-draw-node-y-size node))
                       (label (dag-draw-node-label node))
                       (rect-x (- x (/ width 2.0)))
-                      (rect-y (- y (/ height 2.0))))
+                      (rect-y (- y (/ height 2.0)))
+                      (is-selected (and selected (eq node-id selected)))
+                      (filter-attr (if is-selected " filter=\"url(#selection-glow)\"" "")))
 
                  (setq node-svg
                        (concat node-svg
-                               (format "    <rect class=\"node\" x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"3\" />\n"
-                                       rect-x rect-y width height)
+                               (format "    <rect class=\"node\" x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"3\"%s />\n"
+                                       rect-x rect-y width height filter-attr)
                                (format "    <text class=\"node-label\" x=\"%.1f\" y=\"%.1f\">%s</text>\n"
                                        x y (dag-draw--escape-xml label))))))
              (dag-draw-graph-nodes graph))

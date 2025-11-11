@@ -291,6 +291,287 @@ Some dependencies are stronger than others:
 
 Higher weights pull nodes closer together.
 
+## Highlighting Nodes: Show "You Are Here"
+
+**Visual emphasis for the current node in your workflow.** When stepping through a tutorial, debugging a workflow, or showing status, one node needs to stand out.
+
+**The problem:** You have a graph showing 10 workflow steps. The user is on step 5. How do they know which box represents "where they are right now"?
+
+**The solution:** Node selection highlighting. One node gets special visual treatment. In ASCII it's double-line borders. In SVG it glows. The rest stay normal.
+
+**For:** Anyone building interactive graph viewers, step-by-step tutorials, or status dashboards.
+
+### Your First Highlighted Node (30 Seconds)
+
+Already have a graph? Add one parameter to see the difference:
+
+```elisp
+;; Before: Normal rendering
+(dag-draw-render-graph my-graph 'ascii)
+
+;; After: Highlights 'current-step
+(dag-draw-render-graph my-graph 'ascii 'current-step)
+```
+
+**That's it.** The node with ID `'current-step` now stands out visually. Everyone else stays normal.
+
+Try it now with any graph you already have. Pick any node ID, add it as the third parameter.
+
+### Understanding "You Are Here" Marking
+
+Think of a shopping mall directory map. There's a red arrow saying "YOU ARE HERE" so you know your location among dozens of stores.
+
+Graph highlighting works the same way:
+
+**Without highlighting:**
+```
+┌─────┐
+│Step1│
+└──┬──┘
+   │
+   ▼
+┌─────┐
+│Step2│  ← User is here, but which box is it?
+└──┬──┘
+   │
+   ▼
+┌─────┐
+│Step3│
+└─────┘
+```
+
+All three boxes look identical. User can't tell where they are.
+
+**With highlighting:**
+```
+┌─────┐
+│Step1│
+└──┬──┘
+   │
+   ▼
+╔═════╗
+║Step2║  ← Double borders = "YOU ARE HERE"
+╚══╬══╝
+   │
+   ▼
+┌─────┐
+│Step3│
+└─────┘
+```
+
+Now it's obvious. Step2 has thick double-line borders (`╔═║╗`) instead of thin single-line (`┌─│┐`).
+
+**Why this matters:**
+- User knows their location instantly
+- No need to read labels to find current position
+- Works even with large graphs (20+ nodes)
+
+### Tutorial: Building a Step-Through Guide
+
+Let's build something real: a wizard that shows the user which step they're on.
+
+**Scenario:** Software installation has 4 steps. We want to show progress.
+
+```elisp
+;; Define the workflow
+(setq install-graph (dag-draw-create-graph))
+(dag-draw-add-node install-graph 'download "Download")
+(dag-draw-add-node install-graph 'extract "Extract Files")
+(dag-draw-add-node install-graph 'configure "Configure")
+(dag-draw-add-node install-graph 'install "Install")
+
+(dag-draw-add-edge install-graph 'download 'extract)
+(dag-draw-add-edge install-graph 'extract 'configure)
+(dag-draw-add-edge install-graph 'configure 'install)
+
+(dag-draw-layout-graph install-graph)
+
+;; User is on step 2 (extract)
+(dag-draw-render-graph install-graph 'ascii 'extract)
+```
+
+**Output:**
+```
+┌──────────┐
+│Download  │
+└─────┬────┘
+      │
+      ▼
+╔═════════════╗
+║Extract Files║  ← Current step highlighted
+╚══════╬══════╝
+       │
+       ▼
+┌─────────────┐
+│Configure    │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│Install      │
+└─────────────┘
+```
+
+**Now as the user progresses,** you just change which node ID you pass:
+
+```elisp
+;; Step 1: Downloading
+(dag-draw-render-graph install-graph 'ascii 'download)
+
+;; Step 2: Extracting
+(dag-draw-render-graph install-graph 'ascii 'extract)
+
+;; Step 3: Configuring
+(dag-draw-render-graph install-graph 'ascii 'configure)
+
+;; Step 4: Installing
+(dag-draw-render-graph install-graph 'ascii 'install)
+```
+
+**Same graph. Different highlighting.** No need to rebuild the graph for each step.
+
+### Tutorial: Debugging Workflow Problems
+
+**Scenario:** A CI/CD pipeline failed. You want to show which step broke.
+
+```elisp
+(setq pipeline (dag-draw-create-graph))
+(dag-draw-add-node pipeline 'tests "Run Tests")
+(dag-draw-add-node pipeline 'build "Build Binary")
+(dag-draw-add-node pipeline 'scan "Security Scan")
+(dag-draw-add-node pipeline 'deploy "Deploy")
+
+(dag-draw-add-edge pipeline 'tests 'build)
+(dag-draw-add-edge pipeline 'build 'scan)
+(dag-draw-add-edge pipeline 'scan 'deploy)
+
+(dag-draw-layout-graph pipeline)
+
+;; Build failed - highlight it
+(dag-draw-render-graph pipeline 'ascii 'build)
+```
+
+**Output shows exactly where it broke:**
+```
+┌──────────┐
+│Run Tests │
+└─────┬────┘
+      │
+      ▼
+╔════════════╗
+║Build Binary║  ← Failure point highlighted
+╚═════╬══════╝
+      │
+      ▼
+┌──────────────┐
+│Security Scan │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│Deploy        │
+└──────────────┘
+```
+
+**The visual immediately shows:**
+Tests passed (normal border). Build failed (highlighted). Scan and Deploy didn't run yet.
+
+### Highlighting Across Different Formats
+
+The same node selection works in all three output formats. The visual treatment changes to match the format:
+
+**ASCII format** - Double-line box characters:
+```elisp
+(dag-draw-render-graph my-graph 'ascii 'node-b)
+```
+- Selected: `╔═╗╚╝║` (thick double lines)
+- Others: `┌─┐└┘│` (thin single lines)
+
+**SVG format** - Glowing blue filter:
+```elisp
+(dag-draw-render-graph my-graph 'svg 'node-b)
+```
+- Selected node gets a subtle blue glow around its border
+- Others render normally with no glow
+
+**DOT format** - Bold styling:
+```elisp
+(dag-draw-render-graph my-graph 'dot 'node-b)
+```
+- Selected node gets `style=bold` attribute
+- Graphviz renders it with thicker borders
+
+**Why different treatments?**
+Each format has different capabilities. ASCII only has characters, so we use double-line borders. SVG supports filters, so we use glow. DOT relies on Graphviz styling, so we use bold.
+
+**The API stays identical.** Just pass the node ID. The format determines how it's emphasized.
+
+### Common Patterns
+
+**Pattern 1: Interactive Selection**
+
+User clicks a node → You highlight it:
+```elisp
+(defun my-viewer-select-node (node-id)
+  "Update graph view to highlight selected node."
+  (setq my-current-selection node-id)
+  (display-graph my-graph my-current-selection))
+
+(defun display-graph (graph selected)
+  (insert (dag-draw-render-graph graph 'ascii selected)))
+```
+
+**Pattern 2: Progress Tracker**
+
+Track which step is active:
+```elisp
+(defun show-workflow-progress (workflow current-step)
+  "Display workflow with current step highlighted."
+  (message "%s" (dag-draw-render-graph workflow 'ascii current-step)))
+
+;; Usage
+(show-workflow-progress onboarding-flow 'create-account)
+```
+
+**Pattern 3: Conditional Highlighting**
+
+Only highlight if something is actually selected:
+```elisp
+(dag-draw-render-graph my-graph 'ascii
+  (when user-has-selection user-selection-id))
+```
+
+If `user-has-selection` is nil, no highlighting. Graph renders normally.
+
+**Pattern 4: Error Tolerance**
+
+What if the selected node doesn't exist? No problem:
+```elisp
+;; Graph has nodes: 'a 'b 'c
+;; But you pass 'xyz which doesn't exist
+(dag-draw-render-graph my-graph 'ascii 'xyz)
+
+;; Result: Renders normally, no highlighting, no error
+```
+
+This is intentional. Invalid selections just render the graph without highlighting. Your code doesn't need defensive checks.
+
+### When to Use Selection
+
+**Use highlighting when:**
+- ✅ User needs to know their location in a workflow
+- ✅ Showing which step is currently executing
+- ✅ Debugging where a process failed
+- ✅ Interactive graph viewer with clickable nodes
+- ✅ Tutorial showing current lesson in a sequence
+
+**Don't use highlighting when:**
+- ❌ Showing a static reference diagram (no "current" concept)
+- ❌ All nodes are equally important (no focal point)
+- ❌ Graph is just documentation (not interactive)
+
+**Rule of thumb:** If there's a "you are here" or "currently active" concept, use highlighting.
+
 ## Going Deeper: The GKNV Algorithm
 
 Want to understand how this actually works under the hood?
@@ -477,7 +758,7 @@ Runs the four-pass GKNV algorithm. Modifies graph in-place, adding coordinates t
 ### Rendering
 
 ```elisp
-(dag-draw-render-graph graph format)
+(dag-draw-render-graph graph format &optional selected)
 ```
 Renders graph in specified format. Returns a string.
 
@@ -485,6 +766,13 @@ Formats:
 - `'ascii` - Box-drawing characters
 - `'svg` - Scalable Vector Graphics
 - `'dot` - Graphviz DOT language
+
+Optional `selected` parameter:
+- Node ID (symbol) to highlight in the output
+- ASCII: Double-line box (╔═╗╚╝║) vs single-line (┌─┐└┘│)
+- SVG: Glow filter effect
+- DOT: style=bold attribute
+- Invalid node IDs are ignored (renders normally)
 
 ### Configuration
 

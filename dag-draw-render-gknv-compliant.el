@@ -198,14 +198,39 @@ Argument HEIGHT ."
      ((eq side 'right) (list right (round center-y)))
      (t (list (round center-x) (round center-y))))))
 
-(defun dag-draw--draw-node-box (grid x y width height label)
+(defun dag-draw--get-box-chars (selected-p)
+  "Return box-drawing characters based on SELECTED-P.
+
+If SELECTED-P is non-nil, returns double-line box characters.
+Otherwise returns single-line box characters.
+
+Returns a plist with keys:
+  :top-left :top-right :bottom-left :bottom-right
+  :horizontal :vertical"
+  (if selected-p
+      (list :top-left ?╔
+            :top-right ?╗
+            :bottom-left ?╚
+            :bottom-right ?╝
+            :horizontal ?═
+            :vertical ?║)
+    (list :top-left ?┌
+          :top-right ?┐
+          :bottom-left ?└
+          :bottom-right ?┘
+          :horizontal ?─
+          :vertical ?│)))
+
+(defun dag-draw--draw-node-box (grid x y width height label &optional selected-p)
   "Draw a node box with LABEL at specified GRID position.
 Returns list of (X . Y) cons cells representing node boundary positions.
 Argument WIDTH .
-Argument HEIGHT ."
+Argument HEIGHT .
+Argument SELECTED-P indicates if node should be rendered as selected."
   (let ((grid-height (length grid))
         (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0))
-        (boundaries nil))
+        (boundaries nil)
+        (chars (dag-draw--get-box-chars selected-p)))
 
     ;; Only draw if within grid bounds
     (when (and (>= x 0) (>= y 0)
@@ -216,16 +241,16 @@ Argument HEIGHT ."
       (dotimes (i width)
         (let ((pos-x (+ x i)))
           (dag-draw--set-char grid pos-x y
-                             (cond ((= i 0) ?┌)
-                                   ((= i (1- width)) ?┐)
-                                   (t ?─)))
+                             (cond ((= i 0) (plist-get chars :top-left))
+                                   ((= i (1- width)) (plist-get chars :top-right))
+                                   (t (plist-get chars :horizontal))))
           (push (cons pos-x y) boundaries)))
 
       ;; Draw middle rows with label
       (dotimes (row (- height 2))
         (let ((actual-row (+ y row 1)))
           ;; Left border
-          (dag-draw--set-char grid x actual-row ?│)
+          (dag-draw--set-char grid x actual-row (plist-get chars :vertical))
           (push (cons x actual-row) boundaries)
           ;; Content area
           (dotimes (col (- width 2))
@@ -234,7 +259,7 @@ Argument HEIGHT ."
                   (dag-draw--set-char grid char-pos actual-row (aref label col))
                 (dag-draw--set-char grid char-pos actual-row ?\s))))
           ;; Right border
-          (dag-draw--set-char grid (+ x width -1) actual-row ?│)
+          (dag-draw--set-char grid (+ x width -1) actual-row (plist-get chars :vertical))
           (push (cons (+ x width -1) actual-row) boundaries)))
 
       ;; Draw bottom border and record boundary positions
@@ -242,9 +267,9 @@ Argument HEIGHT ."
         (let ((pos-x (+ x i))
               (pos-y (+ y height -1)))
           (dag-draw--set-char grid pos-x pos-y
-                             (cond ((= i 0) ?└)
-                                   ((= i (1- width)) ?┘)
-                                   (t ?─)))
+                             (cond ((= i 0) (plist-get chars :bottom-left))
+                                   ((= i (1- width)) (plist-get chars :bottom-right))
+                                   (t (plist-get chars :horizontal))))
           (push (cons pos-x pos-y) boundaries))))
 
     ;; Return list of boundary positions

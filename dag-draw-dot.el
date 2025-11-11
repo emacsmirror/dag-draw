@@ -21,10 +21,13 @@
 
 ;;; DOT Format Rendering
 
-(defun dag-draw-render-dot (graph)
+(defun dag-draw-render-dot (graph &optional selected)
   "Render GRAPH in Graphviz DOT format.
 
 GRAPH is a `dag-draw-graph' structure containing nodes and edges.
+
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
+Selected nodes are rendered with style=bold attribute for visual emphasis.
 
 Creates a DOT language representation suitable for processing with
 Graphviz tools.  Includes node declarations with labels and edge
@@ -33,19 +36,23 @@ declarations with optional edge labels.
 Returns a string containing the complete DOT format graph specification."
   (let ((dot-output "digraph G {\n")
         (node-attrs "  node [shape=box, style=filled, fillcolor=lightgray];\n")
-        (edge-attrs "  edge [color=black];\n"))
+        (edge-attrs "  edge [color=black];\n")
+        ;; Only use selection if the node actually exists in the graph
+        (valid-selected (and selected (dag-draw-get-node graph selected) selected)))
 
     ;; Add graph attributes
     (setq dot-output (concat dot-output node-attrs edge-attrs "\n"))
 
     ;; Add nodes
     (ht-each (lambda (node-id node)
-               (let ((label (dag-draw-node-label node)))
+               (let ((label (dag-draw-node-label node))
+                     (is-selected (and valid-selected (eq node-id valid-selected))))
                  (setq dot-output
                        (concat dot-output
-                               (format "  %s [label=\"%s\"];\n"
+                               (format "  %s [label=\"%s\"%s];\n"
                                        (symbol-name node-id)
-                                       (dag-draw--escape-dot-string label))))))
+                                       (dag-draw--escape-dot-string label)
+                                       (if is-selected ", style=bold" ""))))))
              (dag-draw-graph-nodes graph))
 
     ;; Add edges

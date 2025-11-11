@@ -457,25 +457,32 @@ parameters to ensure clean ASCII rendering."
              (dag-draw--estimate-ascii-scale graph))))
 
 ;;;###autoload
-(defun dag-draw-render-graph (graph &optional format)
+(defun dag-draw-render-graph (graph &optional format selected)
   "Render GRAPH in the specified output format.
 
 GRAPH is a `dag-draw-graph' structure that has been laid out.
+
 FORMAT is an optional symbol specifying output format:
   `svg' - Scalable Vector Graphics
   `ascii' - ASCII art text representation
   `dot' - Graphviz DOT language
   Defaults to `dag-draw-default-output-format'.
 
+SELECTED is an optional node ID (symbol) to render with selection highlighting.
+Selected nodes are visually emphasized in the output:
+  - ASCII: Double-line box characters (╔═╗╚╝║)
+  - SVG: Glow filter effect
+  - DOT: style=bold attribute
+
 Returns a string representation of the rendered graph."
   (let ((output-format (or format dag-draw-default-output-format)))
     (cond
      ((eq output-format 'svg)
-      (dag-draw-render-svg graph))
+      (dag-draw-render-svg graph selected))
      ((eq output-format 'ascii)
-      (dag-draw-render-ascii graph))
+      (dag-draw-render-ascii graph selected))
      ((eq output-format 'dot)
-      (dag-draw-render-dot graph))
+      (dag-draw-render-dot graph selected))
      (t (error "Unsupported output format: %s" output-format)))))
 
 ;;; Implementation placeholders (to be implemented in separate modules)
@@ -498,9 +505,9 @@ Returns a string representation of the rendered graph."
 (autoload 'dag-draw-generate-splines "dag-draw-pass4-splines" "Generate edge splines." nil)
 (autoload 'dag-draw--create-edge-label-virtual-nodes "dag-draw-pass4-splines" "Create virtual nodes for edge labels." nil)
 (autoload 'dag-draw--apply-label-edge-length-compensation "dag-draw-pass4-splines" "Apply edge length compensation for labels." nil)
-(autoload 'dag-draw-render-svg "dag-draw-render" "Render graph as SVG." nil)
+(autoload 'dag-draw-render-svg "dag-draw-svg" "Render graph as SVG." nil)
 (autoload 'dag-draw-render-ascii "dag-draw-render" "Render graph as ASCII art." nil)
-(autoload 'dag-draw-render-dot "dag-draw-render" "Render graph as DOT format." nil)
+(autoload 'dag-draw-render-dot "dag-draw-dot" "Render graph as DOT format." nil)
 
 ;;; Text Processing Utilities
 

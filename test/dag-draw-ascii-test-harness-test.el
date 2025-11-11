@@ -1,5 +1,7 @@
 ;;; dag-draw-ascii-test-harness-test.el --- TDD tests for ASCII DAG test harness -*- lexical-binding: t; -*-
 
+(add-to-list 'load-path (expand-file-name "test/helpers" (locate-dominating-file default-directory "Eldev")))
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-test-harness)

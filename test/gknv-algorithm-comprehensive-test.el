@@ -17,6 +17,8 @@
 
 ;;; Code:
 
+(add-to-list 'load-path (expand-file-name "test/helpers" (locate-dominating-file default-directory "Eldev")))
+
 (require 'buttercup)
 (require 'dag-draw)
 (require 'dag-draw-core)

@@ -1053,6 +1053,69 @@ Returns plist with :orthogonal (boolean) and :diagonal-segments (list) keys."
             (setq orthogonal nil)))))
     (list :orthogonal orthogonal :diagonal-segments (nreverse diagonal-segments))))
 
+;;; Node Selection Visualization Testing
+
+(defun dag-draw-test--validate-selection-visualization (ascii-grid-or-string all-nodes selected-ids)
+  "Validate that SELECTED-IDS nodes have correct visual style in ASCII-GRID-OR-STRING.
+
+ASCII-GRID-OR-STRING can be either a string or parsed grid hash table.
+ALL-NODES is a list of node plists with :id, :x, :y keys.
+SELECTED-IDS is a list of node IDs that should be visually selected.
+
+Returns plist with:
+  :valid - boolean, true if all nodes have correct style
+  :issues - list of issue descriptions (empty if valid)"
+  (let ((grid (if (hash-table-p ascii-grid-or-string)
+                  ascii-grid-or-string
+                (dag-draw-test--parse-ascii-grid ascii-grid-or-string)))
+        (issues '())
+        (valid t))
+
+    ;; Check each node
+    (dolist (node all-nodes)
+      (let* ((node-id (plist-get node :id))
+             (x (plist-get node :x))
+             (y (plist-get node :y))
+             (label (plist-get node :label))
+             (should-be-selected (memq node-id selected-ids))
+             (actual-style (dag-draw-test--get-node-box-style grid x y))
+             (expected-style (if should-be-selected 'double-line 'single-line)))
+
+        ;; Validate style matches expectation
+        (unless (eq actual-style expected-style)
+          (setq valid nil)
+          (push (format "Node %s (label: %s) at (%d,%d): expected %s but found %s"
+                        node-id label x y expected-style actual-style)
+                issues))))
+
+    (list :valid valid :issues (nreverse issues))))
+
+(defun dag-draw-test--get-node-box-style (ascii-grid-or-string x y)
+  "Determine box drawing style at position (X, Y) in ASCII-GRID-OR-STRING.
+
+ASCII-GRID-OR-STRING can be either:
+  - A string containing ASCII art (will be parsed)
+  - A hash table from `dag-draw-test--parse-ascii-grid'
+
+X is an integer column coordinate.
+Y is an integer row coordinate.
+
+Returns:
+  'single-line - if box uses single-line characters (┌ ┐ └ ┘ ─ │)
+  'double-line - if box uses double-line characters (╔ ╗ ╚ ╝ ═ ║)
+  nil - if coordinates are invalid or don't point to a box corner"
+  (let* ((grid (if (hash-table-p ascii-grid-or-string)
+                   ascii-grid-or-string
+                 (dag-draw-test--parse-ascii-grid ascii-grid-or-string)))
+         (char (dag-draw-test--get-char-at grid x y)))
+    (cond
+     ;; Single-line box corners
+     ((memq char '(?┌ ?┐ ?└ ?┘)) 'single-line)
+     ;; Double-line box corners
+     ((memq char '(?╔ ?╗ ?╚ ?╝)) 'double-line)
+     ;; Not a box corner
+     (t nil))))
+
 (provide 'dag-draw-test-harness)
 
 ;;; dag-draw-test-harness.el ends here
