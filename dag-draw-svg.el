@@ -88,7 +88,8 @@ viewBox attributes."
 (defun dag-draw--svg-defs (&optional selected)
   "Generate SVG definitions for arrow markers, filters, and styles.
 
-SELECTED is an optional node ID indicating if selection filter should be included.
+SELECTED is an optional node ID indicating if selection filter should
+be included.
 
 Returns a string containing SVG <defs> section with arrowhead marker
 definition, optional selection glow filter, and CSS styles."
@@ -126,7 +127,7 @@ GRAPH is a `dag-draw-graph' structure containing positioned nodes.
 SELECTED is an optional node ID (symbol) to render with selection highlighting.
 
 For each node, creates an SVG <rect> element centered at the node's
-coordinates and a <text> element for the label. If the node ID matches
+coordinates and a <text> element for the label.  If the node ID matches
 SELECTED, applies the selection-glow filter.
 
 Returns a string containing SVG <g> group with all node elements."
