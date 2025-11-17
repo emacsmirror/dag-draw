@@ -135,11 +135,14 @@ Returns a string containing the ASCII representation of the graph."
         (when dag-draw-debug-output
           (message "DEBUG: Processing node: %s" (dag-draw-node-label node)))
         (let* ((node-id (dag-draw-node-id node))
-               (node-selected-p (and selected (eq node-id selected)))
+               (node-selected-p (or (and selected (eq node-id selected))
+                                    (ht-get (dag-draw-node-attributes node) :ascii-highlight)))
                (x (round (- (or (dag-draw-node-x-coord node) 0) min-x)))
                (y (round (- (or (dag-draw-node-y-coord node) 0) min-y)))
-               (label (dag-draw-node-label node))
-               (width (+ (length (dag-draw-node-label node)) 4))  ; Label + padding
+               (marker (ht-get (dag-draw-node-attributes node) :ascii-marker))
+               (base-label (dag-draw-node-label node))
+               (label (if marker (concat marker base-label) base-label))
+               (width (+ (length label) 4))  ; Label (with marker if present) + padding
                (height 3))  ; Standard node height
           ;; Draw node and collect its boundary positions
           (when dag-draw-debug-output
