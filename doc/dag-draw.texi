@@ -78,6 +78,7 @@ Getting Started
 * Your First Graph (The Black Triangle):: A working example in 30 seconds
 * Understanding What Just Happened::
 * A Slightly More Complex Example::
+* Creating Graphs from Data::    Declarative graph creation
 
 Installation
 
@@ -92,6 +93,16 @@ Understanding What Just Happened
 * Step 2 Add Nodes::
 * Step 3 Connect with Edges::
 * Step 4 Layout and Render::
+
+
+Creating Graphs from Data
+
+* Overview::
+* Quick Example::
+* Understanding Batch Creation::
+* With Visual Properties::
+* Common Use Cases::
+* When to Use::
 
 
 Tutorial: From Basics to Advanced
@@ -157,6 +168,7 @@ Reference
 Graph Functions
 
 * dag-draw-create-graph::
+* dag-draw-create-from-spec::
 * dag-draw-layout-graph::
 
 
@@ -415,6 +427,7 @@ This section will teach you to create and render your first graph. By the end, y
 * Your First Graph (The Black Triangle):: A working example in 30 seconds
 * Understanding What Just Happened::
 * A Slightly More Complex Example::
+* Creating Graphs from Data::    Declarative graph creation
 @end menu
 
 @node Installation
@@ -649,6 +662,151 @@ Made edges merge cleanly at "Deploy"
 
 @strong{You specified structure. dag-draw handled layout.}
 
+@node Creating Graphs from Data
+@section Creating Graphs from Data
+
+@menu
+* Overview::
+* Quick Example::
+* Understanding Batch Creation::
+* With Visual Properties::
+* Common Use Cases::
+* When to Use::
+@end menu
+
+@node Overview
+@subsection Overview
+
+Build entire graphs from data structures in one call. When you have graph data from a database, configuration file, or external source, imperatively adding nodes and edges one-by-one is tedious. Batch creation lets you describe the whole graph declaratively.
+
+@node Quick Example
+@subsection Quick Example
+
+@lisp
+(require 'dag-draw)
+
+;; One function call creates the entire graph
+(setq my-graph (dag-draw-create-from-spec
+                 :nodes '((start :label "Start Here")
+                          (middle :label "Do Work")
+                          (done :label "Finish"))
+                 :edges '((start middle)
+                          (middle done))))
+
+;; Layout and render (same as before)
+(dag-draw-layout-graph my-graph)
+(dag-draw-render-graph my-graph 'ascii)
+@end lisp
+
+Same result as imperative construction, but graph structure is data.
+
+@node Understanding Batch Creation
+@subsection Understanding Batch Creation
+
+Think of JSON configuration files or database query results. You don't build JSON imperatively—you create the whole structure at once.
+
+@strong{Imperative (step-by-step):}
+@lisp
+(setq graph (dag-draw-create-graph))
+(dag-draw-add-node graph 'a "Task A")
+(dag-draw-add-node graph 'b "Task B")
+(dag-draw-add-node graph 'c "Task C")
+(dag-draw-add-edge graph 'a 'b)
+(dag-draw-add-edge graph 'b 'c)
+;; 8 lines for 3 nodes, 2 edges
+@end lisp
+
+@strong{Declarative (all at once):}
+@lisp
+(setq graph (dag-draw-create-from-spec
+              :nodes '((a :label "Task A")
+                       (b :label "Task B")
+                       (c :label "Task C"))
+              :edges '((a b) (b c))))
+;; 5 lines for same graph
+@end lisp
+
+@strong{Benefits:}
+@itemize
+@item
+Graph structure is data, not code
+@item
+Build node/edge lists programmatically
+@item
+See whole structure at a glance
+@item
+Easy conversion from external sources
+@end itemize
+
+@node With Visual Properties
+@subsection With Visual Properties
+
+Visual properties work seamlessly:
+
+@lisp
+(dag-draw-create-from-spec
+  :nodes '((todo :label "TODO"
+                 :svg-fill "#e0e0e0")
+           (active :label "In Progress"
+                   :ascii-marker "→ "
+                   :ascii-highlight t
+                   :svg-fill "#ffd700")
+           (done :label "Done"
+                 :ascii-marker "✓ "
+                 :svg-fill "#90ee90"))
+  :edges '((todo active)
+           (active done)))
+@end lisp
+
+@node Common Use Cases
+@subsection Common Use Cases
+
+@strong{Data-driven graphs:}
+@lisp
+;; Generate from external data
+(setq nodes (mapcar #'task-to-node-spec external-tasks))
+(setq edges (mapcar #'dependency-to-edge-spec external-deps))
+(dag-draw-create-from-spec :nodes nodes :edges edges)
+@end lisp
+
+@strong{Configuration-based:}
+@lisp
+;; Store graph structure in configuration
+(defvar workflow-config
+  '(:nodes ((review :label "Code Review")
+            (test :label "Testing"))
+    :edges ((review test))))
+
+(dag-draw-create-from-spec
+  :nodes (plist-get workflow-config :nodes)
+  :edges (plist-get workflow-config :edges))
+@end lisp
+
+@node When to Use
+@subsection When to Use
+
+@strong{Use batch creation when:}
+@itemize
+@item
+Graph data from external sources (DB, API, files)
+@item
+Building graphs programmatically
+@item
+Graph structure is configuration
+@item
+Want to see entire structure at once
+@end itemize
+
+@strong{Use imperative API when:}
+@itemize
+@item
+Building graphs interactively
+@item
+Complex conditional logic
+@item
+Modifying existing graphs
+@end itemize
+
 @node Tutorial From Basics to Advanced
 @chapter Tutorial: From Basics to Advanced
 
@@ -734,14 +892,14 @@ Attributes are used by renderers (especially SVG) for styling. ASCII rendering i
 Visual properties let you style individual nodes to show status, priority, or categories.
 
 @menu
-* Quick Example::
+* Quick Example: Quick Example (1). 
 * ASCII Visual Properties::
 * SVG Visual Properties::
 * Multi-Format Properties::
 * Common Patterns::
 @end menu
 
-@node Quick Example
+@node Quick Example (1)
 @unnumberedsubsubsec Quick Example
 
 Show task completion with markers:
@@ -1383,6 +1541,7 @@ This section documents every public function and variable in dag-draw.
 
 @menu
 * dag-draw-create-graph::
+* dag-draw-create-from-spec::
 * dag-draw-layout-graph::
 @end menu
 
@@ -1412,6 +1571,63 @@ Create a new empty directed graph.
 (setq g (dag-draw-create-graph (ht ("name" "My Graph")
                                     ("type" "workflow"))))
 @end lisp
+
+@node dag-draw-create-from-spec
+@subsection dag-draw-create-from-spec
+
+@lisp
+(dag-draw-create-from-spec &rest spec)
+@end lisp
+
+Create a graph from a declarative specification.
+
+@strong{Arguments}:
+@itemize
+@item
+@code{:nodes} - List of node specifications
+@item
+@code{:edges} - List of edge specifications
+@end itemize
+
+@strong{Node format}: @code{(node-id :label "Label" &rest attributes)}
+@itemize
+@item
+Required: @code{node-id} (symbol), @code{:label} (string)
+@item
+Optional: Visual property keywords
+@end itemize
+
+@strong{Edge format}: @code{(from-id to-id &rest attributes)}
+@itemize
+@item
+Required: @code{from-id}, @code{to-id} (symbols)
+@item
+Optional: @code{:weight}, @code{:label}, etc.
+@end itemize
+
+@strong{Returns}: Unlaid-out @code{dag-draw-graph} structure
+
+@strong{Example}:
+@lisp
+(dag-draw-create-from-spec
+  :nodes '((a :label "Task A" :ascii-marker "✓ ")
+           (b :label "Task B" :svg-fill "#ff0000"))
+  :edges '((a b :weight 10)))
+@end lisp
+
+@strong{Errors}:
+@itemize
+@item
+Missing @code{:nodes} or @code{:edges}: Error
+@item
+Node missing @code{:label}: Error
+@item
+Duplicate node IDs: Error
+@item
+Edge references non-existent node: Error
+@end itemize
+
+@strong{Note}: All validation happens before graph construction. Errors leave no partial state.
 
 @node dag-draw-layout-graph
 @subsection dag-draw-layout-graph

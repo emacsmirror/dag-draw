@@ -86,6 +86,311 @@ Let's draw something simple—a three-step workflow:
 
 **Congratulations!** You just created a professionally-laid-out graph. You specified the structure; dag-draw handled everything else.
 
+## Creating Graphs from Data
+
+**Build entire graphs from data structures in one call.** When you have graph data from a database, configuration file, or external source, imperatively adding nodes and edges one-by-one is tedious. Batch creation lets you describe the whole graph declaratively.
+
+**The problem:** You have a list of tasks with dependencies in a database. Fetching and converting to a graph requires 50+ lines of `dag-draw-add-node` and `dag-draw-add-edge` calls. Copy-paste errors are easy.
+
+**The solution:** `dag-draw-create-from-spec` accepts a complete graph specification as data. One function call builds the entire graph.
+
+**For:** Anyone generating graphs from external data, configuration files, or programmatic sources.
+
+### Your First Batch Graph (30 Seconds)
+
+Here's the same three-step workflow, but built from data:
+
+```elisp
+(require 'dag-draw)
+
+;; One function call creates the entire graph
+(setq my-graph (dag-draw-create-from-spec
+                 :nodes '((start :label "Start Here")
+                          (middle :label "Do Work")
+                          (done :label "Finish"))
+                 :edges '((start middle)
+                          (middle done))))
+
+;; Layout and render (same as before)
+(dag-draw-layout-graph my-graph)
+(dag-draw-render-graph my-graph 'ascii)
+```
+
+**Output:**
+```
+┌────────────┐
+│Start Here  │
+└──────┬─────┘
+       │
+       ▼
+┌────────────┐
+│Do Work     │
+└──────┬─────┘
+       │
+       ▼
+┌────────────┐
+│Finish      │
+└────────────┘
+```
+
+**That's it!** Same result, but the graph structure is data you can store, generate, or manipulate.
+
+### Understanding Batch Creation
+
+Think of **JSON configuration files** or **database query results**. You don't build JSON imperatively with setter functions—you create the whole structure at once.
+
+Batch creation works the same way:
+
+**Imperative (step-by-step):**
+```elisp
+(setq graph (dag-draw-create-graph))
+(dag-draw-add-node graph 'a "Task A")
+(dag-draw-add-node graph 'b "Task B")
+(dag-draw-add-node graph 'c "Task C")
+(dag-draw-add-edge graph 'a 'b)
+(dag-draw-add-edge graph 'b 'c)
+;; 8 lines for 3 nodes, 2 edges
+```
+
+**Declarative (all at once):**
+```elisp
+(setq graph (dag-draw-create-from-spec
+              :nodes '((a :label "Task A")
+                       (b :label "Task B")
+                       (c :label "Task C"))
+              :edges '((a b) (b c))))
+;; 5 lines for same graph
+```
+
+**Why this matters:**
+- **Data-driven:** Graph structure is data, not code
+- **Composable:** Build node/edge lists programmatically
+- **Readable:** See the whole structure at a glance
+- **From external sources:** Easy to convert from databases, APIs, files
+
+### Tutorial: Generating Graphs from Data
+
+**Scenario:** You have task data in a list and want to visualize dependencies.
+
+```elisp
+;; Task data from database/API
+(setq task-data
+  '((1 "Research" nil)           ; (id label dependencies)
+    (2 "Design" (1))
+    (3 "Implementation" (2))
+    (4 "Testing" (3))
+    (5 "Deployment" (4))))
+
+;; Convert to graph spec
+(setq nodes
+  (mapcar (lambda (task)
+            (let ((id (car task))
+                  (label (cadr task)))
+              (list id :label label)))
+          task-data))
+
+(setq edges
+  (cl-loop for task in task-data
+           for id = (car task)
+           for deps = (caddr task)
+           append (mapcar (lambda (dep) (list dep id)) deps)))
+
+;; Create graph from spec
+(setq project-graph (dag-draw-create-from-spec
+                      :nodes nodes
+                      :edges edges))
+
+(dag-draw-layout-graph project-graph)
+(dag-draw-render-graph project-graph 'ascii)
+```
+
+**Output:**
+```
+┌──────────┐
+│Research  │
+└─────┬────┘
+      │
+      ▼
+┌────────┐
+│Design  │
+└────┬───┘
+     │
+     ▼
+┌────────────────┐
+│Implementation  │
+└────────┬───────┘
+         │
+         ▼
+┌─────────┐
+│Testing  │
+└────┬────┘
+     │
+     ▼
+┌────────────┐
+│Deployment  │
+└────────────┘
+```
+
+**The pattern:** Fetch data → Transform to spec format → Create graph. Works with any data source.
+
+### Tutorial: Batch Creation with Visual Properties
+
+Visual properties work seamlessly with batch creation:
+
+```elisp
+(setq status-graph (dag-draw-create-from-spec
+                     :nodes '((todo :label "TODO"
+                                    :svg-fill "#e0e0e0")
+                              (active :label "In Progress"
+                                      :ascii-marker "→ "
+                                      :ascii-highlight t
+                                      :svg-fill "#ffd700"
+                                      :svg-stroke "#ff8c00"
+                                      :svg-stroke-width 2)
+                              (done :label "Done"
+                                    :ascii-marker "✓ "
+                                    :svg-fill "#90ee90"
+                                    :svg-stroke "#228b22"
+                                    :svg-stroke-width 2))
+                     :edges '((todo active)
+                              (active done))))
+
+(dag-draw-layout-graph status-graph)
+(dag-draw-render-graph status-graph 'ascii)
+```
+
+**ASCII Output:**
+```
+┌──────┐
+│TODO  │
+└───┬──┘
+    │
+    ▼
+╔═══════════════╗
+║→ In Progress  ║
+╚═══════╬═══════╝
+        │
+        ▼
+┌─────────────┐
+│✓ Done       │
+└─────────────┘
+```
+
+**SVG Output:** Colors and borders render as specified.
+
+**Combining status data with graph generation:**
+```elisp
+(defun create-status-graph (tasks)
+  "Create graph with status-based visual properties."
+  (let ((nodes
+         (mapcar (lambda (task)
+                   (let ((id (plist-get task :id))
+                         (label (plist-get task :label))
+                         (status (plist-get task :status)))
+                     (append
+                      (list id :label label)
+                      (cond
+                       ((eq status 'done)
+                        '(:ascii-marker "✓ " :svg-fill "#90ee90"))
+                       ((eq status 'active)
+                        '(:ascii-highlight t :svg-fill "#ffd700"))
+                       (t '(:svg-fill "#e0e0e0"))))))
+                 tasks))
+        (edges
+         (cl-loop for task in tasks
+                  for id = (plist-get task :id)
+                  for deps = (plist-get task :dependencies)
+                  append (mapcar (lambda (dep) (list dep id)) deps))))
+    (dag-draw-create-from-spec :nodes nodes :edges edges)))
+```
+
+Now visual properties update automatically based on task status.
+
+### Tutorial: Edge Attributes
+
+Edges can have attributes too—weights, labels, or custom properties:
+
+```elisp
+(setq workflow (dag-draw-create-from-spec
+                 :nodes '((start :label "Start")
+                          (critical :label "Critical Path")
+                          (optional :label "Optional Step")
+                          (end :label "End"))
+                 :edges '((start critical :weight 10)              ; High priority
+                          (start optional :weight 1)               ; Low priority
+                          (critical end :weight 10 :label "required")
+                          (optional end :weight 1))))
+
+(dag-draw-layout-graph workflow)
+(dag-draw-render-graph workflow 'svg)
+```
+
+Edge format: `(from-id to-id &rest attributes)`
+- Simple: `(a b)`
+- With weight: `(a b :weight 10)`
+- Multiple attrs: `(a b :weight 10 :label "requires")`
+
+Higher weights pull nodes closer together in the layout.
+
+### Common Patterns
+
+**Pattern 1: Data-Driven Graphs**
+```elisp
+;; Generate nodes/edges from external data
+(setq nodes (mapcar #'task-to-node-spec external-tasks))
+(setq edges (mapcar #'dependency-to-edge-spec external-deps))
+(dag-draw-create-from-spec :nodes nodes :edges edges)
+```
+
+**Pattern 2: Configuration-Based Graphs**
+```elisp
+;; Store graph structure in configuration
+(defvar my-workflow-config
+  '(:nodes ((review :label "Code Review")
+            (test :label "Testing")
+            (deploy :label "Deploy"))
+    :edges ((review test) (test deploy))))
+
+(dag-draw-create-from-spec
+  :nodes (plist-get my-workflow-config :nodes)
+  :edges (plist-get my-workflow-config :edges))
+```
+
+**Pattern 3: Template-Based Graphs**
+```elisp
+;; Define reusable graph templates
+(defun create-pipeline-graph (stages)
+  (let ((nodes (mapcar (lambda (stage)
+                         (list (car stage) :label (cdr stage)))
+                       stages))
+        (edges (cl-loop for i from 0 below (1- (length stages))
+                        collect (list (car (nth i stages))
+                                      (car (nth (1+ i) stages))))))
+    (dag-draw-create-from-spec :nodes nodes :edges edges)))
+
+;; Use template
+(create-pipeline-graph '((build . "Build")
+                         (test . "Test")
+                         (deploy . "Deploy")))
+```
+
+### When to Use Batch Creation
+
+**Use batch creation when:**
+- ✅ Graph data comes from external sources (DB, API, files)
+- ✅ Building graphs programmatically from data structures
+- ✅ Graph structure is configuration (stored in variables/files)
+- ✅ Want to see entire graph structure at a glance
+- ✅ Generating graphs in loops or from templates
+
+**Use imperative API when:**
+- ✅ Building graphs interactively in code
+- ✅ Graph structure is built incrementally with complex logic
+- ✅ Adding/removing nodes dynamically based on conditions
+- ✅ Modifying existing graphs (use `dag-draw-add-node` on existing graph)
+
+**Rule of thumb:** If your graph structure fits in a data literal, use batch creation. If it's built with complex conditionals and loops, use imperative.
+
 ## Understanding Graph Layout
 
 ### What's a Directed Graph?
@@ -1068,6 +1373,37 @@ Run tests: `eldev test`
 (dag-draw-create-graph &optional attributes)
 ```
 Creates a new empty graph. Optional attributes is a hash table.
+
+```elisp
+(dag-draw-create-from-spec &rest spec)
+```
+Creates a graph from a declarative specification. Returns unlaid-out graph.
+
+**Parameters:**
+- `:nodes` - List of node specifications
+- `:edges` - List of edge specifications
+
+**Node format:** `(node-id :label "Label" &rest attributes)`
+- Required: `node-id` (symbol), `:label` (string)
+- Optional: Any visual property keywords
+
+**Edge format:** `(from-id to-id &rest attributes)`
+- Required: `from-id`, `to-id` (symbols)
+- Optional: `:weight`, `:label`, etc.
+
+**Example:**
+```elisp
+(dag-draw-create-from-spec
+  :nodes '((a :label "Task A" :ascii-marker "✓ ")
+           (b :label "Task B" :svg-fill "#ff0000"))
+  :edges '((a b :weight 10)))
+```
+
+**Errors:**
+- Missing `:nodes` or `:edges`: Error
+- Node missing `:label`: Error
+- Duplicate node IDs: Error
+- Edge references non-existent node: Error
 
 ### Node Operations
 

@@ -25,6 +25,153 @@
 (declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
 (declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
 
+;;; Helper Functions
+
+(defun dag-draw--plist-to-ht (plist)
+  "Convert property list PLIST to hash table.
+Extracts keyword properties like :ascii-marker, :svg-fill, etc.
+
+PLIST is a property list with alternating keyword keys and values.
+
+Returns a hash table with the same key-value pairs."
+  (let ((ht (ht-create)))
+    (while plist
+      (ht-set ht (pop plist) (pop plist)))
+    ht))
+
+;;; Batch Graph Creation
+
+(defun dag-draw-create-from-spec (&rest spec)
+  "Create a DAG from a declarative specification.
+
+SPEC is a property list with the following structure:
+  :nodes - List of node specifications
+  :edges - List of edge specifications
+
+Node specification format:
+  (node-id :label \"Label\" &rest attributes)
+
+  Required:
+    node-id - Symbol identifying the node
+    :label  - String display label
+
+  Optional attributes (keyword properties):
+    :ascii-marker      - String to prepend to label
+    :ascii-highlight   - Boolean for double-line borders
+    :svg-fill          - CSS color for background
+    :svg-stroke        - CSS color for border
+    :svg-stroke-width  - Number for border thickness
+    Any other custom attributes
+
+Edge specification format:
+  (from-id to-id &rest attributes)
+
+  Required:
+    from-id - Source node ID
+    to-id   - Destination node ID
+
+  Optional attributes (keyword properties):
+    :weight     - Number (default: 1)
+    :label      - String edge label
+    :min-length - Number of minimum ranks between nodes
+    Any other custom attributes
+
+Returns an unlaid-out `dag-draw-graph' structure.
+Call `dag-draw-layout-graph' to compute positions before rendering.
+
+Example:
+  (setq graph (dag-draw-create-from-spec
+                :nodes \\='((a :label \"Start\"
+                            :ascii-marker \"-> \")
+                          (b :label \"Middle\")
+                          (c :label \"End\"
+                            :ascii-marker \"[DONE] \"))
+                :edges \\='((a b)
+                          (b c :weight 5))))
+
+Validation:
+  - Throws error if :nodes or :edges keys are missing
+  - Throws error if any node is missing :label property
+  - Throws error if duplicate node IDs exist
+  - Throws error if edge references non-existent node
+  - Throws error if edge is malformed"
+  ;; Parse spec
+  (let ((nodes (plist-get spec :nodes))
+        (edges (plist-get spec :edges)))
+
+    ;; Validate spec structure
+    (unless (plist-member spec :nodes)
+      (error "Spec missing required :nodes key"))
+    (unless (plist-member spec :edges)
+      (error "Spec missing required :edges key"))
+
+    ;; Create empty graph
+    (let ((graph (dag-draw-create-graph))
+          (node-id-set (make-hash-table :test 'eq)))
+
+      ;; Validate and add nodes
+      (dolist (node-spec nodes)
+        (let* ((node-id (car node-spec))
+               (node-plist (cdr node-spec))
+               (label (plist-get node-plist :label)))
+
+          ;; Validate node has :label
+          (unless label
+            (error "Node '%s' missing required :label property" node-id))
+
+          ;; Check for duplicate node ID
+          (when (gethash node-id node-id-set)
+            (error "Duplicate node ID: '%s'" node-id))
+
+          ;; Mark node as seen
+          (puthash node-id t node-id-set)
+
+          ;; Extract label and remaining attributes
+          (let* ((attrs-plist (copy-sequence node-plist))
+                 ;; Remove :label from attributes plist
+                 (attrs-plist-without-label
+                  (let ((result '()))
+                    (while attrs-plist
+                      (let ((key (pop attrs-plist))
+                            (val (pop attrs-plist)))
+                        (unless (eq key :label)
+                          (push key result)
+                          (push val result))))
+                    (nreverse result)))
+                 (attrs-ht (dag-draw--plist-to-ht attrs-plist-without-label)))
+
+            ;; Add node to graph
+            (dag-draw-add-node graph node-id label attrs-ht))))
+
+      ;; Validate and add edges
+      (dolist (edge-spec edges)
+        (let ((from-id (nth 0 edge-spec))
+              (to-id (nth 1 edge-spec))
+              (edge-attrs-plist (nthcdr 2 edge-spec)))
+
+          ;; Validate edge has at least two elements
+          (unless (>= (length edge-spec) 2)
+            (error "Malformed edge: %S - expected (from to &rest attrs)" edge-spec))
+
+          ;; Validate from-node exists
+          (unless (gethash from-id node-id-set)
+            (error "Edge %S: node '%s' not found in spec" edge-spec from-id))
+
+          ;; Validate to-node exists
+          (unless (gethash to-id node-id-set)
+            (error "Edge %S: node '%s' not found in spec" edge-spec to-id))
+
+          ;; Extract edge attributes
+          (let* ((attrs-ht (dag-draw--plist-to-ht edge-attrs-plist))
+                 (weight (ht-get attrs-ht :weight))
+                 (label (ht-get attrs-ht :label)))
+
+            ;; Add edge to graph
+            (dag-draw-add-edge graph from-id to-id weight label attrs-ht))))
+
+      ;; Return unlaid-out graph
+      graph)))
+
 ;;; Graph Traversal and Analysis
 
 (defun dag-draw-get-node (graph node-id)
