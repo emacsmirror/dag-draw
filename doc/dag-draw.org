@@ -406,6 +406,120 @@ You can attach custom attributes to nodes for rendering hints:
 
 Attributes are used by renderers (especially SVG) for styling. ASCII rendering ignores most attributes but uses them for semantic meaning in your code.
 
+*** Visual Properties
+
+Visual properties let you style individual nodes to show status, priority, or categories.
+
+**** Quick Example
+
+Show task completion with markers:
+
+#+begin_src emacs-lisp
+(require 'ht)
+
+;; Completed task with checkmark
+(dag-draw-add-node graph 'done "Research"
+  (ht (:ascii-marker "✓ ")))
+
+;; In-progress task with double border
+(dag-draw-add-node graph 'active "Implementation"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "→ ")))
+
+;; SVG with custom colors
+(dag-draw-add-node graph 'critical "Fix Bug"
+  (ht (:svg-fill "#ff4444")
+      (:svg-stroke "#cc0000")
+      (:svg-stroke-width 3)))
+#+end_src
+
+**** ASCII Visual Properties
+
+*ASCII Markers*: Prepend text to labels
+
+#+begin_src emacs-lisp
+(dag-draw-add-node graph 'task1 "Done" (ht (:ascii-marker "✓ ")))
+(dag-draw-add-node graph 'task2 "Current" (ht (:ascii-marker "→ ")))
+(dag-draw-add-node graph 'task3 "Blocked" (ht (:ascii-marker "✗ ")))
+#+end_src
+
+Renders as:
+#+begin_example
+┌──────────┐
+│✓ Done    │
+└──────────┘
+#+end_example
+
+*ASCII Highlighting*: Double-line borders
+
+#+begin_src emacs-lisp
+(dag-draw-add-node graph 'important "Critical"
+  (ht (:ascii-highlight t)))
+#+end_src
+
+Renders with double borders (~╔═╗~) instead of single (~┌─┐~):
+#+begin_example
+╔══════════╗
+║Critical  ║
+╚══════════╝
+#+end_example
+
+**** SVG Visual Properties
+
+*Fill Color*: Background color
+
+#+begin_src emacs-lisp
+(dag-draw-add-node graph 'success "Passed"
+  (ht (:svg-fill "#90ee90")))  ; Light green
+#+end_src
+
+*Stroke Color and Width*: Border styling
+
+#+begin_src emacs-lisp
+(dag-draw-add-node graph 'warning "Alert"
+  (ht (:svg-fill "#ffd700")        ; Gold fill
+      (:svg-stroke "#ff8c00")      ; Orange border
+      (:svg-stroke-width 2)))      ; Thicker border
+#+end_src
+
+**** Multi-Format Properties
+
+Combine ASCII and SVG properties for graphs rendered in both formats:
+
+#+begin_src emacs-lisp
+(dag-draw-add-node graph 'done "Complete"
+  (ht (:ascii-marker "✓ ")
+      (:ascii-highlight nil)
+      (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+#+end_src
+
+ASCII output: ~✓ Complete~ with checkmark
+
+SVG output: Green background, dark green border
+
+**** Common Patterns
+
+*Traffic Light Status*:
+#+begin_src emacs-lisp
+;; Good
+(ht (:svg-fill "#90ee90"))
+
+;; Warning
+(ht (:svg-fill "#ffd700") (:svg-stroke "#ff8c00"))
+
+;; Error
+(ht (:svg-fill "#ff4444") (:svg-stroke "#cc0000") (:svg-stroke-width 3))
+#+end_src
+
+*Progress Markers*:
+#+begin_src emacs-lisp
+(ht (:ascii-marker "✓ "))  ; Completed
+(ht (:ascii-marker "→ "))  ; Current
+(ht (:ascii-marker "○ "))  ; Future
+#+end_src
+
 *** Retrieving Nodes
 
 After adding nodes, you can retrieve them:
@@ -1034,6 +1148,52 @@ Get the node's attribute hash table.
 (setq attrs (dag-draw-node-attributes node))
 (ht-get attrs "color")  ; => "red"
 #+end_src
+
+**** Visual Properties Attributes
+
+Node attributes support visual styling through prefixed keywords:
+
+***** ASCII Visual Properties
+
+| Attribute | Type | Description | Example |
+|-----------+------+-------------+---------|
+| ~:ascii-highlight~ | boolean | Render with double-line borders (╔═╗) | ~t~ |
+| ~:ascii-marker~ | string | Prepend marker to label | ~"✓ "~, ~"→ "~ |
+
+***** SVG Visual Properties
+
+| Attribute | Type | Description | Example |
+|-----------+------+-------------+---------|
+| ~:svg-fill~ | string | Fill color (CSS) | ~"#ff5733"~ |
+| ~:svg-stroke~ | string | Border color (CSS) | ~"#0000ff"~ |
+| ~:svg-stroke-width~ | number | Border thickness (pixels) | ~2~, ~3~ |
+
+*Example*:
+#+begin_src emacs-lisp
+;; ASCII: Double border with checkmark
+(dag-draw-add-node graph 'done "Task"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "✓ ")))
+
+;; SVG: Green background, dark green border
+(dag-draw-add-node graph 'success "Build"
+  (ht (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+
+;; Both formats
+(dag-draw-add-node graph 'active "Current"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "→ ")
+      (:svg-fill "#ffd700")
+      (:svg-stroke "#ff8c00")))
+#+end_src
+
+*Notes*:
+- ASCII attributes only affect ASCII rendering
+- SVG attributes only affect SVG rendering
+- Combine both for multi-format support
+- Invalid attributes are silently ignored
 
 ** Edge Functions
 :PROPERTIES:

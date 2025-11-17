@@ -107,6 +107,7 @@ Working with Nodes
 * Basic Node Creation::
 * Node Labels::
 * Node Attributes::
+* Visual Properties::
 * Retrieving Nodes::
 
 
@@ -668,6 +669,7 @@ This section teaches you everything you need to use dag-draw effectively, from s
 * Basic Node Creation::
 * Node Labels::
 * Node Attributes::
+* Visual Properties::
 * Retrieving Nodes::
 @end menu
 
@@ -725,6 +727,134 @@ You can attach custom attributes to nodes for rendering hints:
 @end lisp
 
 Attributes are used by renderers (especially SVG) for styling. ASCII rendering ignores most attributes but uses them for semantic meaning in your code.
+
+@node Visual Properties
+@subsection Visual Properties
+
+Visual properties let you style individual nodes to show status, priority, or categories.
+
+@menu
+* Quick Example::
+* ASCII Visual Properties::
+* SVG Visual Properties::
+* Multi-Format Properties::
+* Common Patterns::
+@end menu
+
+@node Quick Example
+@unnumberedsubsubsec Quick Example
+
+Show task completion with markers:
+
+@lisp
+(require 'ht)
+
+;; Completed task with checkmark
+(dag-draw-add-node graph 'done "Research"
+  (ht (:ascii-marker "✓ ")))
+
+;; In-progress task with double border
+(dag-draw-add-node graph 'active "Implementation"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "→ ")))
+
+;; SVG with custom colors
+(dag-draw-add-node graph 'critical "Fix Bug"
+  (ht (:svg-fill "#ff4444")
+      (:svg-stroke "#cc0000")
+      (:svg-stroke-width 3)))
+@end lisp
+
+@node ASCII Visual Properties
+@unnumberedsubsubsec ASCII Visual Properties
+
+@strong{ASCII Markers}: Prepend text to labels
+
+@lisp
+(dag-draw-add-node graph 'task1 "Done" (ht (:ascii-marker "✓ ")))
+(dag-draw-add-node graph 'task2 "Current" (ht (:ascii-marker "→ ")))
+(dag-draw-add-node graph 'task3 "Blocked" (ht (:ascii-marker "✗ ")))
+@end lisp
+
+Renders as:
+@example
+┌──────────┐
+│✓ Done    │
+└──────────┘
+@end example
+
+@strong{ASCII Highlighting}: Double-line borders
+
+@lisp
+(dag-draw-add-node graph 'important "Critical"
+  (ht (:ascii-highlight t)))
+@end lisp
+
+Renders with double borders (@code{╔═╗}) instead of single (@code{┌─┐}):
+@example
+╔══════════╗
+║Critical  ║
+╚══════════╝
+@end example
+
+@node SVG Visual Properties
+@unnumberedsubsubsec SVG Visual Properties
+
+@strong{Fill Color}: Background color
+
+@lisp
+(dag-draw-add-node graph 'success "Passed"
+  (ht (:svg-fill "#90ee90")))  ; Light green
+@end lisp
+
+@strong{Stroke Color and Width}: Border styling
+
+@lisp
+(dag-draw-add-node graph 'warning "Alert"
+  (ht (:svg-fill "#ffd700")        ; Gold fill
+      (:svg-stroke "#ff8c00")      ; Orange border
+      (:svg-stroke-width 2)))      ; Thicker border
+@end lisp
+
+@node Multi-Format Properties
+@unnumberedsubsubsec Multi-Format Properties
+
+Combine ASCII and SVG properties for graphs rendered in both formats:
+
+@lisp
+(dag-draw-add-node graph 'done "Complete"
+  (ht (:ascii-marker "✓ ")
+      (:ascii-highlight nil)
+      (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+@end lisp
+
+ASCII output: @code{✓ Complete} with checkmark
+
+SVG output: Green background, dark green border
+
+@node Common Patterns
+@unnumberedsubsubsec Common Patterns
+
+@strong{Traffic Light Status}:
+@lisp
+;; Good
+(ht (:svg-fill "#90ee90"))
+
+;; Warning
+(ht (:svg-fill "#ffd700") (:svg-stroke "#ff8c00"))
+
+;; Error
+(ht (:svg-fill "#ff4444") (:svg-stroke "#cc0000") (:svg-stroke-width 3))
+@end lisp
+
+@strong{Progress Markers}:
+@lisp
+(ht (:ascii-marker "✓ "))  ; Completed
+(ht (:ascii-marker "→ "))  ; Current
+(ht (:ascii-marker "○ "))  ; Future
+@end lisp
 
 @node Retrieving Nodes
 @subsection Retrieving Nodes
@@ -1399,6 +1529,7 @@ Retrieve a node by ID@.
 * dag-draw-node-rank::
 * dag-draw-node-order::
 * dag-draw-node-attributes::
+* Visual Properties Attributes::
 @end menu
 
 @node dag-draw-node-id
@@ -1487,6 +1618,88 @@ Get the node's attribute hash table.
 (setq attrs (dag-draw-node-attributes node))
 (ht-get attrs "color")  ; => "red"
 @end lisp
+
+@node Visual Properties Attributes
+@unnumberedsubsubsec Visual Properties Attributes
+
+Node attributes support visual styling through prefixed keywords:
+
+@itemize
+@item
+@anchor{ASCII Visual Properties (1)}ASCII Visual Properties
+
+
+@multitable {aaaaaaaaaaaaaaaaaa} {aaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaaaaa}
+@headitem Attribute
+@tab Type
+@tab Description
+@tab Example
+@item @code{:ascii-highlight}
+@tab boolean
+@tab Render with double-line borders (╔═╗)
+@tab @code{t}
+@item @code{:ascii-marker}
+@tab string
+@tab Prepend marker to label
+@tab @code{"✓ "}, @code{"→ "}
+@end multitable
+
+@item
+@anchor{SVG Visual Properties (1)}SVG Visual Properties
+
+
+@multitable {aaaaaaaaaaaaaaaaaaa} {aaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaa}
+@headitem Attribute
+@tab Type
+@tab Description
+@tab Example
+@item @code{:svg-fill}
+@tab string
+@tab Fill color (CSS)
+@tab @code{"#ff5733"}
+@item @code{:svg-stroke}
+@tab string
+@tab Border color (CSS)
+@tab @code{"#0000ff"}
+@item @code{:svg-stroke-width}
+@tab number
+@tab Border thickness (pixels)
+@tab @code{2}, @code{3}
+@end multitable
+
+@strong{Example}:
+@lisp
+;; ASCII: Double border with checkmark
+(dag-draw-add-node graph 'done "Task"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "✓ ")))
+
+;; SVG: Green background, dark green border
+(dag-draw-add-node graph 'success "Build"
+  (ht (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+
+;; Both formats
+(dag-draw-add-node graph 'active "Current"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "→ ")
+      (:svg-fill "#ffd700")
+      (:svg-stroke "#ff8c00")))
+@end lisp
+
+@strong{Notes}:
+@itemize
+@item
+ASCII attributes only affect ASCII rendering
+@item
+SVG attributes only affect SVG rendering
+@item
+Combine both for multi-format support
+@item
+Invalid attributes are silently ignored
+@end itemize
+@end itemize
 
 @node Edge Functions
 @section Edge Functions

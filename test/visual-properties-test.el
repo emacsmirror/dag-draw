@@ -69,5 +69,56 @@
           ;; Should contain "[X]Done" in the output
           (expect output :to-match "\\[X\\]Done"))))))
 
+;;; SVG Visual Properties Tests
+
+(describe "SVG visual properties"
+
+  (describe ":svg-fill attribute"
+
+    (it "should apply custom fill color to node"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-fill "#ff5733"))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain style="fill: #ff5733;" in the rect element
+          (expect output :to-match "style=\"fill: #ff5733;\"")))))
+
+  (describe ":svg-stroke attribute"
+
+    (it "should apply custom stroke color to node"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-stroke "#0000ff"))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain stroke: #0000ff in style attribute
+          (expect output :to-match "stroke: #0000ff")))))
+
+  (describe ":svg-stroke-width attribute"
+
+    (it "should apply custom stroke width to node"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-stroke-width 3))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain stroke-width: 3 in style attribute
+          (expect output :to-match "stroke-width: 3")))))
+
+  (describe "combined SVG attributes"
+
+    (it "should apply multiple SVG attributes together"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-fill "#ff0000")
+                        (:svg-stroke "#0000ff")
+                        (:svg-stroke-width 2))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          (expect output :to-match "fill: #ff0000")
+          (expect output :to-match "stroke: #0000ff")
+          (expect output :to-match "stroke-width: 2"))))))
+
 (provide 'visual-properties-test)
 ;;; visual-properties-test.el ends here

@@ -291,6 +291,359 @@ Some dependencies are stronger than others:
 
 Higher weights pull nodes closer together.
 
+## Visual Properties: Making Nodes Stand Out
+
+**Show status, priority, or categories through visual styling.** When your graph represents a workflow, some nodes are done, some are in progress, some are blocked. Or you're showing a system where different nodes have different importance levels. Visual properties let you color-code meaning.
+
+**The problem:** You have a project with 15 tasks. Three are done (green), two are critical (red), one is currently active (highlighted). How do you show this at a glance without reading every label?
+
+**The solution:** Per-node visual attributes. Each node can have its own colors, borders, and markers. Your graph becomes a visual status dashboard where meaning is immediately apparent.
+
+**For:** Anyone using graphs to show status (task boards, CI/CD pipelines, health monitoring) or to categorize nodes (severity levels, types, ownership).
+
+### Your First Visual Properties (30 Seconds)
+
+Let's add a simple status marker to show which tasks are done:
+
+```elisp
+(require 'dag-draw)
+(require 'ht)  ;; Hash table library
+
+;; Create graph
+(setq tasks (dag-draw-create-graph))
+
+;; Regular task (no marker)
+(dag-draw-add-node tasks 'start "Start")
+
+;; Completed task (checkmark marker)
+(dag-draw-add-node tasks 'done "Research"
+  (ht (:ascii-marker "✓ ")))
+
+(dag-draw-add-edge tasks 'start 'done)
+(dag-draw-layout-graph tasks)
+(dag-draw-render-graph tasks 'ascii)
+```
+
+**Output:**
+```
+┌───────┐
+│Start  │
+└───┬───┘
+    │
+    ▼
+┌─────────────┐
+│✓ Research   │
+└─────────────┘
+```
+
+**That's it.** The checkmark instantly shows "Research" is complete. No need to read the label to know status.
+
+### Understanding Visual Properties
+
+Think of a **project management board** like Trello or Jira. Cards have colored labels (red = urgent, green = done, yellow = in progress). You can scan the board and instantly see status by color, without reading text.
+
+Graph visual properties work the same way:
+
+**Without visual properties:**
+```
+┌──────────┐
+│Task A    │  (Status: unknown)
+└────┬─────┘
+     │
+     ▼
+┌──────────┐
+│Task B    │  (Priority: unknown)
+└──────────┘
+```
+All tasks look identical. You must read labels or check elsewhere to learn status/priority.
+
+**With visual properties:**
+```
+┌──────────┐
+│Task A    │  (Gray = normal)
+└────┬─────┘
+     │
+     ▼
+╔══════════╗
+║✓ Task B  ║  (Double border + check = DONE)
+╚══════════╝
+```
+**Or in SVG with colors:**
+- Green fill = done
+- Orange border = in progress
+- Red fill = blocked
+- Blue glow = currently selected
+
+**Why this matters:**
+- **Instant status recognition** - No reading required
+- **Visual scanning** - Find blocked tasks in a 20-node graph instantly
+- **Meaningful color** - Red/yellow/green conveys urgency without text
+- **Combined signals** - Markers + colors + borders = rich information
+
+### Tutorial: Status Tracking with Markers
+
+**Scenario:** You're building a tutorial system. You want to show which lessons are completed as the user progresses.
+
+```elisp
+(setq tutorial (dag-draw-create-graph))
+
+;; Completed lessons get checkmarks
+(dag-draw-add-node tutorial 'intro "Introduction"
+  (ht (:ascii-marker "✓ ")))
+
+(dag-draw-add-node tutorial 'basics "Basic Concepts"
+  (ht (:ascii-marker "✓ ")))
+
+;; Current lesson gets an arrow
+(dag-draw-add-node tutorial 'advanced "Advanced Topics"
+  (ht (:ascii-marker "→ ")))
+
+;; Future lessons have no marker
+(dag-draw-add-node tutorial 'expert "Expert Level")
+
+(dag-draw-add-edge tutorial 'intro 'basics)
+(dag-draw-add-edge tutorial 'basics 'advanced)
+(dag-draw-add-edge tutorial 'advanced 'expert)
+
+(dag-draw-layout-graph tutorial)
+(dag-draw-render-graph tutorial 'ascii)
+```
+
+**Output:**
+```
+┌─────────────────┐
+│✓ Introduction   │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│✓ Basic Concepts │
+└────────┬────────┘
+         │
+         ▼
+┌───────────────────────┐
+│→ Advanced Topics      │
+└──────────┬────────────┘
+           │
+           ▼
+┌───────────────────┐
+│Expert Level       │
+└───────────────────┘
+```
+
+**Instant visual understanding:**
+- ✓ = Done (lessons 1-2)
+- → = Current (lesson 3)
+- (no marker) = Not started (lesson 4)
+
+User sees progress at a glance. No need to check a separate progress tracker.
+
+### Tutorial: Priority Levels with Highlighting
+
+**Scenario:** CI/CD pipeline status board showing build health.
+
+```elisp
+(setq pipeline (dag-draw-create-graph))
+
+;; Successful steps (normal)
+(dag-draw-add-node pipeline 'tests "Unit Tests")
+
+;; Warning state (highlight with double-line border)
+(dag-draw-add-node pipeline 'build "Build"
+  (ht (:ascii-highlight t)))
+
+;; Failed step (highlight + marker)
+(dag-draw-add-node pipeline 'deploy "Deploy"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "✗ ")))
+
+(dag-draw-add-edge pipeline 'tests 'build)
+(dag-draw-add-edge pipeline 'build 'deploy)
+
+(dag-draw-layout-graph pipeline)
+(dag-draw-render-graph pipeline 'ascii)
+```
+
+**Output:**
+```
+┌────────────┐
+│Unit Tests  │  ← Passed (normal border)
+└──────┬─────┘
+       │
+       ▼
+╔════════════╗
+║Build       ║  ← Warning (double border)
+╚══════╬═════╝
+       │
+       ▼
+╔════════════╗
+║✗ Deploy    ║  ← Failed (double border + X)
+╚════════════╝
+```
+
+**Visual signals combined:**
+- Single border = Success
+- Double border = Attention needed
+- ✗ marker = Failure
+- ✓ marker = Success (if you want to mark it explicitly)
+
+### SVG Visual Properties: Publication-Quality Styling
+
+ASCII markers work great in terminals, but SVG supports full color. Let's use the same pipeline example with SVG styling:
+
+```elisp
+(setq pipeline (dag-draw-create-graph))
+
+;; Success: light green background
+(dag-draw-add-node pipeline 'tests "Unit Tests"
+  (ht (:svg-fill "#90ee90")))
+
+;; Warning: orange border, yellow background
+(dag-draw-add-node pipeline 'build "Build"
+  (ht (:svg-fill "#ffd700")
+      (:svg-stroke "#ff8c00")
+      (:svg-stroke-width 2)))
+
+;; Failed: red background, dark red border
+(dag-draw-add-node pipeline 'deploy "Deploy"
+  (ht (:svg-fill "#ff4444")
+      (:svg-stroke "#cc0000")
+      (:svg-stroke-width 3)))
+
+(dag-draw-add-edge pipeline 'tests 'build)
+(dag-draw-add-edge pipeline 'build 'deploy)
+
+(dag-draw-layout-graph pipeline)
+(dag-draw-render-graph pipeline 'svg)
+```
+
+The SVG output shows:
+- **Unit Tests** - Light green fill (success color)
+- **Build** - Yellow fill with orange border (warning colors)
+- **Deploy** - Red fill with dark red thick border (error colors)
+
+Colors convey meaning instantly: Green = good, Yellow = caution, Red = problem.
+
+### Tutorial: Building a Status Dashboard
+
+**Scenario:** Task management system with different task states.
+
+```elisp
+(setq project (dag-draw-create-graph))
+
+;; TODO: Gray background
+(dag-draw-add-node project 'research "Research"
+  (ht (:svg-fill "#e0e0e0")))
+
+;; IN PROGRESS: Gold background, orange border
+(dag-draw-add-node project 'implement "Implementation"
+  (ht (:svg-fill "#ffd700")
+      (:svg-stroke "#ff8c00")
+      (:svg-stroke-width 2)))
+
+;; DONE: Light green background, green border
+(dag-draw-add-node project 'test "Testing"
+  (ht (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+
+(dag-draw-add-edge project 'research 'implement)
+(dag-draw-add-edge project 'implement 'test)
+
+(dag-draw-layout-graph project)
+
+;; Render for documentation (SVG)
+(with-temp-file "project-status.svg"
+  (insert (dag-draw-render-graph project 'svg)))
+```
+
+**The result:** A color-coded status dashboard where:
+- Gray nodes = TODO (not started)
+- Gold nodes with orange borders = IN PROGRESS (active work)
+- Green nodes with green borders = DONE (completed)
+
+Stakeholders can view the SVG and instantly understand project status without reading any text.
+
+### Combining Visual Properties with Selection
+
+You can use both attribute-based styling AND the `selected` parameter:
+
+```elisp
+;; All tasks have status colors
+(dag-draw-add-node workflow 'a "Task A" (ht (:svg-fill "#90ee90")))  ; Done
+(dag-draw-add-node workflow 'b "Task B" (ht (:svg-fill "#ffd700")))  ; Active
+(dag-draw-add-node workflow 'c "Task C" (ht (:svg-fill "#e0e0e0")))  ; TODO
+
+(dag-draw-layout-graph workflow)
+
+;; Render with Task B selected (adds blue glow)
+(dag-draw-render-graph workflow 'svg 'b)
+```
+
+Task B now has:
+- Yellow fill (from `:svg-fill` attribute) = "In Progress" status
+- Blue glow (from `selected` parameter) = "Currently viewing"
+
+**Use both when:**
+- Attributes show **state** (done/active/todo, passed/failed, etc.)
+- Selection shows **focus** (which one user is looking at right now)
+
+### Common Visual Property Patterns
+
+**Pattern 1: Traffic Light Colors (Status)**
+```elisp
+;; Good/Warning/Error color scheme
+(ht (:svg-fill "#90ee90"))  ; Green = Good
+(ht (:svg-fill "#ffd700")   ; Yellow = Warning
+    (:svg-stroke "#ff8c00"))
+(ht (:svg-fill "#ff4444")   ; Red = Error
+    (:svg-stroke "#cc0000")
+    (:svg-stroke-width 3))
+```
+
+**Pattern 2: Progress Markers (Completion)**
+```elisp
+;; ASCII markers for tutorial/wizard progress
+(ht (:ascii-marker "✓ "))  ; Completed step
+(ht (:ascii-marker "→ "))  ; Current step
+(ht (:ascii-marker "○ "))  ; Future step (optional)
+```
+
+**Pattern 3: Severity Levels (Priority)**
+```elisp
+;; Increasing visual weight for urgency
+(ht)                        ; Normal (default styling)
+(ht (:svg-stroke-width 2))  ; Important (thicker border)
+(ht (:svg-stroke-width 3)   ; Critical (thick border + red)
+    (:svg-stroke "#ff0000")
+    (:svg-fill "#ffe0e0"))
+```
+
+**Pattern 4: Category Colors (Types)**
+```elisp
+;; Different node types in system architecture
+(ht (:svg-fill "#e3f2fd"))  ; Blue = Database
+(ht (:svg-fill "#fff3e0"))  ; Orange = Service
+(ht (:svg-fill "#f3e5f5"))  ; Purple = Queue
+(ht (:svg-fill "#e8f5e9"))  ; Green = Cache
+```
+
+### When to Use Visual Properties
+
+**Use visual properties when:**
+- ✅ Nodes have distinct states (todo/doing/done, pass/fail, healthy/degraded)
+- ✅ Different nodes have different priorities or severity levels
+- ✅ You're building a dashboard or monitoring view
+- ✅ Color-coding aids understanding (red=error, green=success)
+- ✅ You want to show progress through a workflow visually
+
+**Don't use visual properties when:**
+- ❌ All nodes are the same type/status (no differentiation needed)
+- ❌ Graph is purely structural documentation (no state to show)
+- ❌ Terminal doesn't support unicode/colors (use `selected` parameter instead)
+
+**Rule of thumb:** If you'd use colored sticky notes on a whiteboard to show status, use visual properties in your graph.
+
 ## Highlighting Nodes: Show "You Are Here"
 
 **Visual emphasis for the current node in your workflow.** When stepping through a tutorial, debugging a workflow, or showing status, one node needs to stand out.
@@ -735,6 +1088,55 @@ Retrieves node by ID.
 (dag-draw-node-rank node)
 ```
 Access node properties (after layout).
+
+### Visual Properties Attributes
+
+Node attributes control visual appearance in rendered output. Pass as hash table to `dag-draw-add-node`:
+
+**ASCII Visual Properties:**
+
+| Attribute | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `:ascii-highlight` | boolean | Render with double-line borders (╔═╗) instead of single-line (┌─┐) | `t` |
+| `:ascii-marker` | string | Prepend marker text to node label | `"✓ "`, `"→ "`, `"✗ "` |
+
+**SVG Visual Properties:**
+
+| Attribute | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `:svg-fill` | string | Fill color (CSS color value) | `"#ff5733"`, `"#90ee90"` |
+| `:svg-stroke` | string | Border color (CSS color value) | `"#0000ff"`, `"#ff8c00"` |
+| `:svg-stroke-width` | number | Border thickness in pixels | `2`, `3` |
+
+**Example usage:**
+
+```elisp
+;; ASCII: Double border with checkmark
+(dag-draw-add-node graph 'done "Task"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "✓ ")))
+
+;; SVG: Green background with dark green border
+(dag-draw-add-node graph 'success "Build"
+  (ht (:svg-fill "#90ee90")
+      (:svg-stroke "#228b22")
+      (:svg-stroke-width 2)))
+
+;; Both formats: Combine attributes for multi-format output
+(dag-draw-add-node graph 'active "Current"
+  (ht (:ascii-highlight t)
+      (:ascii-marker "→ ")
+      (:svg-fill "#ffd700")
+      (:svg-stroke "#ff8c00")
+      (:svg-stroke-width 2)))
+```
+
+**Notes:**
+- ASCII attributes only affect ASCII rendering
+- SVG attributes only affect SVG rendering
+- You can specify both in same hash table for multi-format support
+- Invalid attributes are silently ignored
+- Missing attributes use renderer defaults
 
 ### Edge Operations
 

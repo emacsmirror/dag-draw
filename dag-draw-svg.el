@@ -23,6 +23,14 @@
 
 ;;; Customization
 
+(defcustom dag-draw-svg-coordinate-scale 10.0
+  "Scale factor for converting ASCII coordinates to SVG pixels.
+When graphs use ASCII coordinate mode, multiply coordinates by this
+factor to get appropriate SVG pixel coordinates.  Default is 10,
+meaning 1 ASCII grid unit = 10 SVG pixels."
+  :type 'float
+  :group 'dag-draw-render)
+
 (defcustom dag-draw-render-svg-node-fill "#f0f0f0"
   "Default fill color for SVG nodes."
   :type 'string
@@ -38,6 +46,16 @@
   :type 'string
   :group 'dag-draw-render)
 
+;;; SVG Rendering Helpers
+
+(defun dag-draw--svg-scale-factor (graph)
+  "Get the coordinate scale factor for GRAPH.
+If GRAPH uses ASCII coordinates, return `dag-draw-svg-coordinate-scale'.
+Otherwise return 1.0 (no scaling needed for high-res coordinates)."
+  (if (eq (dag-draw-graph-coordinate-mode graph) 'ascii)
+      dag-draw-svg-coordinate-scale
+    1.0))
+
 ;;; SVG Rendering
 
 (defun dag-draw-render-svg (graph &optional selected)
@@ -52,11 +70,12 @@ Calculates graph bounds, creates an SVG header with appropriate viewBox,
 renders edges as SVG paths, and renders nodes as SVG rectangles with labels.
 
 Returns a string containing the complete SVG XML representation of the graph."
-  (let* ((bounds (dag-draw-get-graph-bounds graph))
-         (min-x (nth 0 bounds))
-         (min-y (nth 1 bounds))
-         (max-x (nth 2 bounds))
-         (max-y (nth 3 bounds))
+  (let* ((scale (dag-draw--svg-scale-factor graph))
+         (bounds (dag-draw-get-graph-bounds graph))
+         (min-x (* scale (nth 0 bounds)))
+         (min-y (* scale (nth 1 bounds)))
+         (max-x (* scale (nth 2 bounds)))
+         (max-y (* scale (nth 3 bounds)))
          (width (- max-x min-x))
          (height (- max-y min-y))
          (margin 20)
@@ -66,10 +85,11 @@ Returns a string containing the complete SVG XML representation of the graph."
          (valid-selected (and selected (dag-draw-get-node graph selected) selected)))
 
     (concat
-     (dag-draw--svg-header svg-width svg-height (- min-x margin) (- min-y margin) width height)
+     (dag-draw--svg-header svg-width svg-height (- min-x margin) (- min-y margin)
+                           (+ width (* 2 margin)) (+ height (* 2 margin)))
      (dag-draw--svg-defs valid-selected)
-     (dag-draw--svg-render-edges graph)
-     (dag-draw--svg-render-nodes graph valid-selected)
+     (dag-draw--svg-render-edges graph scale)
+     (dag-draw--svg-render-nodes graph scale valid-selected)
      (dag-draw--svg-footer))))
 
 (defun dag-draw--svg-header (svg-width svg-height view-x view-y view-width view-height)
@@ -119,11 +139,11 @@ definition, optional selection glow filter, and CSS styles."
    "    ]]></style>\n"
    "  </defs>\n"))
 
-(defun dag-draw--svg-render-nodes (graph &optional selected)
+(defun dag-draw--svg-render-nodes (graph scale &optional selected)
   "Render all nodes in GRAPH as SVG rectangles with labels.
 
 GRAPH is a `dag-draw-graph' structure containing positioned nodes.
-
+SCALE is the coordinate scale factor to apply.
 SELECTED is an optional node ID (symbol) to render with selection highlighting.
 
 For each node, creates an SVG <rect> element centered at the node's
@@ -133,30 +153,34 @@ SELECTED, applies the selection-glow filter.
 Returns a string containing SVG <g> group with all node elements."
   (let ((node-svg "  <g class=\"nodes\">\n"))
     (ht-each (lambda (node-id node)
-               (let* ((x (or (dag-draw-node-x-coord node) 0))
-                      (y (or (dag-draw-node-y-coord node) 0))
-                      (width (dag-draw-node-x-size node))
-                      (height (dag-draw-node-y-size node))
+               (let* ((x (* scale (or (dag-draw-node-x-coord node) 0)))
+                      (y (* scale (or (dag-draw-node-y-coord node) 0)))
+                      (width (* scale (dag-draw-node-x-size node)))
+                      (height (* scale (dag-draw-node-y-size node)))
                       (label (dag-draw-node-label node))
                       (rect-x (- x (/ width 2.0)))
                       (rect-y (- y (/ height 2.0)))
                       (is-selected (and selected (eq node-id selected)))
-                      (filter-attr (if is-selected " filter=\"url(#selection-glow)\"" "")))
+                      (filter-attr (if is-selected " filter=\"url(#selection-glow)\"" ""))
+                      ;; Get custom SVG style properties
+                      (style-props (dag-draw--get-svg-node-style node))
+                      (inline-style (dag-draw--svg-build-inline-style style-props)))
 
                  (setq node-svg
                        (concat node-svg
-                               (format "    <rect class=\"node\" x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"3\"%s />\n"
-                                       rect-x rect-y width height filter-attr)
+                               (format "    <rect class=\"node\" x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"3\"%s%s />\n"
+                                       rect-x rect-y width height filter-attr inline-style)
                                (format "    <text class=\"node-label\" x=\"%.1f\" y=\"%.1f\">%s</text>\n"
                                        x y (dag-draw--escape-xml label))))))
              (dag-draw-graph-nodes graph))
 
     (concat node-svg "  </g>\n")))
 
-(defun dag-draw--svg-render-edges (graph)
+(defun dag-draw--svg-render-edges (graph scale)
   "Render all edges in GRAPH as SVG paths with smooth splines.
 
 GRAPH is a `dag-draw-graph' structure containing edges with spline points.
+SCALE is the coordinate scale factor to apply.
 
 For each edge, creates an SVG <path> element from the spline points.
 If the edge has a label, also creates a <text> element at the label position.
@@ -166,7 +190,7 @@ Returns a string containing SVG <g> group with all edge elements."
     (dolist (edge (dag-draw-graph-edges graph))
       ;; Render edge path if spline points exist
       (when (dag-draw-edge-spline-points edge)
-        (let ((path-data (dag-draw--svg-path-from-spline edge)))
+        (let ((path-data (dag-draw--svg-path-from-spline edge scale)))
           (setq edge-svg
                 (concat edge-svg
                         (format "    <path class=\"edge\" d=\"%s\" />\n" path-data)))))
@@ -178,16 +202,17 @@ Returns a string containing SVG <g> group with all edge elements."
             (setq edge-svg
                   (concat edge-svg
                           (format "    <text class=\"edge-label\" x=\"%.1f\" y=\"%.1f\">%s</text>\n"
-                                  (dag-draw-point-x label-pos)
-                                  (dag-draw-point-y label-pos)
+                                  (* scale (dag-draw-point-x label-pos))
+                                  (* scale (dag-draw-point-y label-pos))
                                   (dag-draw--escape-xml (dag-draw-edge-label edge)))))))))
 
     (concat edge-svg "  </g>\n")))
 
-(defun dag-draw--svg-path-from-spline (edge)
+(defun dag-draw--svg-path-from-spline (edge scale)
   "Convert EDGE spline points to SVG path data.
 
 EDGE is a `dag-draw-edge' structure with spline-points attribute.
+SCALE is the coordinate scale factor to apply.
 
 Converts the list of `dag-draw-point' structures into SVG path data
 string using M (moveto) and L (lineto) commands.
@@ -196,16 +221,16 @@ Returns a string containing the SVG path data, or nil if no spline points."
   (let ((points (dag-draw-edge-spline-points edge)))
     (when points
       (let ((path-data (format "M %.1f,%.1f"
-                               (dag-draw-point-x (car points))
-                               (dag-draw-point-y (car points)))))
+                               (* scale (dag-draw-point-x (car points)))
+                               (* scale (dag-draw-point-y (car points))))))
 
         ;; Add line segments for all remaining points
         (dolist (point (cdr points))
           (setq path-data
                 (concat path-data
                         (format " L %.1f,%.1f"
-                                (dag-draw-point-x point)
-                                (dag-draw-point-y point)))))
+                                (* scale (dag-draw-point-x point))
+                                (* scale (dag-draw-point-y point))))))
 
         path-data))))
 
@@ -233,6 +258,54 @@ Returns the escaped string safe for use in XML attributes and content."
       (replace-regexp-in-string
        ">" "&gt;"
        (replace-regexp-in-string "<" "&lt;" escaped-ampersand))))))
+
+;;; SVG Visual Properties Support
+
+(defun dag-draw--get-svg-node-style (node)
+  "Extract SVG style properties from NODE attributes.
+
+NODE is a `dag-draw-node' structure.
+
+Checks for :svg-fill, :svg-stroke, and :svg-stroke-width attributes
+in the node's attributes hash table.  Returns an alist of (property . value)
+pairs for attributes that are set, with defaults for unset attributes.
+
+Returns alist like ((fill . \"#ff0000\") (stroke . \"#0000ff\") (stroke-width . 2))."
+  (let ((attrs (dag-draw-node-attributes node))
+        (styles nil))
+    ;; Extract custom fill color
+    (when-let ((fill (ht-get attrs :svg-fill)))
+      (push (cons 'fill fill) styles))
+    ;; Extract custom stroke color
+    (when-let ((stroke (ht-get attrs :svg-stroke)))
+      (push (cons 'stroke stroke) styles))
+    ;; Extract custom stroke width
+    (when-let ((stroke-width (ht-get attrs :svg-stroke-width)))
+      (push (cons 'stroke-width stroke-width) styles))
+    styles))
+
+(defun dag-draw--svg-build-inline-style (style-alist)
+  "Convert STYLE-ALIST to SVG inline style attribute string.
+
+STYLE-ALIST is an alist of (property . value) pairs where property
+is a symbol and value is a string or number.
+
+Returns a string like ' style=\"fill: #ff0000; stroke: #0000ff; stroke-width: 2;\"'
+or empty string if STYLE-ALIST is nil.  The returned string includes a
+leading space if non-empty, suitable for direct concatenation into a tag."
+  (if (null style-alist)
+      ""
+    (concat " style=\""
+            (mapconcat
+             (lambda (pair)
+               (let ((prop (car pair))
+                     (val (cdr pair)))
+                 (format "%s: %s"
+                         (symbol-name prop)
+                         (if (numberp val) (number-to-string val) val))))
+             style-alist
+             "; ")
+            ";\"")))
 
 (provide 'dag-draw-svg)
 
