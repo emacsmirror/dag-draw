@@ -598,6 +598,26 @@ Renders with double borders (~╔═╗~) instead of single (~┌─┐~):
       (:svg-stroke-width 2)))      ; Thicker border
 #+end_src
 
+*Advanced SVG Properties*: Tooltips, opacity, and text colors
+
+#+begin_src emacs-lisp
+;; Tooltip (hover to see details)
+(dag-draw-add-node graph 'server "API Server"
+  (ht (:svg-fill "#90ee90")
+      (:svg-tooltip "Status: Running\nUptime: 99.9%")))
+
+;; Fill opacity (semi-transparent for inactive states)
+(dag-draw-add-node graph 'cache "Cache"
+  (ht (:svg-fill "#ffd700")
+      (:svg-fill-opacity 0.6)))  ; 60% opacity
+
+;; Text color (color-code labels)
+(dag-draw-add-node graph 'critical "Database"
+  (ht (:svg-fill "#ffe0e0")
+      (:svg-text-color "#cc0000")    ; Red text
+      (:svg-stroke "#cc0000")))      ; Red border
+#+end_src
+
 **** Multi-Format Properties
 
 Combine ASCII and SVG properties for graphs rendered in both formats:
@@ -1321,6 +1341,9 @@ Node attributes support visual styling through prefixed keywords:
 | ~:svg-fill~ | string | Fill color (CSS) | ~"#ff5733"~ |
 | ~:svg-stroke~ | string | Border color (CSS) | ~"#0000ff"~ |
 | ~:svg-stroke-width~ | number | Border thickness (pixels) | ~2~, ~3~ |
+| ~:svg-fill-opacity~ | number | Fill opacity (0.0-1.0) | ~0.5~, ~0.8~ |
+| ~:svg-text-color~ | string | Label text color (CSS) | ~"#cc0000"~ |
+| ~:svg-tooltip~ | string | Hover tooltip (SVG ~<title>~) | ~"Status: Active"~ |
 
 *Example*:
 #+begin_src emacs-lisp

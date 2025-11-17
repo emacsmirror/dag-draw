@@ -869,6 +869,54 @@ Colors convey meaning instantly: Green = good, Yellow = caution, Red = problem.
 
 Stakeholders can view the SVG and instantly understand project status without reading any text.
 
+### Tutorial: Advanced SVG Styling
+
+**Scenario:** Interactive system diagram where nodes need tooltips, semi-transparent states, and color-coded labels.
+
+Sometimes you need more than fill colors and borders:
+- **Tooltips** show extra info on hover (SVG `<title>` elements)
+- **Opacity** shows faded/inactive states
+- **Text colors** distinguish node categories
+
+```elisp
+(setq system (dag-draw-create-graph))
+
+;; Active service: tooltip shows uptime, solid colors
+(dag-draw-add-node system 'api "API Gateway"
+  (ht (:svg-fill "#90ee90")
+      (:svg-tooltip "Status: Running\nUptime: 99.9%\nLast deploy: 2025-11-15")))
+
+;; Degraded service: tooltip shows issue, semi-transparent to show reduced capacity
+(dag-draw-add-node system 'cache "Cache Layer"
+  (ht (:svg-fill "#ffd700")
+      (:svg-fill-opacity 0.6)
+      (:svg-tooltip "Status: Degraded\nMemory: 85% full\nRestart needed")))
+
+;; Critical service: red text to emphasize importance
+(dag-draw-add-node system 'db "Database"
+  (ht (:svg-fill "#ffe0e0")
+      (:svg-text-color "#cc0000")
+      (:svg-stroke "#cc0000")
+      (:svg-stroke-width 2)
+      (:svg-tooltip "Status: Critical\nConnections: 95/100\nAlert: High load")))
+
+(dag-draw-add-edge system 'api 'cache)
+(dag-draw-add-edge system 'cache 'db)
+
+(dag-draw-layout-graph system)
+(dag-draw-render-graph system 'svg)
+```
+
+**The result:**
+- **API Gateway** - Green background, hover shows "Status: Running..."
+- **Cache Layer** - Semi-transparent yellow (60% opacity) shows degraded state
+- **Database** - Red text and red border emphasize critical status, hover shows alert details
+
+**When to use these properties:**
+- `:svg-tooltip` - Add context without cluttering the diagram (hover to see details)
+- `:svg-fill-opacity` - Show inactive, disabled, or degraded states (0.0-1.0)
+- `:svg-text-color` - Color-code node labels (red = error, green = success, blue = info)
+
 ### Combining Visual Properties with Selection
 
 You can use both attribute-based styling AND the `selected` parameter:
@@ -1443,6 +1491,9 @@ Node attributes control visual appearance in rendered output. Pass as hash table
 | `:svg-fill` | string | Fill color (CSS color value) | `"#ff5733"`, `"#90ee90"` |
 | `:svg-stroke` | string | Border color (CSS color value) | `"#0000ff"`, `"#ff8c00"` |
 | `:svg-stroke-width` | number | Border thickness in pixels | `2`, `3` |
+| `:svg-fill-opacity` | number | Fill opacity (0.0-1.0, where 0 = transparent, 1 = opaque) | `0.5`, `0.8` |
+| `:svg-text-color` | string | Label text color (CSS color value) | `"#cc0000"`, `"#0000ff"` |
+| `:svg-tooltip` | string | Hover tooltip text (SVG `<title>` element) | `"Status: Active"`, `"CPU: 75%"` |
 
 **Example usage:**
 

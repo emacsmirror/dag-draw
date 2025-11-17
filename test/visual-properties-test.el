@@ -106,6 +106,39 @@
           ;; Should contain stroke-width: 3 in style attribute
           (expect output :to-match "stroke-width: 3")))))
 
+  (describe ":svg-tooltip attribute"
+
+    (it "should render tooltip as SVG title element"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-tooltip "This is a tooltip"))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain <title>This is a tooltip</title> after the rect
+          (expect output :to-match "<title>This is a tooltip</title>")))))
+
+  (describe ":svg-fill-opacity attribute"
+
+    (it "should apply fill opacity to node"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-fill-opacity 0.5))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain fill-opacity: 0.5 in style attribute
+          (expect output :to-match "fill-opacity: 0.5")))))
+
+  (describe ":svg-text-color attribute"
+
+    (it "should apply custom color to node label text"
+      (let* ((graph (dag-draw-create-graph))
+             (attrs (ht (:svg-text-color "#ff0000"))))
+        (dag-draw-add-node graph 'task1 "Task" attrs)
+        (dag-draw-layout-graph graph)
+        (let ((output (dag-draw-render-graph graph 'svg)))
+          ;; Should contain fill="#ff0000" or style with fill color in text element
+          (expect output :to-match "fill=\"#ff0000\"")))))
+
   (describe "combined SVG attributes"
 
     (it "should apply multiple SVG attributes together"

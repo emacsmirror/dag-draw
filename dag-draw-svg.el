@@ -164,14 +164,23 @@ Returns a string containing SVG <g> group with all node elements."
                       (filter-attr (if is-selected " filter=\"url(#selection-glow)\"" ""))
                       ;; Get custom SVG style properties
                       (style-props (dag-draw--get-svg-node-style node))
-                      (inline-style (dag-draw--svg-build-inline-style style-props)))
+                      (inline-style (dag-draw--svg-build-inline-style style-props))
+                      ;; Get text-specific attributes
+                      (attrs (dag-draw-node-attributes node))
+                      (text-color (ht-get attrs :svg-text-color))
+                      (text-fill-attr (if text-color (format " fill=\"%s\"" text-color) ""))
+                      (tooltip (ht-get attrs :svg-tooltip)))
 
                  (setq node-svg
                        (concat node-svg
                                (format "    <rect class=\"node\" x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"3\"%s%s />\n"
                                        rect-x rect-y width height filter-attr inline-style)
-                               (format "    <text class=\"node-label\" x=\"%.1f\" y=\"%.1f\">%s</text>\n"
-                                       x y (dag-draw--escape-xml label))))))
+                               ;; Add tooltip if present
+                               (if tooltip
+                                   (format "    <title>%s</title>\n" (dag-draw--escape-xml tooltip))
+                                 "")
+                               (format "    <text class=\"node-label\" x=\"%.1f\" y=\"%.1f\"%s>%s</text>\n"
+                                       x y text-fill-attr (dag-draw--escape-xml label))))))
              (dag-draw-graph-nodes graph))
 
     (concat node-svg "  </g>\n")))
@@ -266,9 +275,10 @@ Returns the escaped string safe for use in XML attributes and content."
 
 NODE is a `dag-draw-node' structure.
 
-Checks for :svg-fill, :svg-stroke, and :svg-stroke-width attributes
-in the node's attributes hash table.  Returns an alist of (property . value)
-pairs for attributes that are set, with defaults for unset attributes.
+Checks for :svg-fill, :svg-stroke, :svg-stroke-width, and :svg-fill-opacity
+attributes in the node's attributes hash table.  Returns an alist of
+(property . value) pairs for attributes that are set, with defaults for
+unset attributes.
 
 Returns alist like ((fill . \"#ff0000\") (stroke . \"#0000ff\") (stroke-width . 2))."
   (let ((attrs (dag-draw-node-attributes node))
@@ -282,6 +292,9 @@ Returns alist like ((fill . \"#ff0000\") (stroke . \"#0000ff\") (stroke-width . 
     ;; Extract custom stroke width
     (when-let ((stroke-width (ht-get attrs :svg-stroke-width)))
       (push (cons 'stroke-width stroke-width) styles))
+    ;; Extract custom fill opacity
+    (when-let ((fill-opacity (ht-get attrs :svg-fill-opacity)))
+      (push (cons 'fill-opacity fill-opacity) styles))
     styles))
 
 (defun dag-draw--svg-build-inline-style (style-alist)
