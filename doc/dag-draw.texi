@@ -284,6 +284,9 @@ Contributing
 @node Introduction
 @chapter Introduction
 
+@cindex introduction
+@cindex dag-draw, overview
+
 @menu
 * What is dag-draw?::
 * Why use dag-draw?::
@@ -359,6 +362,10 @@ Workflow diagrams (Design → Build → Test → Deploy)
 Any hierarchical relationship that forms a DAG
 @end itemize
 
+@cindex DAG
+@cindex directed acyclic graph
+@cindex graph, definition
+
 @node What's a DAG@?
 @section What's a DAG@?
 
@@ -390,6 +397,10 @@ Invalid (has a cycle):
 A → B → C → A  (cycle!)
 @end example
 
+@cindex GKNV algorithm
+@cindex layout algorithm
+@cindex Graphviz
+
 @node How does it work?
 @section How does it work?
 
@@ -420,6 +431,9 @@ You don't need to understand the algorithm to use dag-draw. Just call @code{dag-
 
 @node Getting Started
 @chapter Getting Started
+
+@cindex getting started
+@cindex installation
 
 This section will teach you to create and render your first graph. By the end, you'll have a working example you can modify.
 
@@ -663,6 +677,10 @@ Made edges merge cleanly at "Deploy"
 
 @strong{You specified structure. dag-draw handled layout.}
 
+@cindex batch creation
+@cindex declarative graphs
+@cindex creating graphs from data
+
 @node Creating Graphs from Data
 @section Creating Graphs from Data
 
@@ -811,7 +829,12 @@ Modifying existing graphs
 @node Tutorial From Basics to Advanced
 @chapter Tutorial: From Basics to Advanced
 
+@cindex tutorial
+
 This section teaches you everything you need to use dag-draw effectively, from simple graphs to advanced customization.
+
+@cindex nodes
+@cindex creating nodes
 
 @menu
 * Working with Nodes::           Creating and customizing nodes
@@ -886,6 +909,10 @@ You can attach custom attributes to nodes for rendering hints:
 @end lisp
 
 Attributes are used by renderers (especially SVG) for styling. ASCII rendering ignores most attributes but uses them for semantic meaning in your code.
+
+@cindex visual properties
+@cindex node styling
+@cindex colors
 
 @node Visual Properties
 @subsection Visual Properties
@@ -975,6 +1002,26 @@ Renders with double borders (@code{╔═╗}) instead of single (@code{┌─�
       (:svg-stroke-width 2)))      ; Thicker border
 @end lisp
 
+@strong{Advanced SVG Properties}: Tooltips, opacity, and text colors
+
+@lisp
+;; Tooltip (hover to see details)
+(dag-draw-add-node graph 'server "API Server"
+  (ht (:svg-fill "#90ee90")
+      (:svg-tooltip "Status: Running\nUptime: 99.9%")))
+
+;; Fill opacity (semi-transparent for inactive states)
+(dag-draw-add-node graph 'cache "Cache"
+  (ht (:svg-fill "#ffd700")
+      (:svg-fill-opacity 0.6)))  ; 60% opacity
+
+;; Text color (color-code labels)
+(dag-draw-add-node graph 'critical "Database"
+  (ht (:svg-fill "#ffe0e0")
+      (:svg-text-color "#cc0000")    ; Red text
+      (:svg-stroke "#cc0000")))      ; Red border
+@end lisp
+
 @node Multi-Format Properties
 @unnumberedsubsubsec Multi-Format Properties
 
@@ -1032,6 +1079,10 @@ After adding nodes, you can retrieve them:
 @end lisp
 
 @strong{Coordinate properties are nil until you call @code{dag-draw-layout-graph}.}
+
+@cindex edges
+@cindex creating edges
+@cindex edge weights
 
 @node Working with Edges
 @section Working with Edges
@@ -1129,6 +1180,10 @@ Minimum length constraints force vertical separation:
 @end lisp
 
 Use this when you need visual separation between certain nodes.
+
+@cindex layout
+@cindex GKNV algorithm
+@cindex graph layout
 
 @node Layout The Magic Step
 @section Layout: The Magic Step
@@ -1258,6 +1313,10 @@ Sometimes you want to force certain nodes onto the same level:
 @end lisp
 
 This is advanced usage. Most graphs don't need rank constraints.
+
+@cindex rendering
+@cindex ASCII rendering
+@cindex SVG rendering
 
 @node Rendering From Coordinates to Pictures
 @section Rendering: From Coordinates to Pictures
@@ -1525,6 +1584,9 @@ Call it with:
 @node Reference
 @chapter Reference
 
+@cindex reference
+@cindex API reference
+
 This section documents every public function and variable in dag-draw.
 
 @menu
@@ -1539,6 +1601,8 @@ This section documents every public function and variable in dag-draw.
 
 @node Graph Functions
 @section Graph Functions
+
+@findex dag-draw-create-graph
 
 @menu
 * dag-draw-create-graph::
@@ -1572,6 +1636,8 @@ Create a new empty directed graph.
 (setq g (dag-draw-create-graph (ht ("name" "My Graph")
                                     ("type" "workflow"))))
 @end lisp
+
+@findex dag-draw-create-from-spec
 
 @node dag-draw-create-from-spec
 @subsection dag-draw-create-from-spec
@@ -1630,6 +1696,8 @@ Edge references non-existent node: Error
 
 @strong{Note}: All validation happens before graph construction. Errors leave no partial state.
 
+@findex dag-draw-layout-graph
+
 @node dag-draw-layout-graph
 @subsection dag-draw-layout-graph
 
@@ -1663,6 +1731,8 @@ This function modifies the graph in-place, assigning coordinates to nodes and ge
 
 @node Node Functions
 @section Node Functions
+
+@findex dag-draw-add-node
 
 @menu
 * dag-draw-add-node::
@@ -1709,6 +1779,8 @@ Add a node to a graph.
 
 @strong{Note}: Node IDs must be unique within a graph. Adding a node with an existing ID replaces the old node.
 
+@findex dag-draw-get-node
+
 @node dag-draw-get-node
 @subsection dag-draw-get-node
 
@@ -1737,6 +1809,14 @@ Retrieve a node by ID@.
 
 @node Node Accessors
 @subsection Node Accessors
+
+@findex dag-draw-node-id
+@findex dag-draw-node-label
+@findex dag-draw-node-x-coord
+@findex dag-draw-node-y-coord
+@findex dag-draw-node-rank
+@findex dag-draw-node-order
+@findex dag-draw-node-attributes
 
 @menu
 * dag-draw-node-id::
@@ -1865,7 +1945,7 @@ Node attributes support visual styling through prefixed keywords:
 @anchor{SVG Visual Properties (1)}SVG Visual Properties
 
 
-@multitable {aaaaaaaaaaaaaaaaaaa} {aaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaa}
+@multitable {aaaaaaaaaaaaaaaaaaa} {aaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaaaaaaaaa}
 @headitem Attribute
 @tab Type
 @tab Description
@@ -1882,6 +1962,18 @@ Node attributes support visual styling through prefixed keywords:
 @tab number
 @tab Border thickness (pixels)
 @tab @code{2}, @code{3}
+@item @code{:svg-fill-opacity}
+@tab number
+@tab Fill opacity (0.0-1.0)
+@tab @code{0.5}, @code{0.8}
+@item @code{:svg-text-color}
+@tab string
+@tab Label text color (CSS)
+@tab @code{"#cc0000"}
+@item @code{:svg-tooltip}
+@tab string
+@tab Hover tooltip (SVG @code{<title>})
+@tab @code{"Status: Active"}
 @end multitable
 
 @strong{Example}:
@@ -1920,6 +2012,8 @@ Invalid attributes are silently ignored
 
 @node Edge Functions
 @section Edge Functions
+
+@findex dag-draw-add-edge
 
 @menu
 * dag-draw-add-edge::
@@ -1964,6 +2058,8 @@ Add a directed edge to a graph.
 
 @strong{Note}: Both nodes must exist in the graph before adding an edge.
 
+@findex dag-draw-get-edges
+
 @node dag-draw-get-edges
 @subsection dag-draw-get-edges
 
@@ -1991,6 +2087,13 @@ Get all edges in a graph.
 
 @node Edge Accessors
 @subsection Edge Accessors
+
+@findex dag-draw-edge-from-node
+@findex dag-draw-edge-to-node
+@findex dag-draw-edge-weight
+@findex dag-draw-edge-min-length
+@findex dag-draw-edge-spline-points
+@findex dag-draw-edge-attributes
 
 @menu
 * dag-draw-edge-from-node::
@@ -2076,6 +2179,8 @@ Get the edge's attribute hash table.
 @node Rendering Functions
 @section Rendering Functions
 
+@findex dag-draw-render-graph
+
 @menu
 * dag-draw-render-graph::
 @end menu
@@ -2115,6 +2220,12 @@ Render a graph to a specific format.
 
 @node Configuration Variables
 @section Configuration Variables
+
+@vindex dag-draw-default-node-separation
+@vindex dag-draw-default-rank-separation
+@vindex dag-draw-ascii-node-separation
+@vindex dag-draw-ascii-rank-separation
+@vindex dag-draw-default-output-format
 
 @menu
 * dag-draw-default-node-separation::
@@ -2204,6 +2315,12 @@ Default output format for rendered graphs.
 
 @node Graph Structure Accessors
 @section Graph Structure Accessors
+
+@findex dag-draw-graph-nodes
+@findex dag-draw-graph-edges
+@findex dag-draw-graph-node-separation
+@findex dag-draw-graph-rank-separation
+@findex dag-draw-graph-coordinate-mode
 
 @menu
 * dag-draw-graph-nodes::
@@ -2378,6 +2495,10 @@ The @code{dag-draw-graph} structure has these slots:
 
 @node Troubleshooting
 @chapter Troubleshooting
+
+@cindex troubleshooting
+@cindex errors
+@cindex common problems
 
 @menu
 * Graph has cycles::
@@ -2650,6 +2771,9 @@ Save SVG to a file and view in a web browser:
 
 @node Advanced Topics
 @chapter Advanced Topics
+
+@cindex advanced topics
+@cindex customization
 
 @menu
 * Understanding the GKNV Algorithm::

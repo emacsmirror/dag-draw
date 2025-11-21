@@ -46,6 +46,9 @@ General Public License for more details.
 :DESCRIPTION: What is dag-draw and why should you care?
 :END:
 
+#+CINDEX: introduction
+#+CINDEX: dag-draw, overview
+
 ** What is dag-draw?
 
 Ever tried to draw a flowchart? You spend hours moving boxes around, trying to untangle crossing lines, and the result still looks like spaghetti.
@@ -99,6 +102,10 @@ And it produces:
 - Workflow diagrams (Design → Build → Test → Deploy)
 - Any hierarchical relationship that forms a DAG
 
+#+CINDEX: DAG
+#+CINDEX: directed acyclic graph
+#+CINDEX: graph, definition
+
 ** What's a DAG?
 
 A *Directed Acyclic Graph* is:
@@ -119,6 +126,10 @@ Invalid (has a cycle):
 #+begin_example
 A → B → C → A  (cycle!)
 #+end_example
+
+#+CINDEX: GKNV algorithm
+#+CINDEX: layout algorithm
+#+CINDEX: Graphviz
 
 ** How does it work?
 
@@ -145,6 +156,9 @@ You don't need to understand the algorithm to use dag-draw. Just call ~dag-draw-
 :DESCRIPTION: Your first graph in 30 seconds
 :CUSTOM_ID: getting-started
 :END:
+
+#+CINDEX: getting started
+#+CINDEX: installation
 
 This section will teach you to create and render your first graph. By the end, you'll have a working example you can modify.
 
@@ -342,6 +356,10 @@ Notice how dag-draw automatically:
 
 *You specified structure. dag-draw handled layout.*
 
+#+CINDEX: batch creation
+#+CINDEX: declarative graphs
+#+CINDEX: creating graphs from data
+
 ** Creating Graphs from Data
 :PROPERTIES:
 :DESCRIPTION: Declarative graph creation
@@ -463,7 +481,12 @@ Visual properties work seamlessly:
 :CUSTOM_ID: tutorial
 :END:
 
+#+CINDEX: tutorial
+
 This section teaches you everything you need to use dag-draw effectively, from simple graphs to advanced customization.
+
+#+CINDEX: nodes
+#+CINDEX: creating nodes
 
 ** Working with Nodes
 :PROPERTIES:
@@ -521,6 +544,10 @@ You can attach custom attributes to nodes for rendering hints:
 #+end_src
 
 Attributes are used by renderers (especially SVG) for styling. ASCII rendering ignores most attributes but uses them for semantic meaning in your code.
+
+#+CINDEX: visual properties
+#+CINDEX: node styling
+#+CINDEX: colors
 
 *** Visual Properties
 
@@ -673,6 +700,10 @@ After adding nodes, you can retrieve them:
 
 *Coordinate properties are nil until you call ~dag-draw-layout-graph~.*
 
+#+CINDEX: edges
+#+CINDEX: creating edges
+#+CINDEX: edge weights
+
 ** Working with Edges
 :PROPERTIES:
 :DESCRIPTION: Creating and customizing edges
@@ -758,6 +789,10 @@ Minimum length constraints force vertical separation:
 #+end_src
 
 Use this when you need visual separation between certain nodes.
+
+#+CINDEX: layout
+#+CINDEX: GKNV algorithm
+#+CINDEX: graph layout
 
 ** Layout: The Magic Step
 :PROPERTIES:
@@ -862,6 +897,10 @@ Sometimes you want to force certain nodes onto the same level:
 #+end_src
 
 This is advanced usage. Most graphs don't need rank constraints.
+
+#+CINDEX: rendering
+#+CINDEX: ASCII rendering
+#+CINDEX: SVG rendering
 
 ** Rendering: From Coordinates to Pictures
 :PROPERTIES:
@@ -1088,12 +1127,17 @@ Call it with:
 :CUSTOM_ID: reference
 :END:
 
+#+CINDEX: reference
+#+CINDEX: API reference
+
 This section documents every public function and variable in dag-draw.
 
 ** Graph Functions
 :PROPERTIES:
 :DESCRIPTION: Creating and manipulating graphs
 :END:
+
+#+FINDEX: dag-draw-create-graph
 
 *** dag-draw-create-graph
 
@@ -1117,6 +1161,8 @@ Create a new empty directed graph.
 (setq g (dag-draw-create-graph (ht ("name" "My Graph")
                                     ("type" "workflow"))))
 #+end_src
+
+#+FINDEX: dag-draw-create-from-spec
 
 *** dag-draw-create-from-spec
 
@@ -1156,6 +1202,8 @@ Create a graph from a declarative specification.
 
 *Note*: All validation happens before graph construction. Errors leave no partial state.
 
+#+FINDEX: dag-draw-layout-graph
+
 *** dag-draw-layout-graph
 
 #+begin_src emacs-lisp
@@ -1187,6 +1235,8 @@ This function modifies the graph in-place, assigning coordinates to nodes and ge
 :PROPERTIES:
 :DESCRIPTION: Working with nodes
 :END:
+
+#+FINDEX: dag-draw-add-node
 
 *** dag-draw-add-node
 
@@ -1220,6 +1270,8 @@ Add a node to a graph.
 
 *Note*: Node IDs must be unique within a graph. Adding a node with an existing ID replaces the old node.
 
+#+FINDEX: dag-draw-get-node
+
 *** dag-draw-get-node
 
 #+begin_src emacs-lisp
@@ -1242,6 +1294,14 @@ Retrieve a node by ID.
 #+end_src
 
 *** Node Accessors
+
+#+FINDEX: dag-draw-node-id
+#+FINDEX: dag-draw-node-label
+#+FINDEX: dag-draw-node-x-coord
+#+FINDEX: dag-draw-node-y-coord
+#+FINDEX: dag-draw-node-rank
+#+FINDEX: dag-draw-node-order
+#+FINDEX: dag-draw-node-attributes
 
 **** dag-draw-node-id
 
@@ -1377,6 +1437,8 @@ Node attributes support visual styling through prefixed keywords:
 :DESCRIPTION: Working with edges
 :END:
 
+#+FINDEX: dag-draw-add-edge
+
 *** dag-draw-add-edge
 
 #+begin_src emacs-lisp
@@ -1407,6 +1469,8 @@ Add a directed edge to a graph.
 
 *Note*: Both nodes must exist in the graph before adding an edge.
 
+#+FINDEX: dag-draw-get-edges
+
 *** dag-draw-get-edges
 
 #+begin_src emacs-lisp
@@ -1429,6 +1493,13 @@ Get all edges in a graph.
 #+end_src
 
 *** Edge Accessors
+
+#+FINDEX: dag-draw-edge-from-node
+#+FINDEX: dag-draw-edge-to-node
+#+FINDEX: dag-draw-edge-weight
+#+FINDEX: dag-draw-edge-min-length
+#+FINDEX: dag-draw-edge-spline-points
+#+FINDEX: dag-draw-edge-attributes
 
 **** dag-draw-edge-from-node
 
@@ -1501,6 +1572,8 @@ Get the edge's attribute hash table.
 :DESCRIPTION: Producing visual output
 :END:
 
+#+FINDEX: dag-draw-render-graph
+
 *** dag-draw-render-graph
 
 #+begin_src emacs-lisp
@@ -1533,6 +1606,12 @@ Render a graph to a specific format.
 :PROPERTIES:
 :DESCRIPTION: Customization options
 :END:
+
+#+VINDEX: dag-draw-default-node-separation
+#+VINDEX: dag-draw-default-rank-separation
+#+VINDEX: dag-draw-ascii-node-separation
+#+VINDEX: dag-draw-ascii-rank-separation
+#+VINDEX: dag-draw-default-output-format
 
 *** dag-draw-default-node-separation
 
@@ -1611,6 +1690,12 @@ Default output format for rendered graphs.
 :PROPERTIES:
 :DESCRIPTION: Direct graph structure access
 :END:
+
+#+FINDEX: dag-draw-graph-nodes
+#+FINDEX: dag-draw-graph-edges
+#+FINDEX: dag-draw-graph-node-separation
+#+FINDEX: dag-draw-graph-rank-separation
+#+FINDEX: dag-draw-graph-coordinate-mode
 
 *** dag-draw-graph-nodes
 
@@ -1735,6 +1820,10 @@ The ~dag-draw-graph~ structure has these slots:
 :DESCRIPTION: Common problems and solutions
 :CUSTOM_ID: troubleshooting
 :END:
+
+#+CINDEX: troubleshooting
+#+CINDEX: errors
+#+CINDEX: common problems
 
 ** Graph has cycles
 
@@ -1955,6 +2044,9 @@ Error: Graph must be laid out before rendering
 :DESCRIPTION: Advanced usage and customization
 :CUSTOM_ID: advanced
 :END:
+
+#+CINDEX: advanced topics
+#+CINDEX: customization
 
 ** Understanding the GKNV Algorithm
 
