@@ -221,6 +221,10 @@ GRAPH is a `dag-draw-graph' structure.
 Returns an integer count of edges."
   (length (dag-draw-graph-edges graph)))
 
+;; Provide early so submodules can require us during their load
+;; This is the standard Emacs pattern for multi-file packages
+(provide 'dag-draw)
+
 ;;; Public API
 
 ;;;###autoload
@@ -729,10 +733,9 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 (defalias 'dag-draw-generate-spline 'dag-draw--create-inter-rank-spline
   "GKNV generate_spline() - individual spline generation from Section 5.2.")
 
-(provide 'dag-draw)
-
 ;;; Load all submodules to ensure (require 'dag-draw) loads the entire library
-;; These are loaded after (provide 'dag-draw) to avoid circular dependency issues
+;; Emacs handles recursive requires gracefully - when submodules require 'dag-draw,
+;; the symbols defined above are already available since this file is in-progress.
 
 (require 'dag-draw-core)
 (require 'dag-draw-coord-transform)
