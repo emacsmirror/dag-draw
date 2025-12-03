@@ -25,14 +25,13 @@
 ;;; Code:
 
 (require 'ht)
+(require 'dag-draw)
 (require 'dag-draw-core)
 
-;; Forward declarations for existing modules
+;; Forward declarations for functions from modules that require us (avoid circular deps)
 (declare-function dag-draw--count-total-crossings "dag-draw-pass2-ordering")
 (declare-function dag-draw--organize-by-ranks "dag-draw-pass2-ordering")
 (declare-function dag-draw-balance-ranks "dag-draw-rank-balancing")
-(declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
-(declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
 
 ;;; A1: Expose hierarchical structure (Section 1.1, line 43)
 

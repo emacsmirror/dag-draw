@@ -19,14 +19,12 @@
 
 ;;; Code:
 
+(require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
 (require 'dag-draw-ports)
 
-;; Forward declarations for dag-draw-point structure
-(declare-function dag-draw-point-create "dag-draw-pass4-splines")
-(declare-function dag-draw-point-x "dag-draw-pass4-splines")
-(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+;; dag-draw-point struct is now in dag-draw.el
 
 ;;; ASCII Spline Data Structure
 

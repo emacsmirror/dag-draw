@@ -73,12 +73,10 @@
 (require 'dash)
 (require 'ht)
 
-;; Declare functions to avoid circular dependencies
+;; Forward declarations for functions in modules loaded later
 (declare-function dag-draw--world-to-grid-size "dag-draw-ascii-grid")
 (declare-function dag-draw--debug-spacing-calculation "dag-draw-quality")
 (declare-function dag-draw--calculate-max-required-rank-separation "dag-draw-quality")
-(declare-function dag-draw-edge-count "dag-draw-core")
-(declare-function dag-draw-node-count "dag-draw-core")
 
 ;;; Customization
 
@@ -184,6 +182,44 @@ Useful for troubleshooting layout issues or understanding algorithm behavior."
   (adjusted-positions nil)             ; Hash table: id -> (x y width height) adjusted coordinates
   (coordinate-mode 'ascii)             ; Coordinate system mode ('ascii is primary, 'high-res deprecated)
   attributes)                          ; Graph-level attributes
+
+;;; Geometry Data Structures (used across multiple modules)
+
+(cl-defstruct (dag-draw-point
+               (:constructor dag-draw-point-create)
+               (:copier nil))
+  "A 2D point."
+  x y)
+
+(cl-defstruct (dag-draw-bezier-curve
+               (:constructor dag-draw-bezier-curve-create)
+               (:copier nil))
+  "A cubic Bézier curve with 4 control points."
+  p0 p1 p2 p3)
+
+(cl-defstruct (dag-draw-box
+               (:constructor dag-draw-box-create)
+               (:copier nil))
+  "A rectangular region."
+  x-min y-min x-max y-max)
+
+;;; Graph Count Functions (moved here to avoid circular deps)
+
+(defun dag-draw-node-count (graph)
+  "Get the number of nodes in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns an integer count of nodes."
+  (ht-size (dag-draw-graph-nodes graph)))
+
+(defun dag-draw-edge-count (graph)
+  "Get the number of edges in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+
+Returns an integer count of edges."
+  (length (dag-draw-graph-edges graph)))
 
 ;;; Public API
 
@@ -485,29 +521,19 @@ Returns a string representation of the rendered graph."
       (dag-draw-render-dot graph selected))
      (t (error "Unsupported output format: %s" output-format)))))
 
-;;; Implementation placeholders (to be implemented in separate modules)
+;;; Forward declarations for functions defined in submodules
+;; These are needed for defalias and to silence byte-compiler warnings
 
 (declare-function dag-draw-rank-graph "dag-draw-pass1-ranking")
+(declare-function dag-draw-assign-ranks "dag-draw-pass1-ranking")
 (declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
 (declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
+(declare-function dag-draw--calculate-separation "dag-draw-pass3-positioning")
 (declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
-(declare-function dag-draw--create-edge-label-virtual-nodes "dag-draw-pass4-splines")
-(declare-function dag-draw--apply-label-edge-length-compensation "dag-draw-pass4-splines")
-(declare-function dag-draw--get-label-virtual-nodes "dag-draw-pass4-splines")
-(declare-function dag-draw-render-svg "dag-draw-render")
+(declare-function dag-draw--create-inter-rank-spline "dag-draw-pass4-splines")
+(declare-function dag-draw-render-svg "dag-draw-svg")
 (declare-function dag-draw-render-ascii "dag-draw-render")
-(declare-function dag-draw-render-dot "dag-draw-render")
-
-;; Load algorithm modules when needed
-(autoload 'dag-draw-rank-graph "dag-draw-pass1-ranking" "Assign ranks to graph nodes." nil)
-(autoload 'dag-draw-order-vertices "dag-draw-pass2-ordering" "Order vertices within ranks." nil)
-(autoload 'dag-draw-position-nodes "dag-draw-pass3-positioning" "Assign coordinates to nodes." nil)
-(autoload 'dag-draw-generate-splines "dag-draw-pass4-splines" "Generate edge splines." nil)
-(autoload 'dag-draw--create-edge-label-virtual-nodes "dag-draw-pass4-splines" "Create virtual nodes for edge labels." nil)
-(autoload 'dag-draw--apply-label-edge-length-compensation "dag-draw-pass4-splines" "Apply edge length compensation for labels." nil)
-(autoload 'dag-draw-render-svg "dag-draw-svg" "Render graph as SVG." nil)
-(autoload 'dag-draw-render-ascii "dag-draw-render" "Render graph as ASCII art." nil)
-(autoload 'dag-draw-render-dot "dag-draw-dot" "Render graph as DOT format." nil)
+(declare-function dag-draw-render-dot "dag-draw-dot")
 
 ;;; Text Processing Utilities
 
@@ -675,8 +701,7 @@ Alias for dag-draw-edge-weight using proper Greek mathematical notation.")
   "GKNV λ(v) - rank assignment function (Section 2, line 352).
 Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 
-;; Declare ρ function for separation calculations
-(declare-function dag-draw--calculate-separation "dag-draw-pass3-positioning")
+;; GKNV mathematical function aliases (using declare-functions from above)
 (defalias 'dag-draw-ρ 'dag-draw--calculate-separation
   "GKNV ρ(u,v) - minimum separation function between adjacent nodes.
 ρ(u,v) = (xsize(u) + xsize(v))/2 + nodesep(G) per Section 4.")
@@ -684,32 +709,52 @@ Alias for dag-draw-node-rank using proper Greek mathematical notation.")
 ;;; Standard GKNV Function Names from Figure 1-1
 ;; These are the canonical entry points referenced in the GKNV paper
 
-(declare-function dag-draw-rank-graph "dag-draw-pass1-ranking")
 (defalias 'dag-draw-rank 'dag-draw-rank-graph
   "GKNV rank(G) - main entry point for Pass 1 rank assignment (Figure 1-1).")
 
-(declare-function dag-draw-order-vertices "dag-draw-pass2-ordering")
 (defalias 'dag-draw-ordering 'dag-draw-order-vertices
   "GKNV ordering(G) - main entry point for Pass 2 ordering (Figure 1-1).")
 
-(declare-function dag-draw-position-nodes "dag-draw-pass3-positioning")
 (defalias 'dag-draw-position 'dag-draw-position-nodes
   "GKNV position(G) - Pass 3 coordinate assignment (Figure 1-1).")
 
-(declare-function dag-draw-generate-splines "dag-draw-pass4-splines")
 (defalias 'dag-draw-make-splines 'dag-draw-generate-splines
   "GKNV make_splines(G) - Pass 4 spline generation (Figure 1-1).")
 
 ;; Additional canonical functions from Figure 2-2
-(declare-function dag-draw-assign-ranks "dag-draw-pass1-ranking")
 (defalias 'dag-draw-init-rank 'dag-draw-assign-ranks
   "GKNV init_rank() - initial rank assignment from Figure 2-2.")
 
 ;; Section 5.2 spline generation
-(declare-function dag-draw--create-inter-rank-spline "dag-draw-pass4-splines")
 (defalias 'dag-draw-generate-spline 'dag-draw--create-inter-rank-spline
   "GKNV generate_spline() - individual spline generation from Section 5.2.")
 
 (provide 'dag-draw)
+
+;;; Load all submodules to ensure (require 'dag-draw) loads the entire library
+;; These are loaded after (provide 'dag-draw) to avoid circular dependency issues
+
+(require 'dag-draw-core)
+(require 'dag-draw-coord-transform)
+(require 'dag-draw-quality)
+(require 'dag-draw-topological)
+(require 'dag-draw-cycle-breaking)
+(require 'dag-draw-pass1-ranking)
+(require 'dag-draw-rank-balancing)
+(require 'dag-draw-pass2-ordering)
+(require 'dag-draw-pass3-positioning)
+(require 'dag-draw-ascii-junctions)
+(require 'dag-draw-ascii-grid)
+(require 'dag-draw-ports)
+(require 'dag-draw-pass4-splines)
+(require 'dag-draw-ascii-splines)
+(require 'dag-draw-ascii-nodes)
+(require 'dag-draw-ascii-edges)
+(require 'dag-draw-render-gknv-compliant)
+(require 'dag-draw-render)
+(require 'dag-draw-svg)
+(require 'dag-draw-dot)
+(require 'dag-draw-algorithms)
+(require 'dag-draw-aesthetic-principles)
 
 ;;; dag-draw.el ends here

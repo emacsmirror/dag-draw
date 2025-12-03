@@ -46,14 +46,13 @@
 ;;; Code:
 
 (require 'ht)
+(require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-coord-transform)
 (require 'dag-draw-ascii-junctions)
 
-;; Forward declarations for dag-draw-point structure
-(declare-function dag-draw-point-create "dag-draw-pass4-splines")
-(declare-function dag-draw-point-x "dag-draw-pass4-splines")
-(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+;; dag-draw-point, dag-draw-point-create, dag-draw-point-x, dag-draw-point-y
+;; are now defined in dag-draw.el
 
 ;;; Customization
 

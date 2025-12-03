@@ -229,21 +229,8 @@ GRAPH is a `dag-draw-graph' structure.
 Returns a list of all unique node identifiers."
   (ht-keys (dag-draw-graph-nodes graph)))
 
-(defun dag-draw-node-count (graph)
-  "Get the number of nodes in GRAPH.
-
-GRAPH is a `dag-draw-graph' structure.
-
-Returns an integer count of nodes."
-  (ht-size (dag-draw-graph-nodes graph)))
-
-(defun dag-draw-edge-count (graph)
-  "Get the number of edges in GRAPH.
-
-GRAPH is a `dag-draw-graph' structure.
-
-Returns an integer count of edges."
-  (length (dag-draw-graph-edges graph)))
+;; Note: dag-draw-node-count and dag-draw-edge-count are defined in dag-draw.el
+;; to avoid circular dependencies
 
 ;;; Graph Properties
 

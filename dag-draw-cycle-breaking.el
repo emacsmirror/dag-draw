@@ -45,9 +45,11 @@
 ;;; Code:
 
 (require 'ht)
+(require 'dag-draw)
 (require 'dag-draw-core)
 
-(declare-function dag-draw--count-cycles-through-edge "dag-draw-cycle-breaking")
+;; Forward declaration for function defined in pass1-ranking
+(declare-function dag-draw--count-cycles-through-edge "dag-draw-pass1-ranking")
 
 ;;; GKNV DFS Edge Classification (Section 2.1)
 

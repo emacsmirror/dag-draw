@@ -49,25 +49,7 @@
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
 
-;;; Data structures for splines
-
-(cl-defstruct (dag-draw-point
-               (:constructor dag-draw-point-create)
-               (:copier nil))
-  "A 2D point."
-  x y)
-
-(cl-defstruct (dag-draw-bezier-curve
-               (:constructor dag-draw-bezier-curve-create)
-               (:copier nil))
-  "A cubic Bézier curve with 4 control points."
-  p0 p1 p2 p3)
-
-(cl-defstruct (dag-draw-box
-               (:constructor dag-draw-box-create)
-               (:copier nil))
-  "A rectangular region."
-  x-min y-min x-max y-max)
+;; Note: dag-draw-point, dag-draw-bezier-curve, dag-draw-box are defined in dag-draw.el
 
 ;;; Edge classification and routing
 

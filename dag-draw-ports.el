@@ -38,13 +38,12 @@
 ;;; Code:
 
 (require 'dash)
+(require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-ascii-grid)
 
-;; Forward declarations for dag-draw-point structure and node port function
-(declare-function dag-draw-point-create "dag-draw-pass4-splines")
-(declare-function dag-draw-point-x "dag-draw-pass4-splines")
-(declare-function dag-draw-point-y "dag-draw-pass4-splines")
+;; dag-draw-point struct is now in dag-draw.el
+;; Forward declaration for function in pass4-splines
 (declare-function dag-draw--get-node-port "dag-draw-pass4-splines")
 
 ;;; Node Port Integration Functions
