@@ -547,37 +547,37 @@ Returns a string representation of the rendered graph."
 TEXT is a string to format for display in a node.
 
 Wraps text to fit within node display constraints (up to 2 rows
-of 25 characters each).  Supports word wrapping and truncation
-for overly long text.
+of 25 display columns each).  Supports word wrapping and truncation
+for overly long text.  Uses `string-width' for proper Unicode/CJK support.
 
 Returns a list of strings representing the formatted rows."
-  (let ((max-chars-per-line 25))  ; Increased from 20 to 25 characters per line
-    (if (<= (length text) max-chars-per-line)
+  (let ((max-cols-per-line 25))  ; Maximum display columns per line
+    (if (<= (string-width text) max-cols-per-line)
         (list text)
       ;; Check if text has no spaces (single long word)
       (if (not (string-match " " text))
           ;; Handle single long word - truncate with ellipsis only if extremely long
-          (if (> (length text) 30)
-              (list (concat (substring text 0 27) "..."))
-            (list text))  ; Allow single words up to 30 characters
-        ;; Word wrapping for text longer than max-chars-per-line
+          (if (> (string-width text) 30)
+              (list (concat (truncate-string-to-width text 27) "..."))
+            (list text))  ; Allow single words up to 30 display columns
+        ;; Word wrapping for text longer than max-cols-per-line
         (let ((words (split-string text " "))
               (line1 "")
               (line2 ""))
-          ;; Fill first line up to max-chars-per-line
-          (while (and words (<= (+ (length line1) (length (car words)) (if (string-empty-p line1) 0 1)) max-chars-per-line))
+          ;; Fill first line up to max-cols-per-line
+          (while (and words (<= (+ (string-width line1) (string-width (car words)) (if (string-empty-p line1) 0 1)) max-cols-per-line))
             (setq line1 (if (string-empty-p line1)
                             (car words)
                           (concat line1 " " (car words))))
             (setq words (cdr words)))
-          ;; Fill second line up to max-chars-per-line
+          ;; Fill second line up to max-cols-per-line
           (when words
             (let ((remaining-text (mapconcat #'identity words " ")))
-              (if (<= (length remaining-text) max-chars-per-line)
+              (if (<= (string-width remaining-text) max-cols-per-line)
                   ;; All remaining text fits in second line
                   (setq line2 remaining-text)
                 ;; Need to truncate with ellipsis only if extremely long
-                (while (and words (<= (+ (length line2) (length (car words)) (if (string-empty-p line2) 0 1)) (- max-chars-per-line 3)))
+                (while (and words (<= (+ (string-width line2) (string-width (car words)) (if (string-empty-p line2) 0 1)) (- max-cols-per-line 3)))
                   (setq line2 (if (string-empty-p line2)
                                   (car words)
                                 (concat line2 " " (car words))))
@@ -598,7 +598,7 @@ then converts to world coordinates per GKNV Section 1.2.
 
 Returns a cons cell (WIDTH . HEIGHT) in world coordinate units,
 where dimensions fit the actual text content with appropriate padding."
-  (let* ((max-line-length (apply #'max (mapcar #'length text-lines)))
+  (let* ((max-line-length (apply #'max (mapcar #'string-width text-lines)))
          (num-lines (length text-lines))
          ;; ASCII-FIRST CALCULATION: Direct measurement of actual requirements
          (ascii-width-needed (+ max-line-length 4))    ; Text + left/right borders + padding

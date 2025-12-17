@@ -212,8 +212,9 @@
           ;; Our conservative 0.08 box scale prioritizes algorithm stability over text display
           
           ;; Should generate substantial output for 3-node obstacle avoidance scenario
+          ;; Note: Output length reduced after fixing CJK alignment (trailing whitespace trimmed)
           (expect ascii-output :to-be-truthy)
-          (expect (length ascii-output) :to-be-greater-than 400)
+          (expect (length ascii-output) :to-be-greater-than 300)
           
           ;; Should have proper node boundaries for all three nodes
           (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))

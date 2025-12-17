@@ -492,16 +492,28 @@ Returns an integer grid coordinate."
 
 GRID is a 2D vector of characters.
 
-Converts each row to a string and joins with newlines.  Preserves all
-characters including trailing spaces (important for layout).
+Converts each row to a string and joins with newlines.  Handles CJK/wide
+characters correctly by normalizing display width across all rows.
 
 Returns a string containing the complete ASCII representation."
-  (mapconcat (lambda (row)
-               ;; FIXED: Don't use string-trim-right as it removes important characters
-               ;; that happen to be followed by spaces. Instead, preserve all characters.
-               (apply #'string (append row nil)))
-             grid
-             "\n"))
+  ;; Handle empty grid case
+  (if (= (length grid) 0)
+      ""
+    ;; First pass: convert all rows to trimmed strings and find max display width
+    (let* ((row-strings (mapcar (lambda (row)
+                                  (string-trim-right (apply #'string (append row nil))))
+                                grid))
+           (display-widths (mapcar #'string-width row-strings))
+           (max-display-width (apply #'max display-widths)))
+      ;; Second pass: pad each row to max display width
+      (mapconcat (lambda (row-str)
+                   (let* ((current-width (string-width row-str))
+                          (padding-needed (- max-display-width current-width)))
+                     (if (> padding-needed 0)
+                         (concat row-str (make-string padding-needed ?\s))
+                       row-str)))
+                 row-strings
+                 "\n"))))
 
 ;;; Junction Character Enhancement (moved to dag-draw-ascii-junctions.el)
 ;; All junction-related functions have been extracted to dag-draw-ascii-junctions.el

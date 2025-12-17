@@ -162,13 +162,13 @@ text within the box interior, supporting multiline labels."
             ;; Draw each line of text
             (dotimes (line-idx num-lines)
               (let* ((line-text (nth line-idx text-lines))
-                     (line-len (length line-text))
-                     (text-to-place (if (> line-len interior-width)
-                                        (substring line-text 0 interior-width)
+                     (line-width (string-width line-text))  ; Use string-width for CJK support
+                     (text-to-place (if (> line-width interior-width)
+                                        (truncate-string-to-width line-text interior-width)
                                       line-text))
-                     (text-len (length text-to-place))
-                     ;; Center this line horizontally
-                     (label-x (+ x 1 (/ (- interior-width text-len) 2)))
+                     (text-width (string-width text-to-place))  ; Use string-width for CJK support
+                     ;; Center this line horizontally based on display width
+                     (label-x (+ x 1 (/ (- interior-width text-width) 2)))
                      (label-y (+ start-y line-idx)))
 
                 (when (and (>= label-y 0) (< label-y grid-height)
@@ -176,7 +176,7 @@ text within the box interior, supporting multiline labels."
                            ;; BOUNDARY FIX: Ensure text stays within box interior vertically
                            (>= label-y (+ y 1))           ; Below top border
                            (< label-y (+ y height -1)))   ; Above bottom border
-                  (dotimes (i text-len)
+                  (dotimes (i (length text-to-place))
                     (let ((char-x (+ label-x i)))
                       (when (and (>= char-x 0) (< char-x grid-width)
                                  (< char-x (+ x width -1)))  ; Stay within box interior

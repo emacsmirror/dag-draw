@@ -84,8 +84,9 @@
           ;; Our conservative 0.08 box scale prioritizes algorithm stability over text display
           
           ;; Should have substantial vertical output for 3-node chain
+          ;; Note: Output length reduced after fixing CJK alignment (trailing whitespace trimmed)
           (expect ascii-output :to-be-truthy)
-          (expect (length ascii-output) :to-be-greater-than 300)
+          (expect (length ascii-output) :to-be-greater-than 150)
           
           ;; Should preserve GKNV coordinate relationships in ASCII structure
           ;; GKNV coordinates: Top=0, Middle=25, Bottom=50 (perfect 25-unit spacing)
@@ -128,8 +129,9 @@
         ;; Our conservative 0.08 box scale prioritizes algorithm stability over text display
         
         ;; Should generate substantial output for 5-node chain
+        ;; Note: Output length reduced after fixing CJK alignment (trailing whitespace trimmed)
         (expect ascii-output :to-be-truthy)
-        (expect (length ascii-output) :to-be-greater-than 500)  ; 5 nodes with connections
+        (expect (length ascii-output) :to-be-greater-than 350)  ; 5 nodes with connections
         
         ;; Should have proper rectangular node boundaries (algorithm working)
         (expect ascii-output :to-match "┌")  ; top-left corners

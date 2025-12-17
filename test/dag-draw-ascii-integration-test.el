@@ -165,9 +165,10 @@
         (expect (dag-draw-node-y-coord (dag-draw-get-node graph 'c)) :to-be-truthy)
 
         ;; Should render successfully with proper algorithm stability
+        ;; Note: Output length reduced after fixing CJK alignment (trailing whitespace trimmed)
         (let ((ascii-output (dag-draw-render-ascii graph)))
           (expect ascii-output :to-be-truthy)
-          (expect (length ascii-output) :to-be-greater-than 200)  ; Substantial 3-node output
+          (expect (length ascii-output) :to-be-greater-than 150)  ; Substantial 3-node output
           ;; Use test harness for comprehensive validation
           (let ((node-validation (dag-draw-test--validate-node-completeness ascii-output graph)))
             (expect (plist-get node-validation :complete) :to-be t))

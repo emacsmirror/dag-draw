@@ -102,8 +102,9 @@
         (expect ascii-output :to-match "└─[┬─]+─┘")  ; Bottom border with T-junction at port
 
         ;; Pattern 3: Node content should not be corrupted
-        (expect ascii-output :to-match "│Top")
-        (expect ascii-output :to-match "│Bottom")
+        ;; Text may be centered with padding, so allow optional spaces
+        (expect ascii-output :to-match "│ *Top")
+        (expect ascii-output :to-match "│ *Bottom")
 
         ;; Verify edge connectivity is maintained
         (let ((connectivity-validation (dag-draw-test--validate-edge-connectivity ascii-output graph)))

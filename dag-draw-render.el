@@ -142,7 +142,7 @@ Returns a string containing the ASCII representation of the graph."
                (marker (ht-get (dag-draw-node-attributes node) :ascii-marker))
                (base-label (dag-draw-node-label node))
                (label (if marker (concat marker base-label) base-label))
-               (width (+ (length label) 4))  ; Label (with marker if present) + padding
+               (width (+ (string-width label) 4))  ; Label (with marker if present) + padding (uses string-width for CJK support)
                (height 3))  ; Standard node height
           ;; Draw node and collect its boundary positions
           (when dag-draw-debug-output
@@ -311,24 +311,40 @@ used later to exclude these positions from junction character enhancement."
           (push (cons pos-x y) boundaries)))
 
       ;; Draw middle rows with label (supports multiline text)
-      (let ((label-lines (split-string label "\n")))  ; Split multiline labels
+      ;; Uses display width tracking for proper CJK/Unicode support
+      (let ((label-lines (split-string label "\n"))
+            (interior-display-width (- width 2)))  ; Interior width in display columns
         (dotimes (row (- height 2))
-          (let ((actual-row (+ y row 1))
-                (current-line (if (< row (length label-lines))
-                                (nth row label-lines)
-                              "")))  ; Empty string for rows without text
+          (let* ((actual-row (+ y row 1))
+                 (current-line (if (< row (length label-lines))
+                                   (nth row label-lines)
+                                 ""))
+                 ;; Calculate padding based on display width for consistent visual appearance
+                 (text-display-width (string-width current-line))
+                 (total-padding (- interior-display-width text-display-width))
+                 ;; Center text: split padding between left and right
+                 (left-padding (/ total-padding 2))
+                 (right-padding (- total-padding left-padding))
+                 ;; Build content: left-padding + text + right-padding
+                 (padded-content (concat (make-string (max 0 left-padding) ?\s)
+                                         current-line
+                                         (make-string (max 0 right-padding) ?\s)))
+                 (char-pos (1+ x))
+                 (display-col 0))
             ;; Left border
             (dag-draw--set-char grid x actual-row (plist-get chars :vertical))
             (push (cons x actual-row) boundaries)
-            ;; Content area with proper multiline text rendering
-            (dotimes (col (- width 2))
-              (let ((char-pos (+ x col 1)))
-                (if (< col (length current-line))
-                    (dag-draw--set-char grid char-pos actual-row (aref current-line col))
-                  (dag-draw--set-char grid char-pos actual-row ?\s))))
-            ;; Right border
-            (dag-draw--set-char grid (+ x width -1) actual-row (plist-get chars :vertical))
-            (push (cons (+ x width -1) actual-row) boundaries))))
+            ;; Place content characters, stopping when interior display width is filled
+            (dotimes (i (length padded-content))
+              (when (< display-col interior-display-width)
+                (let ((char (aref padded-content i)))
+                  (dag-draw--set-char grid char-pos actual-row char)
+                  (setq char-pos (1+ char-pos))
+                  (setq display-col (+ display-col (char-width char))))))
+            ;; Right border - place immediately after content (at char-pos, not fixed position)
+            ;; This ensures visual alignment regardless of CJK character widths
+            (dag-draw--set-char grid char-pos actual-row (plist-get chars :vertical))
+            (push (cons char-pos actual-row) boundaries))))
 
       ;; Draw bottom border and record boundary positions
       (dotimes (i width)
@@ -423,8 +439,8 @@ then draws an orthogonal path with vertical and horizontal segments using
 line characters (─ │) and a downward arrow (▼) at the destination."
 
   ;; Calculate port positions per GKNV Section 4.2: Node Port as X-direction offset from node center
-  (let* ((from-node-width (+ (length (dag-draw-node-label from-node)) 4))  ; Actual from-node width
-         (to-node-width (+ (length (dag-draw-node-label to-node)) 4))       ; Actual to-node width
+  (let* ((from-node-width (+ (string-width (dag-draw-node-label from-node)) 4))  ; Actual from-node width (CJK-aware)
+         (to-node-width (+ (string-width (dag-draw-node-label to-node)) 4))       ; Actual to-node width (CJK-aware)
          (from-port-x (+ from-x (/ from-node-width 2))) ; Center X of from-node
          (from-port-y (+ from-y 3))                     ; Bottom Y of from-node
          (to-port-x (+ to-x (/ to-node-width 2)))       ; Center X of to-node

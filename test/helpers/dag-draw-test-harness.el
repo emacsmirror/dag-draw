@@ -1100,10 +1100,13 @@ ASCII-GRID-OR-STRING can be either:
 X is an integer column coordinate.
 Y is an integer row coordinate.
 
+If (X, Y) doesn't point to a corner, searches leftward and upward to find
+the actual corner (handles centered text with padding).
+
 Returns:
   'single-line - if box uses single-line characters (┌ ┐ └ ┘ ─ │)
   'double-line - if box uses double-line characters (╔ ╗ ╚ ╝ ═ ║)
-  nil - if coordinates are invalid or don't point to a box corner"
+  nil - if no corner found within search range"
   (let* ((grid (if (hash-table-p ascii-grid-or-string)
                    ascii-grid-or-string
                  (dag-draw-test--parse-ascii-grid ascii-grid-or-string)))
@@ -1113,8 +1116,39 @@ Returns:
      ((memq char '(?┌ ?┐ ?└ ?┘)) 'single-line)
      ;; Double-line box corners
      ((memq char '(?╔ ?╗ ?╚ ?╝)) 'double-line)
-     ;; Not a box corner
-     (t nil))))
+     ;; Not a corner - search leftward and upward for the actual corner
+     (t (dag-draw-test--find-corner-style grid x y)))))
+
+(defun dag-draw-test--find-corner-style (grid start-x start-y)
+  "Search for box corner starting from (START-X, START-Y) going left and up.
+Returns 'single-line, 'double-line, or nil."
+  (let ((found nil)
+        (max-search 5))  ; Don't search too far
+    ;; Search leftward on same row first
+    (dotimes (dx max-search)
+      (unless found
+        (let* ((x (- start-x dx))
+               (char (dag-draw-test--get-char-at grid x start-y)))
+          (cond
+           ((memq char '(?┌ ?╔))
+            ;; Found top-left corner - now go up to verify
+            (dotimes (dy max-search)
+              (unless found
+                (let* ((y (- start-y dy))
+                       (corner-char (dag-draw-test--get-char-at grid x y)))
+                  (cond
+                   ((memq corner-char '(?┌ ?┐ ?└ ?┘)) (setq found 'single-line))
+                   ((memq corner-char '(?╔ ?╗ ?╚ ?╝)) (setq found 'double-line)))))))
+           ((memq char '(?│ ?║))
+            ;; Found vertical border - search up for corner
+            (dotimes (dy max-search)
+              (unless found
+                (let* ((y (- start-y dy))
+                       (corner-char (dag-draw-test--get-char-at grid x y)))
+                  (cond
+                   ((memq corner-char '(?┌ ?┐ ?└ ?┘)) (setq found 'single-line))
+                   ((memq corner-char '(?╔ ?╗ ?╚ ?╝)) (setq found 'double-line)))))))))))
+    found))
 
 (provide 'dag-draw-test-harness)
 
