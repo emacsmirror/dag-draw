@@ -776,6 +776,39 @@ Argument GRAPH ."
 
     tree-nodes))
 
+(defun dag-draw--bfs-collect-tight-edges (graph visited queue tree-edges max-edges)
+  "Collect tight tree edges via BFS from nodes in QUEUE.
+GRAPH is a `dag-draw-graph' structure.
+VISITED is a hash table tracking visited nodes (modified in place).
+QUEUE is initial list of nodes to process.
+TREE-EDGES is current list of collected edges.
+MAX-EDGES is the maximum number of edges to collect (n-1 for spanning tree).
+Returns updated tree-edges list."
+  (let ((current-queue (copy-sequence queue)))
+    (while (and current-queue (< (length tree-edges) max-edges))
+      (let ((current-node (pop current-queue)))
+
+        ;; Check outgoing edges from current node
+        (dolist (edge (dag-draw-get-edges-from graph current-node))
+          (let ((target-node (dag-draw-edge-to-node edge)))
+            (when (and (not (ht-get visited target-node))
+                       (dag-draw--is-tight-edge edge graph)
+                       (< (length tree-edges) max-edges))
+              (ht-set! visited target-node t)
+              (push edge tree-edges)
+              (push target-node current-queue))))
+
+        ;; Check incoming edges to current node (spanning tree is undirected)
+        (dolist (edge (dag-draw-get-edges-to graph current-node))
+          (let ((source-node (dag-draw-edge-from-node edge)))
+            (when (and (not (ht-get visited source-node))
+                       (dag-draw--is-tight-edge edge graph)
+                       (< (length tree-edges) max-edges))
+              (ht-set! visited source-node t)
+              (push edge tree-edges)
+              (push source-node current-queue))))))
+    tree-edges))
+
 (defun dag-draw--collect-tight-tree-edges (graph fixed-node)
   "Collect spanning tree from tight edges per GKNV Figure 2-2.
 GKNV Section 2.3: Build proper spanning tree (exactly n-1 edges),
@@ -784,75 +817,30 @@ Argument GRAPH .
 Argument FIXED-NODE ."
   (let ((tree-edges '())
         (visited (ht-create))
-        (queue (list fixed-node))
-        (total-nodes (length (dag-draw-get-node-ids graph))))
+        (total-nodes (length (dag-draw-get-node-ids graph)))
+        (max-edges nil))
 
     ;; Mark fixed node as visited
     (ht-set! visited fixed-node t)
+    (setq max-edges (1- total-nodes))
 
     ;; BFS to build spanning tree of tight edges
-    (while (and queue (< (length tree-edges) (1- total-nodes)))
-      (let ((current-node (pop queue)))
-
-        ;; Check outgoing edges from current node
-        (dolist (edge (dag-draw-get-edges-from graph current-node))
-          (let ((target-node (dag-draw-edge-to-node edge)))
-            (when (and (not (ht-get visited target-node))
-                       (dag-draw--is-tight-edge edge graph)
-                       (< (length tree-edges) (1- total-nodes)))
-              ;; Found tight edge to unvisited node - add to spanning tree
-              (ht-set! visited target-node t)
-              (push edge tree-edges)
-              (push target-node queue))))
-
-        ;; Check incoming edges to current node (spanning tree is undirected)
-        (dolist (edge (dag-draw-get-edges-to graph current-node))
-          (let ((source-node (dag-draw-edge-from-node edge)))
-            (when (and (not (ht-get visited source-node))
-                       (dag-draw--is-tight-edge edge graph)
-                       (< (length tree-edges) (1- total-nodes)))
-              ;; Found tight edge from unvisited node - add to spanning tree
-              (ht-set! visited source-node t)
-              (push edge tree-edges)
-              (push source-node queue))))))
+    (setq tree-edges (dag-draw--bfs-collect-tight-edges
+                      graph visited (list fixed-node) tree-edges max-edges))
 
     ;; Handle disconnected components per GKNV Section 1.2 line 74
     ;; If we couldn't reach all nodes with tight edges, collect edges from disconnected components
-    (when (< (length tree-edges) (1- total-nodes))
+    (when (< (length tree-edges) max-edges)
       (let ((unvisited-nodes (cl-set-difference (dag-draw-get-node-ids graph)
                                                 (ht-keys visited))))
         ;; For each disconnected component, find tight edges within that component
         (dolist (node unvisited-nodes)
-          (when (and (< (length tree-edges) (1- total-nodes))
+          (when (and (< (length tree-edges) max-edges)
                      (not (ht-get visited node)))
             ;; Start BFS from this unvisited node to find tight edges in its component
-            (let ((component-queue (list node)))
-              (ht-set! visited node t)
-
-              (while (and component-queue (< (length tree-edges) (1- total-nodes)))
-                (let ((current-node (pop component-queue)))
-
-                  ;; Check outgoing edges from current node in this component
-                  (dolist (edge (dag-draw-get-edges-from graph current-node))
-                    (let ((target-node (dag-draw-edge-to-node edge)))
-                      (when (and (not (ht-get visited target-node))
-                                 (dag-draw--is-tight-edge edge graph)
-                                 (< (length tree-edges) (1- total-nodes)))
-                        ;; Found tight edge to unvisited node in this component
-                        (ht-set! visited target-node t)
-                        (push edge tree-edges)
-                        (push target-node component-queue))))
-
-                  ;; Check incoming edges to current node in this component
-                  (dolist (edge (dag-draw-get-edges-to graph current-node))
-                    (let ((source-node (dag-draw-edge-from-node edge)))
-                      (when (and (not (ht-get visited source-node))
-                                 (dag-draw--is-tight-edge edge graph)
-                                 (< (length tree-edges) (1- total-nodes)))
-                        ;; Found tight edge from unvisited node in this component
-                        (ht-set! visited source-node t)
-                        (push edge tree-edges)
-                        (push source-node component-queue)))))))))))
+            (ht-set! visited node t)
+            (setq tree-edges (dag-draw--bfs-collect-tight-edges
+                              graph visited (list node) tree-edges max-edges))))))
 
     tree-edges))
 
@@ -1202,8 +1190,9 @@ Argument GRAPH ."
     ;; Calculate final cost (sum of edge lengths * weights)
     (let ((final-cost 0))
       (dolist (edge (dag-draw-graph-edges graph))
-        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+        (let* ((nodes (dag-draw--edge-nodes graph edge))
+               (from-node (car nodes))
+               (to-node (cdr nodes))
                (from-rank (or (dag-draw-node-rank from-node) 0))
                (to-rank (or (dag-draw-node-rank to-node) 0))
                (edge-length (abs (- to-rank from-rank)))

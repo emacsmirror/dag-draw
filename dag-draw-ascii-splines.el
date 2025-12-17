@@ -48,8 +48,9 @@ appropriate ASCII path points using simplified spline computation optimized
 for discrete ASCII grid rendering.
 
 Returns a list of `dag-draw-point' structures suitable for ASCII rendering."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
          (edge-type (dag-draw-ascii--classify-edge graph edge)))
     
     (pcase edge-type
@@ -65,8 +66,9 @@ GRAPH is a `dag-draw-graph' structure.
 EDGE is a `dag-draw-edge' structure.
 
 Returns a symbol: `self-edge', `flat-edge', or `inter-rank'."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
          (from-rank (dag-draw-node-rank from-node))
          (to-rank (dag-draw-node-rank to-node)))
 

@@ -26,7 +26,7 @@
 
 ;;; Safe Box Character Drawing
 
-(defun dag-draw--safe-draw-box-char (grid x y char)
+(defun dag-draw--draw-box-char (grid x y char)
   "Draw box character safely, preventing overwrites.
 
 GRID is a 2D vector representing the ASCII character grid (modified in place).
@@ -99,7 +99,7 @@ text within the box interior, supporting multiline labels."
             (when (<= start-x end-x)
               ;; Draw top-left corner if it's the actual start
               (when (= start-x x)
-                (dag-draw--safe-draw-box-char grid start-x y-clip ?┌)
+                (dag-draw--draw-box-char grid start-x y-clip ?┌)
                 ;; Clean up any leading edge characters adjacent to corner
                 (dag-draw--clean-adjacent-edge-fragments grid start-x y-clip))
               ;; Draw top edge as continuous GKNV-compliant border
@@ -108,10 +108,10 @@ text within the box interior, supporting multiline labels."
                   (when (and (<= pos-x end-x) (< pos-x grid-width)    ; Include clipped edges
                              (not (and (= pos-x x-end)               ; But exclude actual corner position
                                        (= end-x x-end))))            ; when it's not clipped
-                    (dag-draw--safe-draw-box-char grid pos-x y-clip ?─))))
+                    (dag-draw--draw-box-char grid pos-x y-clip ?─))))
               ;; Draw top-right corner only if it's the actual end (not clipped)
               (when (= end-x x-end)
-                (dag-draw--safe-draw-box-char grid end-x y-clip ?┐)
+                (dag-draw--draw-box-char grid end-x y-clip ?┐)
                 ;; Clean up any trailing edge characters adjacent to corner
                 (dag-draw--clean-adjacent-edge-fragments grid end-x y-clip)))))
 
@@ -120,26 +120,26 @@ text within the box interior, supporting multiline labels."
           (let ((pos-y (+ y i 1)))
             (when (and (>= pos-y 0) (< pos-y grid-height))
               (when (and (>= x 0) (< x grid-width))
-                (dag-draw--safe-draw-box-char grid x pos-y ?│))
+                (dag-draw--draw-box-char grid x pos-y ?│))
               (let ((pos-x (+ x width -1)))
                 (when (and (>= pos-x 0) (< pos-x grid-width))
-                  (dag-draw--safe-draw-box-char grid pos-x pos-y ?│))))))
+                  (dag-draw--draw-box-char grid pos-x pos-y ?│))))))
 
         ;; Draw bottom edge
         (let ((pos-y (+ y height -1)))
           (when (and (>= pos-y 0) (< pos-y grid-height))
             (when (and (>= x 0) (< x grid-width))
-              (dag-draw--safe-draw-box-char grid x pos-y ?└)
+              (dag-draw--draw-box-char grid x pos-y ?└)
               ;; Clean up any leading edge characters adjacent to bottom-left corner
               (dag-draw--clean-adjacent-edge-fragments grid x pos-y))
             ;; Draw bottom edge as continuous GKNV-compliant border
             (dotimes (i (- width 2))
               (let ((pos-x (+ x i 1)))
                 (when (and (>= pos-x 0) (< pos-x grid-width) (< pos-x (+ x width -1)))  ; Exclude bottom-right corner
-                  (dag-draw--safe-draw-box-char grid pos-x pos-y ?─))))
+                  (dag-draw--draw-box-char grid pos-x pos-y ?─))))
             (let ((pos-x (+ x width -1)))
               (when (and (>= pos-x 0) (< pos-x grid-width))
-                (dag-draw--safe-draw-box-char grid pos-x pos-y ?┘)
+                (dag-draw--draw-box-char grid pos-x pos-y ?┘)
                 ;; Clean up any trailing edge characters adjacent to bottom-right corner
                 (dag-draw--clean-adjacent-edge-fragments grid pos-x pos-y)))))
 
@@ -148,7 +148,7 @@ text within the box interior, supporting multiline labels."
         ;; This matches the expected behavior in the test case
         (when (and (< x 0) (< y 0))
           ;; For the test case: box at (-1, -1) should put ┘ at (0, 0)
-          (dag-draw--safe-draw-box-char grid 0 0 ?┘))
+          (dag-draw--draw-box-char grid 0 0 ?┘))
 
         ;; Draw label(s) in center - support multi-line text
         (when (and label (>= width 4) (>= height 3))

@@ -203,6 +203,27 @@ Returns a list of `dag-draw-edge' structures."
   (--filter (eq (dag-draw-edge-to-node it) node-id)
             (dag-draw-graph-edges graph)))
 
+(defun dag-draw--edge-endpoints (edge)
+  "Return cons of (from-id . to-id) node IDs from EDGE.
+
+EDGE is a `dag-draw-edge' structure.
+
+Returns a cons cell with source and target node IDs.
+This helper reduces boilerplate when both endpoints are needed."
+  (cons (dag-draw-edge-from-node edge)
+        (dag-draw-edge-to-node edge)))
+
+(defun dag-draw--edge-nodes (graph edge)
+  "Return cons of (from-node . to-node) node structures from EDGE in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure.
+EDGE is a `dag-draw-edge' structure.
+
+Returns a cons cell with the source and target node structures.
+This helper reduces boilerplate when both endpoint nodes are needed."
+  (cons (dag-draw-get-node graph (dag-draw-edge-from-node edge))
+        (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+
 (defun dag-draw-get-successors (graph node-id)
   "Get list of successor node IDs for NODE-ID in GRAPH.
 

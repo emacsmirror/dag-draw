@@ -41,8 +41,9 @@ RANK2 is an integer representing the destination rank.
 Returns the number of edges crossing from nodes in RANK1 to nodes in RANK2."
   (let ((edge-count 0))
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (from-rank (when from-node (dag-draw-node-rank from-node)))
              (to-rank (when to-node (dag-draw-node-rank to-node))))
         (when (and from-rank to-rank
@@ -65,8 +66,9 @@ Returns the highest convergence count as an integer (max edges to one node)."
 
     ;; Count edges to each destination node
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (from-node-rank (when from-node (dag-draw-node-rank from-node)))
              (to-node-rank (when to-node (dag-draw-node-rank to-node))))
         (when (and from-node-rank to-node-rank
@@ -96,8 +98,9 @@ between the ranks.  Affects routing complexity and space requirements.
 Returns maximum horizontal distance as a number."
   (let ((max-distance 0))
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (from-node-rank (when from-node (dag-draw-node-rank from-node)))
              (to-node-rank (when to-node (dag-draw-node-rank to-node))))
         (when (and from-node-rank to-node-rank

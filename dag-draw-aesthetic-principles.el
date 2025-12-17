@@ -52,8 +52,9 @@ higher ranks."
       ;; Count edges that follow hierarchical flow (rank increase)
       (progn
         (dolist (edge (dag-draw-graph-edges graph))
-          (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+          (let* ((nodes (dag-draw--edge-nodes graph edge))
+                 (from-node (car nodes))
+                 (to-node (cdr nodes)))
             (when (and from-node to-node
                        (dag-draw-node-rank from-node)
                        (dag-draw-node-rank to-node)
@@ -80,8 +81,9 @@ means all edges flow in the primary direction (top-down)."
       ;; Determine primary direction (top-down in this case)
       (progn
         (dolist (edge edges)
-          (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-                (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+          (let* ((nodes (dag-draw--edge-nodes graph edge))
+                 (from-node (car nodes))
+                 (to-node (cdr nodes)))
             (when (and from-node to-node
                        (dag-draw-node-rank from-node)
                        (dag-draw-node-rank to-node))
@@ -159,8 +161,9 @@ Returns a hash table with bend metrics:
 
     ;; For each edge, analyze bending characteristics
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (bend-angle (dag-draw--calculate-edge-bend graph from-node to-node)))
 
         (when bend-angle
@@ -211,8 +214,9 @@ Returns a hash table with length metrics:
         (lengths '()))
 
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (length (dag-draw--calculate-edge-length from-node to-node)))
 
         (when length
@@ -255,8 +259,9 @@ all connected nodes are within the proximity threshold (100 units)."
 
     ;; For each pair of connected nodes, check if they're close
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-node (car nodes))
+             (to-node (cdr nodes))
              (edge-distance (dag-draw--calculate-edge-length from-node to-node)))
 
         (when edge-distance

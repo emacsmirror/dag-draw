@@ -157,8 +157,9 @@ Returns a string containing the ASCII representation of the graph."
 
       ;; Draw edges directly using ASCII coordinates (ensure integers)
       (dolist (edge (dag-draw-graph-edges graph))
-        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+        (let* ((nodes (dag-draw--edge-nodes graph edge))
+               (from-node (car nodes))
+               (to-node (cdr nodes))
                (from-x (round (- (or (dag-draw-node-x-coord from-node) 0) min-x)))
                (from-y (round (- (or (dag-draw-node-y-coord from-node) 0) min-y)))
                (to-x (round (- (or (dag-draw-node-x-coord to-node) 0) min-x)))

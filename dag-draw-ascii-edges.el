@@ -503,7 +503,7 @@ Argument SCALE ."
 
 ;;; Enhanced Edge Drawing Functions
 
-(defun dag-draw--ascii-draw-safe-orthogonal-edge (graph edge grid min-x min-y scale)
+(defun dag-draw--ascii-draw-orthogonal-edge (graph edge grid min-x min-y scale)
   "Draw orthogonal EDGE with comprehensive collision avoidance.
 Argument GRAPH ."
   ;; COORDINATE SYSTEM FIX: Use regenerated spline endpoints when available
@@ -555,10 +555,10 @@ Argument GRAPH ."
                  (if connection-points (format "%d points" (length connection-points)) "nil"))
         ;; Fallback to node center connections
         ;; Fallback: use node centers as connection points
-        (dag-draw--ascii-draw-safe-orthogonal-edge graph edge grid min-x min-y scale))))
+        (dag-draw--ascii-draw-orthogonal-edge graph edge grid min-x min-y scale))))
 
 
-(defun dag-draw--ascii-draw-ultra-safe-path-with-port-arrow (grid x1 y1 x2 y2 port-side)
+(defun dag-draw--ascii-draw-path-with-port-arrow (grid x1 y1 x2 y2 port-side)
   "Draw path with absolute safety and port-based arrow direction.
 Argument GRID .
 Argument X1 .
@@ -575,19 +575,23 @@ Argument PORT-SIDE ."
                                  (if (<= (abs (- y1 y2)) 4)
                                      'horizontal-only ; Pure horizontal edge (allow 4-char tolerance)
                                    'horizontal-first)))) ; L-shaped edge        ;; Draw the path with appropriate direction
-        (dag-draw--draw-ultra-safe-l-path grid x1 y1 x2 y2 routing-direction)) ;; Add port-based directional arrow at the endpoint
-      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))(defun dag-draw--draw-ultra-safe-l-path (grid x1 y1 x2 y2 direction)
+        (dag-draw--draw-l-path grid x1 y1 x2 y2 routing-direction)) ;; Add port-based directional arrow at the endpoint
+      (dag-draw--add-port-based-arrow grid x1 y1 x2 y2 port-side))))
+
+(defun dag-draw--draw-l-path (grid x1 y1 x2 y2 direction)
   "Draw L-shaped path with ultra-conservative safety checks."
   (let* ((grid-height (length grid))
-         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    (cond
-                                                                           ;; Pure vertical line
-         ((eq direction 'vertical-only)
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    (cond
+     ;; Pure vertical line
+     ((eq direction 'vertical-only)
           (let ((start-y (min y1 y2))
                 (end-y (max y1 y2)))
             (dotimes (i (1+ (- end-y start-y)))
               (let ((y (+ start-y i)))
-                (dag-draw--draw-char grid x1 y ?│))))) ;; Pure horizontal line - GKNV spline conversion
-         ((eq direction 'horizontal-only)
+                (dag-draw--draw-char grid x1 y ?│)))))
+     ;; Pure horizontal line - GKNV spline conversion
+     ((eq direction 'horizontal-only)
           (let ((start-x (min x1 x2))
                 (end-x (max x1 x2)))
             ;; Draw continuous horizontal line as GKNV spline requires
@@ -635,7 +639,9 @@ Argument PORT-SIDE ."
                               ((and (> y1 y2) (< x1 x2)) ?└) ; Up then right
                               ((and (> y1 y2) (> x1 x2)) ?┘) ; Up then left
                               (t ?┼)))) ; Fallback intersection
-            (dag-draw--draw-char grid x1 y2 corner-char))))))(defun dag-draw--find-actual-boundary-position (grid target-x target-y arrow-char)
+            (dag-draw--draw-char grid x1 y2 corner-char))))))
+
+(defun dag-draw--find-actual-boundary-position (grid target-x target-y arrow-char)
   "Find actual boundary near TARGET for GKNV Section 5.2 compliance.
 Returns (x y) of boundary position where arrow should be placed,
 or nil if none found."
@@ -664,7 +670,9 @@ or nil if none found."
                 (when (< manhattan-dist best-distance)
                   (setq best-pos (list check-x check-y))
                   (setq best-distance manhattan-dist))))))))
-    best-pos))(defun dag-draw--find-nearest-boundary-for-adjacent-placement (grid target-x target-y arrow-char)
+    best-pos))
+
+(defun dag-draw--find-nearest-boundary-for-adjacent-placement (grid target-x target-y arrow-char)
   "Find nearest boundary to place arrow adjacent to.
 Used when main boundary search fails.  This ensures arrows don't
 float in space per GKNV Section 5.2."
@@ -673,18 +681,22 @@ float in space per GKNV Section 5.2."
          (search-radius 25) ; Wider search for fallback
          (any-boundary-chars '(?─ ?│ ?┌ ?┐ ?└ ?┘ ?├ ?┤ ?┬ ?┴ ?┼))
          (best-pos nil)
-         (best-distance most-positive-fixnum))    ;; Search for ANY boundary character nearby
+         (best-distance most-positive-fixnum))
+    ;; Search for ANY boundary character nearby
     (dotimes (dy (1+ (* 2 search-radius)))
       (dotimes (dx (1+ (* 2 search-radius)))
         (let* ((check-x (+ target-x (- dx search-radius)))
                (check-y (+ target-y (- dy search-radius)))
-               (manhattan-dist (+ (abs (- check-x target-x)) (abs (- check-y target-y)))))          (when (and (>= check-x 0) (< check-x grid-width)
+               (manhattan-dist (+ (abs (- check-x target-x)) (abs (- check-y target-y)))))
+          (when (and (>= check-x 0) (< check-x grid-width)
                      (>= check-y 0) (< check-y grid-height)
-                     (<= manhattan-dist search-radius))            (let ((char-at-pos (aref (aref grid check-y) check-x)))
+                     (<= manhattan-dist search-radius))
+            (let ((char-at-pos (aref (aref grid check-y) check-x)))
               (when (memq char-at-pos any-boundary-chars)
                 (when (< manhattan-dist best-distance)
                   (setq best-pos (list check-x check-y))
-                  (setq best-distance manhattan-dist))))))))    ;; If we found a boundary, place arrow adjacent to it
+                  (setq best-distance manhattan-dist))))))))
+    ;; If we found a boundary, place arrow adjacent to it
     (when best-pos
       (let* ((boundary-x (car best-pos))
              (boundary-y (cadr best-pos))
@@ -700,15 +712,19 @@ float in space per GKNV Section 5.2."
               (adj-y (cadr adjacent-pos)))
           (when (and (>= adj-x 0) (< adj-x grid-width)
                      (>= adj-y 0) (< adj-y grid-height))
-            adjacent-pos))))))(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 port-side)
+            adjacent-pos))))))
+
+(defun dag-draw--add-port-based-arrow (grid x1 y1 x2 y2 port-side)
   "Add directional arrow based on actual coordinate direction.
 PORT-SIDE is used as secondary hint."
   (let* ((dx (- x2 x1))
          (dy (- y2 y1))
          (grid-height (length grid))
-         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))    ;; DEBUG: Show coordinates and direction calculation for arrow placement
+         (_grid-width (if (> grid-height 0) (length (aref grid 0)) 0)))
+    ;; DEBUG: Show coordinates and direction calculation for arrow placement
     (message " GRID-ARROW: (%d,%d)->(%d,%d) dx=%d dy=%d port-side=%s"
-             x1 y1 x2 y2 dx dy port-side)    (let* ((arrow-char (cond
+             x1 y1 x2 y2 dx dy port-side)
+    (let* ((arrow-char (cond
                         ;; PRIORITY: Use coordinate-based direction for clear vertical/horizontal cases
                         ((and (= dx 0) (> dy 0)) ?▼) ; Pure vertical downward
                         ((and (= dx 0) (< dy 0)) ?▲) ; Pure vertical upward
@@ -742,7 +758,9 @@ PORT-SIDE is used as secondary hint."
             ;; Final fallback: use calculated position only if no boundaries found anywhere
             (progn
               (message " BOUNDARY-MISSING: No boundary found near (%d,%d), using calculated position" x2 y2)
-              (dag-draw--draw-arrow grid x2 y2 arrow-char))))))))(defun dag-draw--draw-sophisticated-spline-path (grid converted-points)
+              (dag-draw--draw-arrow grid x2 y2 arrow-char))))))))
+
+(defun dag-draw--draw-sophisticated-spline-path (grid converted-points)
   "Draw spline path using GKNV-compliant approach.
 Draws segments between consecutive spline points per GKNV Section 5.2."
   (when (>= (length converted-points) 2)
@@ -755,7 +773,9 @@ Draws segments between consecutive spline points per GKNV Section 5.2."
              (y1 (nth 1 current-point))
              (x2 (nth 0 next-point))
              (y2 (nth 1 next-point)))
-        (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2)))));;; L-shaped path drawing
+        (dag-draw--draw-continuous-path-segment grid x1 y1 x2 y2)))))
+
+;;; L-shaped path drawing
 
 (defun dag-draw--draw-continuous-path-segment (grid x1 y1 x2 y2)
   "Draw a continuous path segment ensuring no gaps or floating characters.

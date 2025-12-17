@@ -62,10 +62,9 @@ Returns a new GRAPH with virtual nodes inserted."
 
     ;; Process each edge from original graph
     (dolist (edge (dag-draw-graph-edges graph))
-      (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-             (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-             (from-rank (dag-draw-node-rank from-node))
-             (to-rank (dag-draw-node-rank to-node))
+      (let* ((nodes (dag-draw--edge-nodes graph edge))
+             (from-rank (dag-draw-node-rank (car nodes)))
+             (to-rank (dag-draw-node-rank (cdr nodes)))
              (rank-span (- to-rank from-rank)))
 
         (if (<= rank-span 1)

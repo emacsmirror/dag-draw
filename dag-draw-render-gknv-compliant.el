@@ -144,8 +144,9 @@ SCALE is a float representing the coordinate scale factor.
 Calculates proper port positions on node boundaries and draws a simple line
 between them."
 
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
 
          ;; Calculate actual node boundaries in grid coordinates
          (from-world-x (dag-draw-node-x-coord from-node))

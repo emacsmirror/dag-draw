@@ -303,8 +303,9 @@ If grid parameters (MIN-X, MIN-Y, SCALE) are provided, uses grid-aware
 port calculation for precise ASCII alignment.
 
 Returns list (from-port to-port) of `dag-draw-point' structures."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
          (result (if (and min-x min-y scale)
                      ;; Use simplified GKNV-compliant port calculation
                      (dag-draw--calculate-distributed-edge-ports graph edge from-node to-node min-x min-y scale)

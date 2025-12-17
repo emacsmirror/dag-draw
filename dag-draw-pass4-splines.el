@@ -56,13 +56,13 @@
 (defun dag-draw--classify-edge (graph edge)
   "Classify EDGE by type: inter-rank, flat, or self-edge.
 Argument GRAPH ."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
-         (from-rank (dag-draw-node-rank from-node))
-         (to-rank (dag-draw-node-rank to-node)))
+  (let* ((endpoints (dag-draw--edge-endpoints edge))
+         (nodes (dag-draw--edge-nodes graph edge))
+         (from-rank (dag-draw-node-rank (car nodes)))
+         (to-rank (dag-draw-node-rank (cdr nodes))))
 
     (cond
-     ((eq (dag-draw-edge-from-node edge) (dag-draw-edge-to-node edge))
+     ((eq (car endpoints) (cdr endpoints))
       'self-edge)
      ((and from-rank to-rank (= from-rank to-rank))
       'flat-edge)
@@ -188,8 +188,9 @@ Argument GRAPH ."
 (defun dag-draw--create-inter-rank-spline (graph edge)
   "Create spline for EDGE between different ranks.
 Argument GRAPH ."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
          (from-rank (dag-draw-node-rank from-node))
          (to-rank (dag-draw-node-rank to-node)))
 
@@ -270,8 +271,9 @@ Argument GRAPH ."
 (defun dag-draw--create-flat-spline (graph edge)
   "Create spline for EDGE between nodes on same rank.
 Argument GRAPH ."
-  (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-         (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+  (let* ((nodes (dag-draw--edge-nodes graph edge))
+         (from-node (car nodes))
+         (to-node (cdr nodes))
          (from-x (dag-draw-node-x-coord from-node))
          (to-x (dag-draw-node-x-coord to-node)))
 
@@ -743,8 +745,9 @@ Argument GRAPH ."
   (dolist (edge (dag-draw-graph-edges graph))
     (let ((spline-points (dag-draw-edge-spline-points edge)))
       (when spline-points
-        (let* ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-               (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge)))
+        (let* ((nodes (dag-draw--edge-nodes graph edge))
+               (from-node (car nodes))
+               (to-node (cdr nodes))
                (clipped-points (dag-draw--clip-spline-endpoints-to-boundaries
                                spline-points from-node to-node)))
           ;; Store clipped splines back in edge

@@ -114,8 +114,9 @@ Returns a list of port junction specifications."
     (let ((port-junctions '()))
       ;; Walk through all edges to find port boundary points
       (dolist (edge (dag-draw-graph-edges graph))
-        (let ((from-node (dag-draw-get-node graph (dag-draw-edge-from-node edge)))
-              (to-node (dag-draw-get-node graph (dag-draw-edge-to-node edge))))
+        (let* ((nodes (dag-draw--edge-nodes graph edge))
+               (from-node (car nodes))
+               (to-node (cdr nodes)))
 
           ;; Check if nodes have coordinates (positioned after GKNV layout)
           (when (and from-node to-node
