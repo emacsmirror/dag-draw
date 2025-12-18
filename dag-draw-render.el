@@ -142,8 +142,15 @@ Returns a string containing the ASCII representation of the graph."
                (marker (ht-get (dag-draw-node-attributes node) :ascii-marker))
                (base-label (dag-draw-node-label node))
                (label (if marker (concat marker base-label) base-label))
-               (width (+ (string-width label) 4))  ; Label (with marker if present) + padding (uses string-width for CJK support)
-               (height 3))  ; Standard node height
+               ;; Use node's calculated dimensions if layout has run (scales to ASCII),
+               ;; otherwise fall back to calculating from label for pre-layout rendering
+               (layout-run-p (dag-draw-graph-max-rank graph))
+               (width (if layout-run-p
+                          (round (dag-draw-node-x-size node))
+                        (+ (string-width label) 4)))
+               (height (if layout-run-p
+                           (round (dag-draw-node-y-size node))
+                         3)))
           ;; Draw node and collect its boundary positions
           (when dag-draw-debug-output
             (message "DEBUG: About to call dag-draw--draw-node-box for %s at (%d,%d) size %dx%d selected=%s"
