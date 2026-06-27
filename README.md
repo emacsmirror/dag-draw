@@ -1528,14 +1528,42 @@ Node attributes control visual appearance in rendered output. Pass as hash table
 ### Edge Operations
 
 ```elisp
-(dag-draw-add-edge graph from-id to-id &optional attributes)
+(dag-draw-add-edge graph from-id to-id &optional weight label attributes)
 ```
-Adds a directed edge from `from-id` to `to-id`.
+Adds a directed edge from `from-id` to `to-id`. Optional `weight` (integer,
+default 1) and `label` (string). Edge attributes (e.g. `:weight`, `:label`) may
+also be passed via the spec form of `dag-draw-create-from-spec`.
 
 ```elisp
-(dag-draw-get-edges graph)
+(dag-draw-graph-edges graph)          ; all edges (list of dag-draw-edge structs)
+(dag-draw-get-edges-from graph node-id) ; edges leaving NODE-ID
+(dag-draw-get-edges-to graph node-id)   ; edges entering NODE-ID
+(dag-draw-find-edge graph from-id to-id) ; the edge between two nodes, or nil
 ```
-Returns list of all edges.
+Query edges of a graph.
+
+### Graph Queries
+
+```elisp
+(dag-draw-get-node-ids graph)         ; list of all node IDs
+(dag-draw-node-count graph)           ; number of nodes
+(dag-draw-edge-count graph)           ; number of edges
+(dag-draw-get-successors graph node-id)   ; node IDs reachable via one out-edge
+(dag-draw-get-predecessors graph node-id) ; node IDs with an edge into NODE-ID
+(dag-draw-get-source-nodes graph)     ; node IDs with no incoming edges
+(dag-draw-get-graph-bounds graph)     ; (min-x min-y max-x max-y) after layout
+```
+
+After layout, node geometry is available via the `dag-draw-node` accessors
+(`dag-draw-node-x-coord`, `-y-coord`, `-x-size`, `-y-size`, `-rank`) and the node
+table via `dag-draw-graph-nodes` — used, for example, for click hit-testing.
+
+### Graph Modification
+
+```elisp
+(dag-draw-remove-node graph node-id)  ; remove a node and its incident edges
+(dag-draw-remove-edge graph from-id to-id) ; remove a single edge
+```
 
 ### Layout
 
@@ -1614,9 +1642,8 @@ Bottlenecks are in Pass 1 (ranking) and Pass 3 (positioning), both of which use 
 
 **Problem:** Your graph has a cycle (A → B → C → A).
 
-**Solution:** DAGs must be acyclic. Remove the edge that creates the cycle.
-
-**Debug:** Use `dag-draw-find-cycle` to identify the problematic edges.
+**Solution:** DAGs must be acyclic. Remove the edge that closes the cycle
+(the back-edge in your dependency chain A → B → C → A).
 
 ### Nodes Overlap in ASCII Output
 
