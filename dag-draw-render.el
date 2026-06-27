@@ -184,75 +184,9 @@ Returns a string containing the ASCII representation of the graph."
     ;; Convert grid to string
     (dag-draw--ascii-grid-to-string grid)))
 
-;; DELETED: dag-draw--convert-gknv-to-ascii-grid - obsolete in ASCII-first architecture
-
-;; DELETED: dag-draw--draw-nodes-gknv-compliant - obsolete in ASCII-first architecture
-
-(defun dag-draw--avoid-ascii-collision (x y width height drawn-nodes)
-  "Adjust node position to avoid collision with already drawn nodes.
-
-X and Y are integers representing the proposed grid position.
-WIDTH and HEIGHT are integers representing node dimensions in grid units.
-DRAWN-NODES is a list of rectangles, each (x1 y1 x2 y2) representing
-already-placed nodes.
-
-Returns a list (adjusted-x adjusted-y) where adjusted-x and adjusted-y
-are integers representing a non-overlapping grid position."
-
-  (let ((current-rect (list x y (+ x width -1) (+ y height -1)))
-        (min-separation 3))  ; Minimum 3-character separation between nodes
-
-    ;; Check for collisions with already drawn nodes
-    (dolist (drawn-rect drawn-nodes)
-      (when (dag-draw--ascii-rectangles-overlap current-rect drawn-rect)
-        ;; Collision detected - move to the right with separation
-        (let ((collision-right (nth 2 drawn-rect)))
-          (setq x (+ collision-right min-separation))
-          (setq current-rect (list x y (+ x width -1) (+ y height -1))))))
-
-    (list x y)))
-
-(defun dag-draw--ascii-rectangles-overlap (rect1 rect2)
-  "Check if two rectangles overlap in ASCII grid space.
-
-RECT1 and RECT2 are lists of the form (left top right bottom) where
-all coordinates are integers in grid space.
-
-Returns t if the rectangles overlap, nil otherwise."
-  (let ((x1-left (nth 0 rect1)) (y1-top (nth 1 rect1))
-        (x1-right (nth 2 rect1)) (y1-bottom (nth 3 rect1))
-        (x2-left (nth 0 rect2)) (y2-top (nth 1 rect2))
-        (x2-right (nth 2 rect2)) (y2-bottom (nth 3 rect2)))
-
-    ;; Rectangles overlap if they overlap in both X and Y dimensions
-    (and (<= x1-left x2-right) (<= x2-left x1-right)
-         (<= y1-top y2-bottom) (<= y2-top y1-bottom))))
 
 
-;; DELETED: dag-draw--draw-edges-gknv-compliant - obsolete in ASCII-first architecture
 
-;; DELETED: dag-draw--draw-edge-with-proper-ports - obsolete in ASCII-first architecture
-
-(defun dag-draw--calculate-boundary-port (center-x center-y width height side)
-  "Calculate port position on node boundary for given SIDE.
-
-CENTER-X and CENTER-Y are numbers representing node center in grid units.
-WIDTH and HEIGHT are numbers representing node dimensions in grid units.
-SIDE is a symbol: one of `top', `bottom', `left', or `right'.
-
-Returns a list (x y) where x and y are integers representing the port
-position on the specified side of the node boundary."
-  (let ((left (round (- center-x (/ width 2))))
-        (right (round (+ center-x (/ width 2))))
-        (top (round (- center-y (/ height 2))))
-        (bottom (round (+ center-y (/ height 2)))))
-
-    (cond
-     ((eq side 'top) (list (round center-x) top))
-     ((eq side 'bottom) (list (round center-x) bottom))
-     ((eq side 'left) (list left (round center-y)))
-     ((eq side 'right) (list right (round center-y)))
-     (t (list (round center-x) (round center-y))))))
 
 (defun dag-draw--get-box-chars (selected-p)
   "Return box-drawing characters based on SELECTED-P.
@@ -367,46 +301,6 @@ used later to exclude these positions from junction character enhancement."
     boundaries))
 
 
-(defun dag-draw--draw-simple-line (grid x1 y1 x2 y2)
-  "Draw a simple line from (X1,Y1) to (X2,Y2) with arrow.
-
-GRID is a 2D vector representing the ASCII character grid (modified in place).
-X1, Y1, X2, Y2 are integers representing start
-and end positions in grid coordinates.
-
-Draws an L-shaped path (vertical first, then horizontal) using line characters
-\(─ │) and adds a directional arrow (▼ ▲ ▶ ◀) at the endpoint.
-
-GKNV-compliant: splines are pre-clipped to boundaries, enabling simple drawing."
-  (let ((grid-height (length grid))
-        (grid-width (if (> (length grid) 0) (length (aref grid 0)) 0)))
-
-    ;; Draw vertical line first
-    (when (not (= y1 y2))
-      (let ((start-y (min y1 y2))
-            (end-y (max y1 y2)))
-        (dotimes (i (1+ (- end-y start-y)))
-          (let ((y (+ start-y i)))
-            (when (and (>= x1 0) (< x1 grid-width) (>= y 0) (< y grid-height))
-              (dag-draw--set-char grid x1 y ?│))))))
-
-    ;; Draw horizontal line
-    (when (not (= x1 x2))
-      (let ((start-x (min x1 x2))
-            (end-x (max x1 x2)))
-        (dotimes (i (1+ (- end-x start-x)))
-          (let ((x (+ start-x i)))
-            (when (and (>= x 0) (< x grid-width) (>= y2 0) (< y2 grid-height))
-              (dag-draw--set-char grid x y2 ?─))))))
-
-    ;; Add arrow at end point
-    (when (and (>= x2 0) (< x2 grid-width) (>= y2 0) (< y2 grid-height))
-      (let ((arrow-char (cond ((> y2 y1) ?▼)  ; Down arrow
-                              ((< y2 y1) ?▲)  ; Up arrow
-                              ((> x2 x1) ?▶)  ; Right arrow
-                              ((< x2 x1) ?◀)  ; Left arrow
-                              (t ?●))))       ; Point
-        (dag-draw--set-char grid x2 y2 arrow-char)))))
 
 ;; GKNV-Compliant Rendering - No Hollow Routing Workarounds Needed
 ;; Splines are now pre-clipped to boundaries, enabling simple line drawing

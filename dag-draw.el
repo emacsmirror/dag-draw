@@ -616,40 +616,6 @@ where dimensions fit the actual text content with appropriate padding."
 
     (cons node-width node-height)))
 
-(defun dag-draw--smart-wrap-text (text max-width)
-  "Wrap TEXT intelligently to fit within MAX-WIDTH.
-
-TEXT is a string to wrap.
-MAX-WIDTH is the maximum number of characters per line (integer).
-
-Breaks at whitespace nearest to the middle of the text for
-balanced line lengths.
-
-Returns a list of wrapped lines (strings)."
-  (if (<= (length text) max-width)
-      (list text)  ; No wrapping needed
-
-    ;; Find the best place to break the text
-    (let* ((target-pos (/ (length text) 2))  ; Ideal break position (middle)
-           (best-pos nil)
-           (best-distance most-positive-fixnum))
-
-      ;; Find whitespace closest to the middle
-      (dotimes (i (length text))
-        (when (= (aref text i) ?\s)  ; Found a space
-          (let ((distance (abs (- i target-pos))))
-            (when (< distance best-distance)
-              (setq best-distance distance)
-              (setq best-pos i)))))
-
-      (if best-pos
-          ;; Split at the best whitespace position
-          (let ((line1 (substring text 0 best-pos))
-                (line2 (substring text (1+ best-pos))))  ; Skip the space
-            (cons line1 (dag-draw--smart-wrap-text line2 max-width)))
-        ;; No good break point found, force break at max-width
-        (list (substring text 0 max-width)
-              (substring text max-width))))))
 
 
 ;;; Graph utility functions
