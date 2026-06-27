@@ -5,6 +5,44 @@ All notable changes to dag-draw.el will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-27
+
+Code-cleanup and bugfix release. No changes to the documented public API.
+
+### Fixed
+
+- **ASCII edge routing**: rank-skipping ("transitive") edges are no longer drawn
+  straight through an intervening node box (which overwrote its label, e.g.
+  `Build` becoming `Bui│d`). Edges now route around node boxes in grid space.
+- **ASCII port junctions**: a node's bottom border now shows the source-port
+  junction where an edge leaves it (`┬`, or `╦` for highlighted/selected nodes),
+  matching the documented junction behaviour.
+- **ASCII whitespace**: rendered output no longer pads every line out to a
+  uniform width or appends trailing blank lines — no more trailing whitespace.
+  Interior and leading spaces are preserved.
+- **Docs accuracy**: the README referenced two functions that never existed
+  (`dag-draw-get-edges`, `dag-draw-find-cycle`); these now point at the real
+  accessors and at `dag-draw-detect-cycles`.
+
+### Changed
+
+- Documentation rewritten following the [Diataxis](https://diataxis.fr/)
+  framework (tutorials / how-to / reference / explanation). The README was
+  condensed from ~1700 lines to ~120. `doc/dag-draw.org` remains the single
+  source for the bundled Info manual.
+
+### Removed
+
+- Removed undocumented GKNV-name function aliases that were never part of the
+  documented public API: `dag-draw-rank`, `dag-draw-ordering`,
+  `dag-draw-position`, `dag-draw-make-splines`, `dag-draw-init-rank`,
+  `dag-draw-generate-spline`, `dag-draw-ρ`. Use `dag-draw-layout-graph`, which
+  runs all four GKNV passes.
+- Large internal cleanup: removed six whole modules' worth of dead/unreachable
+  code and dozens of unused helper functions (~3,900 lines), with no effect on
+  the documented public API. The shipped behaviour is unchanged except for the
+  rendering fixes above.
+
 ## [1.0.0] - 2025-11-17
 
 ### Added

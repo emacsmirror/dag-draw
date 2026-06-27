@@ -30,7 +30,7 @@ General Public License for more details.
 @finalout
 @titlepage
 @title Dag Draw User Manual
-@subtitle for version 1.0.0
+@subtitle for version 1.1.0
 @author Trevoke
 @page
 @vskip 0pt plus 1filll
@@ -49,7 +49,7 @@ that powers Graphviz's @code{dot}.  You declare which nodes connect to which;
 dag-draw decides where everything goes and renders the result as ASCII
 art, SVG, or Graphviz DOT@.
 
-This manual is for Dag Draw version 1.0.0.  It is organized along the
+This manual is for Dag Draw version 1.1.0.  It is organized along the
 four Diataxis documentation quadrants: @emph{Tutorials} teach, @emph{How-To Guides}
 solve specific tasks, @emph{Reference} states the facts, and @emph{Explanation}
 discusses the ideas.

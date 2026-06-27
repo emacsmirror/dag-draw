@@ -5,7 +5,7 @@
 #+TEXINFO_DIR_TITLE: Dag Draw: (dag-draw)
 #+TEXINFO_DIR_DESC: Draw directed acyclic graphs that don't suck
 #+TEXINFO_FILENAME: ../dag-draw.info
-#+SUBTITLE: for version 1.0.0
+#+SUBTITLE: for version 1.1.0
 #+TEXINFO_DEFFN: t
 #+OPTIONS: H:4 num:3 toc:2
 #+PROPERTY: header-args :eval never
@@ -16,7 +16,7 @@ that powers Graphviz's ~dot~.  You declare which nodes connect to which;
 dag-draw decides where everything goes and renders the result as ASCII
 art, SVG, or Graphviz DOT.
 
-This manual is for Dag Draw version 1.0.0.  It is organized along the
+This manual is for Dag Draw version 1.1.0.  It is organized along the
 four Diataxis documentation quadrants: /Tutorials/ teach, /How-To Guides/
 solve specific tasks, /Reference/ states the facts, and /Explanation/
 discusses the ideas.

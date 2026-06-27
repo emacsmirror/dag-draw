@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025
 
 ;; Author: Trevoke
-;; Version: 1.0.0
+;; Version: 1.1.0
 ;; Package-Requires: ((emacs "26.1") (dash "2.19.1") (ht "2.3"))
 ;; Keywords: tools, extensions
 ;; URL: https://codeberg.org/trevoke/dag-draw.el
