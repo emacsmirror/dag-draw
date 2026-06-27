@@ -93,21 +93,15 @@ Returns a string containing the complete ASCII representation."
   ;; Handle empty grid case
   (if (= (length grid) 0)
       ""
-    ;; First pass: convert all rows to trimmed strings and find max display width
-    (let* ((row-strings (mapcar (lambda (row)
-                                  (string-trim-right (apply #'string (append row nil))))
-                                grid))
-           (display-widths (mapcar #'string-width row-strings))
-           (max-display-width (apply #'max display-widths)))
-      ;; Second pass: pad each row to max display width
-      (mapconcat (lambda (row-str)
-                   (let* ((current-width (string-width row-str))
-                          (padding-needed (- max-display-width current-width)))
-                     (if (> padding-needed 0)
-                         (concat row-str (make-string padding-needed ?\s))
-                       row-str)))
-                 row-strings
-                 "\n"))))
+    ;; Convert each row to a string with trailing whitespace stripped, then
+    ;; drop trailing blank rows so the output carries no padding noise.
+    (let ((row-strings (mapcar (lambda (row)
+                                 (string-trim-right (apply #'string (append row nil))))
+                               grid)))
+      (setq row-strings (nreverse row-strings))
+      (while (and row-strings (zerop (length (car row-strings))))
+        (setq row-strings (cdr row-strings)))
+      (string-join (nreverse row-strings) "\n"))))
 
 ;;; Junction Character Enhancement (moved to dag-draw-ascii-junctions.el)
 ;; All junction-related functions have been extracted to dag-draw-ascii-junctions.el

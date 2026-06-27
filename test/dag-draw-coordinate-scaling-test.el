@@ -106,7 +106,7 @@
         ;; Algorithm stability: Should show all nodes with proper connections
         ;; Note: Output length reduced after fixing CJK alignment (trailing whitespace trimmed)
         (expect output :to-be-truthy)
-        (expect (length output) :to-be-greater-than 150)  ; Substantial output for 3-node chain
+        (expect (length output) :to-be-greater-than 100)  ; Substantial output for 3-node chain
         
         ;; Use test harness for comprehensive validation
         (let ((node-validation (dag-draw-test--validate-node-completeness output graph)))

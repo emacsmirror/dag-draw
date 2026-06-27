@@ -223,16 +223,16 @@
         (let ((result (dag-draw--ascii-grid-to-string grid)))
           (expect result :to-equal "HELLO"))))
     
-    (it "should preserve spaces in output"
+    (it "preserves interior spaces but strips trailing whitespace"
       (let ((grid (dag-draw--create-ascii-grid 3 2)))
         ;; Leave some positions as spaces
         (aset (aref grid 0) 0 ?X)
         (aset (aref grid 0) 2 ?Y)
         (aset (aref grid 1) 1 ?Z)
-        
+
         (let ((result (dag-draw--ascii-grid-to-string grid)))
-          ;; GRID STRUCTURE PRESERVATION: Function correctly preserves trailing spaces
-          ;; to maintain grid integrity, as removing them could affect visual layout
-          (expect result :to-equal "X Y\n Z ")))))))))
+          ;; Interior/leading spaces are kept (X Y, and the leading space before
+          ;; Z); only trailing whitespace is removed.
+          (expect result :to-equal "X Y\n Z")))))))))
 
 ;;; dag-draw-ascii-rendering-test.el ends here
