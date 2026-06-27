@@ -159,7 +159,7 @@
         (dag-draw-add-edge graph 'u 'v)
         
         ;; Assign ranks first
-        (dag-draw-rank graph)
+        (dag-draw-rank-graph graph)
         
         (let* ((edge (car (dag-draw-graph-edges graph)))
                (slack (dag-draw--calculate-edge-slack edge graph)))
@@ -179,7 +179,7 @@
         (dag-draw-add-edge graph 'b 'c)
         
         ;; Assign ranks to create tight and non-tight edges
-        (dag-draw-rank graph)
+        (dag-draw-rank-graph graph)
         
         ;; GKNV Figure 2-2: tight_tree() finds maximal tree of tight edges
         (expect (fboundp 'dag-draw--tight-tree) :to-be t)

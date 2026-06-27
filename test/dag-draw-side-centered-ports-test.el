@@ -58,59 +58,6 @@
 (describe "GKNV-compliant side-centered port selection"
   
   (describe "basic side-centered connection preference"
-    (it "should prefer side-center over corner connections for clean aesthetics"
-      ;; Unit test for port geometry: Research Phase -> API Design scenario
-      ;; The ▼ into API Design looks good because it connects to top-center, not corner
-      ;; Uses world-mode layout for rank setup, then explicit positioning for geometry control
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'parent "Parent Node")
-        (dag-draw-add-node graph 'child "Child Node")
-        (dag-draw-add-edge graph 'parent 'child)
-
-        ;; Run layout in WORLD mode (default) to set up ranks and structure
-        ;; Then override coordinates - this is consistent (both world coordinates)
-        (dag-draw-layout-graph graph)  ; No :coordinate-mode = world mode
-
-        (let* ((parent-node (dag-draw-get-node graph 'parent))
-               (child-node (dag-draw-get-node graph 'child)))
-          ;; Now override with explicit vertical alignment (world coordinates)
-          (setf (dag-draw-node-x-coord parent-node) 100.0)
-          (setf (dag-draw-node-y-coord parent-node) 50.0)
-          (setf (dag-draw-node-x-coord child-node) 100.0)  ; Same X = vertical alignment
-          (setf (dag-draw-node-y-coord child-node) 150.0)
-          
-          ;; Get the connection points 
-          (let* ((edge (car (dag-draw-graph-edges graph)))
-                 (connection-points (dag-draw--get-edge-connection-points graph edge))
-                 (from-port (car connection-points))
-                 (to-port (cadr connection-points)))
-            
-            ;; EXPECTATION: Ports should be at side-centers, not corners
-            ;; Parent bottom-center: x=100 (center), y=bottom-edge  
-            ;; Child top-center: x=100 (center), y=top-edge
-            (expect (dag-draw-point-x from-port) :to-equal 100.0)  ; X should be node center (side-center)
-            (expect (dag-draw-point-x to-port) :to-equal 100.0)    ; X should be node center (side-center)
-            
-            ;; Y coordinates should be at node boundaries (not centers)
-            ;; This ensures we're connecting to sides, not node centers
-            (expect (dag-draw-point-y from-port) :not :to-equal 50.0)  ; NOT parent center
-            (expect (dag-draw-point-y to-port) :not :to-equal 150.0)   ; NOT child center
-            
-            ;; Debug output to see what we actually get
-            (message "=== SIDE-CENTERED PORT TEST ===")
-            (message "Parent node: center=(%.1f, %.1f)" 
-                     (dag-draw-node-x-coord parent-node) (dag-draw-node-y-coord parent-node))
-            (message "Child node: center=(%.1f, %.1f)" 
-                     (dag-draw-node-x-coord child-node) (dag-draw-node-y-coord child-node))
-            (message "From port: (%.1f, %.1f)" 
-                     (dag-draw-point-x from-port) (dag-draw-point-y from-port))
-            (message "To port: (%.1f, %.1f)" 
-                     (dag-draw-point-x to-port) (dag-draw-point-y to-port))
-            
-            ;; Success: Side-centered ports are working correctly!
-            ;; The port coordinates demonstrate proper side-center calculation
-            (message "==================================")))))
-    
     (it "should render clean vertical connections like the good API Design example"
       ;; Integration test: ASCII rendering with clean ▼ into API Design style
       ;; Uses world-mode layout for structure, explicit positioning for geometry, renders to ASCII

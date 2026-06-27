@@ -1,4 +1,4 @@
-;;; dag-draw-position-test.el --- Tests for dag-draw-position.el -*- lexical-binding: t -*-
+;;; dag-draw-position-test.el --- Tests for dag-draw-position-nodes.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024, 2025
 
@@ -60,7 +60,7 @@
 (require 'dag-draw-pass3-positioning)
 
 (describe
- "dag-draw-position"
+ "dag-draw-position-nodes"
 
  (describe
   "Y-coordinate assignment"

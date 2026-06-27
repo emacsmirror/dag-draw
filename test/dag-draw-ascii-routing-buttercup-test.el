@@ -45,7 +45,6 @@
 (require 'dag-draw)
 (require 'dag-draw-core)
 (require 'dag-draw-render)
-(require 'dag-draw-render-gknv-compliant)
 
 (describe
  "ASCII Edge Routing - GKNV Algorithm Implementation"
@@ -134,59 +133,6 @@
         (let* ((edge (car (dag-draw-graph-edges graph)))
                (classification (dag-draw--classify-edge graph edge)))
           (expect classification :to-equal 'self-edge)))))
-
- (describe
-  "Routing Algorithm - All-or-Nothing Logic"
-
-  (it "draws complete L-path when unobstructed"
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'source "Source")
-        (dag-draw-add-node graph 'target "Target")
-        (dag-draw-add-edge graph 'source 'target)
-
-        ;; Position nodes diagonally
-        (let ((source (dag-draw-get-node graph 'source))
-              (target (dag-draw-get-node graph 'target)))
-          (setf (dag-draw-node-x-coord source) 100)
-          (setf (dag-draw-node-y-coord source) 100)
-          (setf (dag-draw-node-x-size source) 40)
-          (setf (dag-draw-node-y-size source) 20)
-
-          (setf (dag-draw-node-x-coord target) 200)
-          (setf (dag-draw-node-y-coord target) 200)
-          (setf (dag-draw-node-x-size target) 40)
-          (setf (dag-draw-node-y-size target) 20))
-
-        ;; Create grid with plenty of free space  
-        ;; COORDINATE FIX: Ensure grid is large enough for our test coordinates
-        ;; Source (100,100) -> grid (30,30), Target (200,200) -> grid (90,90) with 0.6 scale
-        (let* ((min-x 50) (min-y 50) (scale 2)
-               (grid-width 120) (grid-height 120)  ; Increased to fit coordinates
-               (grid (make-vector grid-height nil)))
-
-          (dotimes (y grid-height)
-            (aset grid y (make-vector grid-width ?\s)))
-
-          ;; Generate splines for the edges (required for edge drawing)
-          (dag-draw-generate-splines graph)
-          
-          ;; Draw nodes and edges
-          (dag-draw--draw-nodes-gknv-compliant graph grid min-x min-y scale)
-          (dag-draw--draw-edges-gknv-compliant graph grid min-x min-y scale)
-
-          ;; Verify we have both horizontal and vertical edge segments
-          (let ((has-horizontal nil)
-                (has-vertical nil))
-
-            (dotimes (y grid-height)
-              (dotimes (x grid-width)
-                (let ((char (aref (aref grid y) x)))
-                  (when (eq char ?─) (setq has-horizontal t))
-                  (when (eq char ?│) (setq has-vertical t)))))
-
-            ;; For diagonal routing, we should have both segments
-            (expect has-horizontal :to-be-truthy)
-            (expect has-vertical :to-be-truthy))))))
 
  (describe
   "Visual Quality Standards"

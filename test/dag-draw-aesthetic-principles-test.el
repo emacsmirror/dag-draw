@@ -54,7 +54,7 @@
         (dag-draw-add-edge graph 'middle-right 'bottom)
         
         ;; Perform ranking to establish hierarchy
-        (dag-draw-rank graph)
+        (dag-draw-rank-graph graph)
         
         (let ((direction-consistency (dag-draw--measure-directional-consistency graph)))
           ;; Should have high directional consistency (edges point same way)
@@ -97,7 +97,7 @@
         (expect (fboundp 'dag-draw--count-edge-crossings) :to-be t)
         
         ;; Perform layout
-        (dag-draw-rank graph)
+        (dag-draw-rank-graph graph)
         (dag-draw-order-vertices graph)
         (dag-draw-position-nodes graph)
         
@@ -136,7 +136,7 @@
         (expect (fboundp 'dag-draw--measure-edge-lengths) :to-be t)
         
         ;; Perform positioning
-        (dag-draw-rank graph)
+        (dag-draw-rank-graph graph)
         (dag-draw-order-vertices graph)
         (dag-draw-position-nodes graph)
         
@@ -222,7 +222,7 @@
       (dag-draw-add-edge graph 'top 'bottom)
       
       ;; Ranking should consider aesthetic principles
-      (dag-draw-rank graph)
+      (dag-draw-rank-graph graph)
       
       ;; Should have aesthetic evaluation in ranking
       (expect (fboundp 'dag-draw--evaluate-ranking-aesthetics) :to-be t)))
@@ -238,7 +238,7 @@
       (dag-draw-add-edge graph 'a 'c)
       (dag-draw-add-edge graph 'b 'd)
       
-      (dag-draw-rank graph)
+      (dag-draw-rank-graph graph)
       (dag-draw-order-vertices graph)
       
       ;; Ordering should minimize crossings per A2
@@ -254,7 +254,7 @@
       (dag-draw-add-edge graph 'left 'center)
       (dag-draw-add-edge graph 'center 'right)
       
-      (dag-draw-rank graph)
+      (dag-draw-rank-graph graph)
       (dag-draw-order-vertices graph)
       (dag-draw-position-nodes graph)
       

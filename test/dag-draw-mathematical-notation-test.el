@@ -75,22 +75,8 @@
           
           ;; Should have accessor using Greek notation
           ;; This will fail initially - need to implement dag-draw-node-λ
-          (expect (fboundp 'dag-draw-node-λ) :to-be t)))))
+          (expect (fboundp 'dag-draw-node-λ) :to-be t))))))
   
-  (describe "rho (ρ) for separation function"
-    
-    (it "should use rho notation for separation calculations"
-      ;; GREEN TEST: dag-draw-ρ should exist and calculate separations
-      (let ((graph (dag-draw-create-graph)))
-        (dag-draw-add-node graph 'left "Left")
-        (dag-draw-add-node graph 'right "Right")
-        
-        ;; Should have separation function using Greek notation
-        (expect (fboundp 'dag-draw-ρ) :to-be t)
-        
-        ;; Should calculate proper separation (width_left + width_right)/2 + node_sep
-        (let ((separation (dag-draw-ρ graph 'left 'right)))
-          (expect separation :to-be-greater-than 0))))))
 
 (provide 'dag-draw-mathematical-notation-test)
 

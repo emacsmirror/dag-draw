@@ -43,7 +43,6 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'dag-draw-ascii-edges)
 (require 'dag-draw-ascii-grid)
 (require 'dag-draw-core)
 
