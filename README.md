@@ -1552,6 +1552,7 @@ Query edges of a graph.
 (dag-draw-get-predecessors graph node-id) ; node IDs with an edge into NODE-ID
 (dag-draw-get-source-nodes graph)     ; node IDs with no incoming edges
 (dag-draw-get-graph-bounds graph)     ; (min-x min-y max-x max-y) after layout
+(dag-draw-detect-cycles graph)        ; back-edges that create cycles (nil if acyclic)
 ```
 
 After layout, node geometry is available via the `dag-draw-node` accessors
@@ -1642,8 +1643,11 @@ Bottlenecks are in Pass 1 (ranking) and Pass 3 (positioning), both of which use 
 
 **Problem:** Your graph has a cycle (A → B → C → A).
 
-**Solution:** DAGs must be acyclic. Remove the edge that closes the cycle
-(the back-edge in your dependency chain A → B → C → A).
+**Solution:** DAGs must be acyclic. Remove the edge that closes the cycle.
+
+**Debug:** Use `(dag-draw-detect-cycles graph)` to identify the problematic
+edges — it returns the list of back-edges (`dag-draw-edge` structures) that
+create the cycles, i.e. the edges to remove.
 
 ### Nodes Overlap in ASCII Output
 

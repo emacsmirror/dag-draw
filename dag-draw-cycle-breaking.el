@@ -287,6 +287,19 @@ Returns t if any cycles found, nil otherwise."
 
     has-cycle))
 
+(defun dag-draw-detect-cycles (graph)
+  "Return the back-edges that create cycles in GRAPH.
+
+GRAPH is a `dag-draw-graph' structure to check.
+
+Uses the GKNV Section 2.1 DFS edge classification: back-edges are the edges
+that point to an ancestor and therefore close a cycle.  This is the diagnostic
+companion to `dag-draw-simple-has-cycles' \(which only returns t/nil): it tells
+you *which* edges to remove to make GRAPH acyclic.
+
+Returns a list of `dag-draw-edge' structures (empty when GRAPH is acyclic)."
+  (ht-get (dag-draw--classify-edges-gknv graph) 'back-edges))
+
 
 (provide 'dag-draw-cycle-breaking)
 
